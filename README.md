@@ -13,6 +13,10 @@ How versions are kept safe: [`docs/VERSIONING.md`](docs/VERSIONING.md).
 
 User manuals: [Deutsch](help/manual-de.html) · [English](help/manual-en.html) · [Help index](help/README.md)
 
+## Screenshot
+
+[![Yeal on Windows with its embedded YouTube browser and download workflow](docs/screenshots/yeal-main-window.png)](docs/screenshots/yeal-main-window.png)
+
 ## Features (v0.8.x)
 
 ### Downloading
