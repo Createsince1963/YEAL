@@ -11,6 +11,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, Tuple
+from urllib.parse import quote
 
 _servers: Dict[str, Tuple[ThreadingHTTPServer, int]] = {}
 _lock = threading.Lock()
@@ -35,6 +36,15 @@ def serve(folder: Path) -> int:
         threading.Thread(target=server.serve_forever, daemon=True).start()
         _servers[key] = (server, server.server_address[1])
         return _servers[key][1]
+
+
+def page_url(page: Path, mode: str = "file") -> str:
+    """URL for a saved page. file:// is independent; server mode enables online embeds."""
+    page = Path(page).resolve()
+    if mode != "server":
+        return page.as_uri()
+    port = serve(page.parent)
+    return f"http://127.0.0.1:{port}/{quote(page.name)}"
 
 
 def shutdown_all() -> None:

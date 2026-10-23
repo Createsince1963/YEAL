@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.14
+- Saved HTML pages can now open directly from disk (`file://`, the independent default) or through Yeal's optional local Python server (`127.0.0.1`). The server mode keeps embedded YouTube/Vimeo players working while Yeal runs; local-file mode needs no server or running app and links to the original site instead. Switching back to local-file mode also stops an active HTML server.
+- Added the setting under Downloads and documented both modes in the German and English HTML manuals.
+
 ## 0.8.13
 - Album with tracks: the HTML page (player + track list) is now also written into the album folder as `<folder name>.html` when Description or Online player is on.
 - Album playlist (.m3u8) is written the way VLC and Windows players expect: `#EXTENC:UTF-8`, CRLF line ends, single-line titles. (If VLC still refuses it, please send the VLC error text.)

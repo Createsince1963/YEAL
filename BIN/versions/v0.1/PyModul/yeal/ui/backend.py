@@ -20,7 +20,7 @@ from ..core.queue import DownloadQueue
 from ..core import frames as framelib
 from ..core import audioprobe, history, localserve, mp3tags, updater, vault as vaultlib
 from ..core.presets import build_ydl_opts
-from ..core.settings import THEMES, Settings
+from ..core.settings import HTML_OPEN_MODES, THEMES, Settings
 
 def _extras_text(job: DownloadJob) -> str:
     """Short status of the optional description / transcript files."""
@@ -702,15 +702,13 @@ class Backend(QObject):
 
     @Slot(int)
     def openPage(self, job_id: int) -> None:
-        """Open the saved HTML page through a local web server so the online player works."""
+        """Open saved HTML directly or through the optional local server, as configured."""
         page = self._job_page(job_id)
         if page is None:
             self.toast.emit("No HTML page saved for this download.")
             return
-        port = localserve.serve(page.parent)
-        from urllib.parse import quote
         from PySide6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl(f"http://127.0.0.1:{port}/{quote(page.name)}"))
+        QDesktopServices.openUrl(QUrl(localserve.page_url(page, self._settings.html_open_mode)))
 
     @Slot(int)
     def showInFolder(self, job_id: int) -> None:
@@ -999,7 +997,7 @@ class Backend(QObject):
 
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value: Any) -> None:
-        if key not in ("theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags"):
+        if key not in ("theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1008,8 +1006,12 @@ class Backend(QObject):
             return
         if key == "theme" and value not in THEMES:
             return
+        if key == "html_open_mode" and value not in HTML_OPEN_MODES:
+            return
         setattr(self._settings, key, value)
         self._settings.validate()
+        if key == "html_open_mode" and self._settings.html_open_mode == "file":
+            localserve.shutdown_all()
         self._queue.set_max_parallel(self._settings.max_parallel)
         self._save()
 

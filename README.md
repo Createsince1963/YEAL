@@ -40,7 +40,7 @@ User manuals: [Deutsch](help/manual-de.html) Â· [English](help/manual-en.html) Â
   (SRT for video) and shown highlighted and clickable in the HTML page.
 - **Description (HTML, clickable links) and transcript (TXT)**, named like the video.
 - **HTML page with player**: local file player plus optional online player (YouTube / Vimeo); timestamps of tracklists jump in the player.
-  "Open page" serves it on 127.0.0.1 so the online player works.
+  "Open page" can open the independent local file directly (default), or optionally serve it on 127.0.0.1 so the embedded online player works.
 - Cover image and metadata embedded (needs ffmpeg).
 
 ### Image extractor (desktop, needs ffmpeg)

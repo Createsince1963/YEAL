@@ -10,6 +10,7 @@ from typing import List, Optional
 from .models import AUDIO_FORMATS, COOKIE_BROWSERS, MODES, QUALITIES, DownloadOptions
 
 THEMES = ("system", "light", "dark")
+HTML_OPEN_MODES = ("file", "server")
 MAX_PROFILE_NAME = 40
 
 
@@ -66,6 +67,7 @@ class Settings:
     show_browser: bool = True         # Windows: embedded YouTube browser on the Downloads page
     auto_update: bool = True          # keep yt-dlp current (checked every few days)
     ask_mp3_tags: bool = True         # after an MP3 download: ask "edit the MP3 tags?" (the answer defaults to No)
+    html_open_mode: str = "file"      # saved HTML pages: file:// (independent) or local Python HTTP server
     download_dir: str = ""            # empty -> platform default
     rate_limit_kbps: int = 0          # 0 = unlimited
     proxy: str = ""
@@ -85,6 +87,8 @@ class Settings:
             self.theme = "system"
         if self.cookies_browser not in COOKIE_BROWSERS:
             self.cookies_browser = ""
+        if self.html_open_mode not in HTML_OPEN_MODES:
+            self.html_open_mode = "file"
         self.max_parallel = max(1, min(4, int(self.max_parallel or 1)))
         try:
             self.rate_limit_kbps = max(0, min(10_000_000, int(self.rate_limit_kbps)))

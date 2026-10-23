@@ -232,6 +232,16 @@ class GentleModeTests(unittest.TestCase):
 
 
 class LocalServeTests(unittest.TestCase):
+    def test_file_url_needs_no_server(self):
+        from yeal.core import localserve
+        with tempfile.TemporaryDirectory() as d:
+            page = Path(d) / "ä page.html"
+            page.write_text("<p>hi</p>", encoding="utf-8")
+            url = localserve.page_url(page, "file")
+            self.assertTrue(url.startswith("file:///"), url)
+            self.assertIn("%C3%A4%20page.html", url)
+            self.assertEqual(localserve._servers, {})
+
     def test_serves_only_the_folder_and_no_listing(self):
         import urllib.error
         import urllib.request
@@ -240,6 +250,8 @@ class LocalServeTests(unittest.TestCase):
             (Path(d) / "a b.html").write_text("<p>hi</p>", encoding="utf-8")
             port = localserve.serve(Path(d))
             try:
+                self.assertEqual(localserve.page_url(Path(d) / "a b.html", "server"),
+                                 f"http://127.0.0.1:{port}/a%20b.html")
                 body = urllib.request.urlopen(f"http://127.0.0.1:{port}/a%20b.html").read()
                 self.assertEqual(body, b"<p>hi</p>")
                 with self.assertRaises(urllib.error.HTTPError):
@@ -390,16 +402,19 @@ class SettingsTests(unittest.TestCase):
     def test_roundtrip_and_corruption(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "sub" / "settings.json"
-            s = Settings(theme="dark", max_parallel=9, custom_options={"ratelimit": 5})
+            s = Settings(theme="dark", max_parallel=9, html_open_mode="server",
+                         custom_options={"ratelimit": 5})
             s.validate().save(path)
             loaded = Settings.load(path)
             self.assertEqual((loaded.theme, loaded.max_parallel), ("dark", 4))
             self.assertEqual(loaded.custom_options, {"ratelimit": 5})
+            self.assertEqual(loaded.html_open_mode, "server")
             path.write_text("{not json", encoding="utf-8")
             self.assertEqual(Settings.load(path).theme, "system")
             path.write_text(json.dumps({"theme": "light", "unknown": 1}), encoding="utf-8")
             self.assertEqual(Settings.load(path).theme, "light")
             self.assertEqual(Settings.load(Path(d) / "missing.json").get_profile()["max_height"], 1080)
+            self.assertEqual(Settings(html_open_mode="invalid").validate().html_open_mode, "file")
 
     def test_legacy_settings_become_a_profile(self):
         with tempfile.TemporaryDirectory() as d:

@@ -106,6 +106,20 @@ Flickable {
                 AppSwitch { checked: page.s.ask_mp3_tags; onToggled: backend.setSetting("ask_mp3_tags", checked) }
             }
             SettingsRow {
+                label: qsTr("Open saved HTML pages")
+                hint: page.s.html_open_mode === "server"
+                    ? qsTr("Local server (127.0.0.1): embedded YouTube players work while Yeal is running.")
+                    : qsTr("Local file: works without Yeal or a server; YouTube opens on the original site.")
+                stacked: Theme.compact
+                Segmented {
+                    current: page.s.html_open_mode
+                    options: [{ text: qsTr("Local file"), value: "file" },
+                              { text: qsTr("Local server"), value: "server" }]
+                    Layout.preferredWidth: 290
+                    onActivated: (v) => backend.setSetting("html_open_mode", v)
+                }
+            }
+            SettingsRow {
                 label: qsTr("Speed limit")
                 hint: qsTr("In KB/s per download. 0 means unlimited.")
                 AppField {
