@@ -17,9 +17,30 @@ User manuals: [Deutsch](help/manual-de.html) Â· [English](help/manual-en.html) Â
 
 [![Yeal on Windows with its embedded YouTube browser and download workflow](docs/screenshots/yeal-main-window.png)](docs/screenshots/yeal-main-window.png)
 
-**High-quality audio format selection**
-
-[![Yeal dialog for choosing MP3, AAC, or the original audio stream](docs/screenshots/yeal-audio-quality-dialog.png)](docs/screenshots/yeal-audio-quality-dialog.png)
+<table>
+  <tr>
+    <th>High-quality audio selection</th>
+    <th>Download profiles</th>
+  </tr>
+  <tr>
+    <td><a href="docs/screenshots/yeal-audio-quality-dialog.png"><img src="docs/screenshots/yeal-audio-quality-dialog.png" alt="Yeal dialog for choosing MP3, AAC, or the original audio stream"></a></td>
+    <td><a href="docs/screenshots/yeal-profiles.png"><img src="docs/screenshots/yeal-profiles.png" alt="Yeal download profiles"></a></td>
+  </tr>
+  <tr>
+    <th>Settings</th>
+    <th>Video frame extractor</th>
+  </tr>
+  <tr>
+    <td><a href="docs/screenshots/yeal-settings.png"><img src="docs/screenshots/yeal-settings.png" alt="Yeal settings including local HTML page mode"></a></td>
+    <td><a href="docs/screenshots/yeal-frame-extractor.png"><img src="docs/screenshots/yeal-frame-extractor.png" alt="Yeal video frame extractor"></a></td>
+  </tr>
+  <tr>
+    <th colspan="2">Saved HTML player page</th>
+  </tr>
+  <tr>
+    <td colspan="2"><a href="docs/screenshots/yeal-html-export.png"><img src="docs/screenshots/yeal-html-export.png" alt="HTML player page exported by Yeal"></a></td>
+  </tr>
+</table>
 
 ## Features (v0.8.x)
 
