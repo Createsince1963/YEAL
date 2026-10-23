@@ -4,7 +4,8 @@ Video and audio downloader built on [yt-dlp](https://github.com/yt-dlp/yt-dlp), 
 written in Python (PySide6). One code base, two targets: **Windows 11 desktop** and **Android APK**
 (via `pyside6-android-deploy`).
 
-Inspired by the feature set of the Android app Seal. Yeal is an independent, from-scratch implementation:
+Yeal is inspired by [Seal](https://github.com/JunkFood02/Seal), the open-source Android video/audio downloader,
+and its feature set. Yeal is an independent, from-scratch implementation:
 **no Seal source code, name, icon or assets are used**.
 
 Current version: see [`VERSION`](VERSION). Full history: [`CHANGELOG.md`](CHANGELOG.md).
