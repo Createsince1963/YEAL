@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+.venv*/
+data/
+logs/
+keystore.properties
+*.keystore
+*.jks
+.buildozer/
+deployment/
+*.apk
+*.aab
+
+# local working files
+_to_delete/
+_SYNC/
+*.bak
+*.bak[0-9]
+*.tmp
+!Yeal.spec

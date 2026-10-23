@@ -1,0 +1,5 @@
+# Desktop build / dev dependencies. Central Python (Tools_Central\Python) already has these;
+# do NOT pip install into it - this file only documents the versions the project was tested with.
+PySide6==6.11.0
+yt-dlp>=2026.10  # the app self-updates; this is only the dev/test copy
+pyinstaller>=6.21

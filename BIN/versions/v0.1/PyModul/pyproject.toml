@@ -1,0 +1,25 @@
+[project]
+name = "yeal"
+version = "0.8.10"
+requires-python = ">=3.11"
+dependencies = ["PySide6", "yt-dlp", "mutagen"]
+
+[tool.pyside6-project]
+files = [
+  "main.py",
+  "yeal/__init__.py",
+  "yeal/core/__init__.py", "yeal/core/models.py", "yeal/core/presets.py", "yeal/core/audioprobe.py", "yeal/core/album.py", "yeal/core/mp3tags.py", "yeal/core/localserve.py",
+  "yeal/core/settings.py", "yeal/core/engine.py", "yeal/core/queue.py", "yeal/core/updater.py",
+  "yeal/platforms/__init__.py", "yeal/platforms/desktop.py", "yeal/platforms/android.py",
+  "yeal/ui/__init__.py", "yeal/ui/backend.py", "yeal/ui/qml/qmldir",
+  "yeal/ui/qml/AppButton.qml", "yeal/ui/qml/AppField.qml", "yeal/ui/qml/AppMenu.qml",
+  "yeal/ui/qml/AppMenuItem.qml", "yeal/ui/qml/AppSwitch.qml", "yeal/ui/qml/Badge.qml", "yeal/ui/qml/Chip.qml", "yeal/ui/qml/ProgressButton.qml", "yeal/ui/qml/RingButton.qml", "yeal/ui/qml/FramesDialog.qml", "yeal/ui/qml/WorkflowPanel.qml", "yeal/ui/qml/AdminPanel.qml", "yeal/ui/qml/DownloadDetails.qml", "yeal/ui/qml/DuplicateDialog.qml", "yeal/ui/qml/TagsDialog.qml", "yeal/ui/qml/ExternalDriveDialog.qml", "yeal/ui/qml/WebPane.qml", "yeal/ui/qml/StepBar.qml", "yeal/ui/qml/AudioChoiceDialog.qml", "yeal/ui/qml/LiveStreamDialog.qml", "yeal/ui/qml/PlaylistDialog.qml", "yeal/ui/qml/FilmStrip.qml", "yeal/ui/qml/VideoPreview.qml",
+  "yeal/ui/qml/BottomBar.qml", "yeal/ui/qml/DownloadRow.qml", "yeal/ui/qml/DownloadsPage.qml",
+  "yeal/ui/qml/EmptyState.qml", "yeal/ui/qml/Icon.qml", "yeal/ui/qml/IconButton.qml",
+  "yeal/ui/qml/IconPaths.qml", "yeal/ui/qml/Main.qml", "yeal/ui/qml/NavItem.qml",
+  "yeal/ui/qml/ProfileEditor.qml", "yeal/ui/qml/ProfilesPage.qml", "yeal/ui/qml/Segmented.qml",
+  "yeal/ui/qml/SettingsGroup.qml", "yeal/ui/qml/SettingsPage.qml", "yeal/ui/qml/SettingsRow.qml",
+  "yeal/ui/qml/Sidebar.qml", "yeal/ui/qml/Stepper.qml", "yeal/ui/qml/Theme.qml",
+  "yeal/ui/qml/Thumb.qml", "yeal/ui/qml/Toast.qml", "yeal/ui/qml/Splash.qml",
+  "yeal/ui/qml/assets/icon.png", "yeal/ui/qml/assets/logo_card.png", "yeal/ui/qml/assets/logo_mark.png", "yeal/ui/qml/assets/logo_splash.png",
+]
