@@ -17,6 +17,10 @@ User manuals: [Deutsch](help/manual-de.html) Â· [English](help/manual-en.html) Â
 
 [![Yeal on Windows with its embedded YouTube browser and download workflow](docs/screenshots/yeal-main-window.png)](docs/screenshots/yeal-main-window.png)
 
+**High-quality audio format selection**
+
+[![Yeal dialog for choosing MP3, AAC, or the original audio stream](docs/screenshots/yeal-audio-quality-dialog.png)](docs/screenshots/yeal-audio-quality-dialog.png)
+
 ## Features (v0.8.x)
 
 ### Downloading
