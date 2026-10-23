@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yeal – User Manual</title>
+  <meta name="description" content="English user manual for the Yeal video and audio downloader.">
+  <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <img class="logo" src="../docs/Logo.png" alt="Yeal logo">
+      <div>
+        <h1>Yeal User Manual</h1>
+        <p>Download and manage videos, music, playlists, live streams, and companion files.</p>
+        <nav class="lang" aria-label="Language">
+          <a href="manual-de.html" hreflang="de">Deutsch</a>
+          <a href="manual-en.html" aria-current="page">English</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Table of contents">
+      <strong>Contents</strong>
+      <a href="#start">Quick start</a>
+      <a href="#interface">Interface</a>
+      <a href="#download">Download workflow</a>
+      <a href="#audio">Audio and MP3</a>
+      <a href="#playlists">Playlists, albums, live</a>
+      <a href="#browser">YouTube browser</a>
+      <a href="#queue">Queue</a>
+      <a href="#extras">Companion files</a>
+      <a href="#profiles">Profiles</a>
+      <a href="#frames">Image extraction</a>
+      <a href="#settings">Settings</a>
+      <a href="#files">Files and storage</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="#shortcuts">Keyboard shortcuts</a>
+      <a href="#security">Security and legal</a>
+    </nav>
+
+    <main>
+      <section id="start">
+        <h2>Quick start</h2>
+        <p class="lead">A normal download needs only a link, a format, and one click on Download.</p>
+        <ol class="steps">
+          <li>Start Yeal with <code>Run_Yeal.bat</code>.</li>
+          <li>Paste a video or playlist link into the link field, or open the video in the embedded YouTube browser.</li>
+          <li>Select <strong>Video</strong> or <strong>Audio (MP3)</strong> and the profile you want.</li>
+          <li>Optionally enable the description, transcript, online player, lyrics, or album tracks.</li>
+          <li>Click <strong>Download</strong> and answer any selection dialogs.</li>
+        </ol>
+        <div class="note"><strong>Note:</strong> Opening a video in the browser only copies its link into the workflow. Nothing downloads until you confirm it.</div>
+      </section>
+
+      <section id="interface">
+        <h2>The interface</h2>
+        <div class="grid">
+          <div class="card"><h3>Downloads / Workflow</h3><p>Link field, format, profile, optional extras, Download button, and the grouped job list.</p></div>
+          <div class="card"><h3>Profiles</h3><p>Reusable presets for quality, format, subtitles, metadata, lyrics, and album handling.</p></div>
+          <div class="card"><h3>Settings</h3><p>Browser, appearance, target folder, speed, sign-in, proxy, yt-dlp, and advanced options.</p></div>
+          <div class="card"><h3>YouTube browser</h3><p>Displayed beside the workflow on Windows. Swap sides or drag the divider to resize it.</p></div>
+        </div>
+        <p>When the window becomes narrow, Yeal automatically changes to compact navigation at the bottom.</p>
+      </section>
+
+      <section id="download">
+        <h2>Downloading video or audio</h2>
+        <h3>Add links</h3>
+        <ul>
+          <li>Type a link, paste it from the clipboard, or drop it onto the Yeal window.</li>
+          <li>You may paste several HTTP(S) links at once.</li>
+          <li>The embedded browser recognizes the current video, Short, live stream, or playlist automatically.</li>
+        </ul>
+        <h3>Video</h3>
+        <p>Select a video profile and maximum resolution. When video and audio arrive as separate streams, Yeal needs <strong>ffmpeg</strong> to merge them.</p>
+        <h3>Optional content</h3>
+        <p>A profile can save the description as HTML, transcript as TXT, a player page, lyrics, and album tracks. Missing optional content never fails the main download.</p>
+        <div class="success"><strong>Slow connection:</strong> Use one parallel download and set a speed limit so that the embedded player retains enough bandwidth.</div>
+      </section>
+
+      <section id="audio">
+        <h2>Audio, MP3, and tags</h2>
+        <p>Yeal creates MP3 files at 320 kbps. If a source exceeds normal streaming quality, a dialog can also offer AAC/M4A, the original stream, and FLAC for a lossless source.</p>
+        <ul>
+          <li><strong>MP3:</strong> broadest compatibility and Yeal's recommended option.</li>
+          <li><strong>AAC/M4A:</strong> good quality without MP3 re-encoding when a suitable stream exists.</li>
+          <li><strong>Original:</strong> keeps the supplied audio stream unchanged.</li>
+          <li><strong>FLAC:</strong> useful only when the source itself is lossless.</li>
+        </ul>
+        <p>After an MP3 download, Yeal may ask whether to edit the automatically discovered tags. You can change title, artist, album, genre, year, mood, keywords, and comment. “No” is the default; automatic tags remain in the file either way.</p>
+      </section>
+
+      <section id="playlists">
+        <h2>Playlists, albums, and live streams</h2>
+        <h3>Playlists</h3>
+        <p>A playlist link opens an item list. Choose individual entries, use <kbd>Shift</kbd> + click for a range, or <kbd>Ctrl</kbd> + <kbd>A</kbd> for all. Numbered files and an HTML playlist are saved under <code>Playlists\Name</code>.</p>
+        <h3>Albums from timestamps</h3>
+        <p>When Yeal recognizes a track list in the description, choose “Tracks only,” “Tracks + full file,” or “No thanks.” Split tracks receive names, album and track numbers, and an M3U8 playlist.</p>
+        <h3>Live streams</h3>
+        <p>For a live stream, choose recording until the end, 15/30 minutes, 1/2 hours, or a custom duration. Time limits require ffmpeg. You can cancel an active recording in the download list.</p>
+      </section>
+
+      <section id="browser">
+        <h2>Embedded YouTube browser</h2>
+        <p>On Windows, Yeal uses Microsoft Edge WebView2; it does not bundle another browser. Your sign-in is retained in Yeal's data folder.</p>
+        <ul>
+          <li>Back, Forward, Reload, and YouTube Home sit above the web page.</li>
+          <li>“Use this link” copies the current address into the workflow again.</li>
+          <li>The browser button shows or hides the page; the stack button swaps the sides.</li>
+          <li>Drag the divider to change the saved width.</li>
+          <li>The page follows Yeal's light or dark theme.</li>
+        </ul>
+        <div class="warning"><strong>Ad blocking:</strong> This feature is experimental and can interfere with YouTube. Disable it and restart Yeal if the site behaves unexpectedly.</div>
+      </section>
+
+      <section id="queue">
+        <h2>Queue and download list</h2>
+        <p>Jobs are grouped by date. Narrow the list with All, Active, Queued, Done, and Failed filters or the search field.</p>
+        <ul>
+          <li><strong>Cancel:</strong> stops a queued or running job.</li>
+          <li><strong>Retry:</strong> starts a failed or cancelled job again.</li>
+          <li><strong>Remove:</strong> removes the list entry, not necessarily the saved file.</li>
+          <li><strong>Details:</strong> shows the path, status, and technical error.</li>
+          <li><strong>Show in folder / Play in VLC:</strong> available for completed files.</li>
+        </ul>
+        <p>For a known link, Yeal asks whether to download it again or open the existing file.</p>
+      </section>
+
+      <section id="extras">
+        <h2>Companion files</h2>
+        <table>
+          <thead><tr><th>Option</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>Description</td><td>An HTML file with clickable links.</td></tr>
+            <tr><td>Transcript</td><td>A readable TXT file made from available captions.</td></tr>
+            <tr><td>Online player</td><td>An HTML page with a local player and optional YouTube/Vimeo embed.</td></tr>
+            <tr><td>Lyrics</td><td>TXT and timed LRC; SRT for video when available.</td></tr>
+            <tr><td>Cover/metadata</td><td>Embedded into supported outputs using ffmpeg.</td></tr>
+          </tbody>
+        </table>
+        <p>“Open page” starts a local server bound only to <code>127.0.0.1</code> for the selected folder, allowing online embeds to work.</p>
+      </section>
+
+      <section id="profiles">
+        <h2>Using profiles</h2>
+        <p>Profiles store frequently used combinations. They can include format, quality cap, audio format, subtitles, playlist behavior, metadata, album splitting, and lyrics.</p>
+        <ol>
+          <li>Open the <strong>Profiles</strong> page.</li>
+          <li>Select an existing profile or create a new one.</li>
+          <li>Configure it, assign a clear name, and save it.</li>
+          <li>Select the profile from the workflow.</li>
+        </ol>
+      </section>
+
+      <section id="frames">
+        <h2>Extracting images from video</h2>
+        <p>This desktop feature requires ffmpeg. Open it with the grid button in the workflow.</p>
+        <ol class="steps">
+          <li>Select a downloaded video or drop a video file from Explorer.</li>
+          <li>Choose start and end with the red handles or enter time values.</li>
+          <li>Select an interval and PNG or JPG.</li>
+          <li>Press “Create images.”</li>
+        </ol>
+        <p>Images go into a dedicated subfolder under <code>Frames</code>. Intervals below one second are available only for Shorts up to three minutes.</p>
+      </section>
+
+      <section id="settings">
+        <h2>Important settings</h2>
+        <table>
+          <thead><tr><th>Setting</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td>YouTube browser</td><td>Shows or hides WebView2 on the Downloads page.</td></tr>
+            <tr><td>Download folder</td><td>Destination for video, audio, playlists, frames, and companion files.</td></tr>
+            <tr><td>Parallel downloads</td><td>One to four simultaneous jobs.</td></tr>
+            <tr><td>Speed limit</td><td>KB/s per download; 0 means unlimited.</td></tr>
+            <tr><td>Gentle mode</td><td>Adds pauses and longer waits after errors; recommended.</td></tr>
+            <tr><td>Browser login</td><td>Optionally reads Firefox, Edge, or Chrome cookies for protected content.</td></tr>
+            <tr><td>Proxy</td><td>Optional HTTP or SOCKS address.</td></tr>
+            <tr><td>yt-dlp</td><td>Automatic checks or a manual update.</td></tr>
+            <tr><td>Advanced options</td><td>Safe extra yt-dlp options supplied as JSON.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="files">
+        <h2>Files and storage locations</h2>
+        <ul>
+          <li><code>Video\</code> – video downloads</li>
+          <li><code>Audio\</code> – audio and MP3 downloads</li>
+          <li><code>Playlists\Name\</code> – selected playlist items</li>
+          <li><code>Frames\Video\</code> – extracted still images</li>
+        </ul>
+        <p>Yeal can offer newly connected USB or external drives as targets and displays free and total space. The last 500 completed jobs remain in history.</p>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>Troubleshooting</h2>
+        <h3>Video buffers while a download is active</h3>
+        <p>Set parallel downloads to 1 and choose a download rate below the available connection speed. This controls bandwidth, not the YouTube player's own buffer.</p>
+        <h3>A video restarts after a dialog</h3>
+        <p>This is not ordinary network buffering. Yeal must not recreate the browser view while a dialog is open. Test with the current Python source and report which dialog triggered it.</p>
+        <h3>YouTube downloads do not work</h3>
+        <p>In Settings, confirm that yt-dlp is current and a JavaScript runtime (Node.js or Deno) is available. Optional browser login may help with age- or member-restricted content.</p>
+        <h3>Audio and video are not merged</h3>
+        <p>ffmpeg must be available. Without it, Yeal can save only formats already delivered as a single file.</p>
+        <h3>Rate limit or bot check</h3>
+        <p>Keep Gentle mode enabled and wait. Yeal pauses the queue automatically. Repeated immediate retries can extend the restriction.</p>
+        <h3>Missing file or full drive</h3>
+        <p>Check the target folder, free disk space, and write permissions. For external drives, confirm that Windows still assigned the same drive letter.</p>
+      </section>
+
+      <section id="shortcuts">
+        <h2>Keyboard shortcuts</h2>
+        <table>
+          <tbody>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd></td><td>Open Downloads, Profiles, or Settings</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>L</kbd></td><td>Focus the link field</td></tr>
+            <tr><td><kbd>Alt</kbd> + <kbd>←</kbd>/<kbd>→</kbd></td><td>Browser Back or Forward</td></tr>
+            <tr><td><kbd>F5</kbd></td><td>Reload the browser page</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>A</kbd></td><td>Select every playlist entry</td></tr>
+            <tr><td><kbd>Shift</kbd> + click</td><td>Select a playlist range</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="security">
+        <h2>Security, privacy, and legal</h2>
+        <ul>
+          <li>Saved credentials are kept in the Admin vault and protected on Windows by DPAPI plus a password-derived key.</li>
+          <li>The vault locks after five minutes; copied secrets are cleared from the clipboard after 30 seconds.</li>
+          <li>The local HTML preview binds only to <code>127.0.0.1</code>.</li>
+          <li>Download only content for which you have permission or the necessary usage rights.</li>
+        </ul>
+        <p>Project and source code: <a href="https://github.com/Createsince1963/YEAL">github.com/Createsince1963/YEAL</a></p>
+      </section>
+    </main>
+  </div>
+  <footer>Yeal User Manual · For version 0.8.x</footer>
+</body>
+</html>

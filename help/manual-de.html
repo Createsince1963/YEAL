@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yeal – Benutzerhandbuch</title>
+  <meta name="description" content="Deutsches Benutzerhandbuch für den Video- und Audio-Downloader Yeal.">
+  <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <img class="logo" src="../docs/Logo.png" alt="Yeal-Logo">
+      <div>
+        <h1>Yeal Benutzerhandbuch</h1>
+        <p>Videos, Musik, Playlists, Livestreams und Zusatzdateien sicher herunterladen und verwalten.</p>
+        <nav class="lang" aria-label="Sprache">
+          <a href="manual-de.html" aria-current="page">Deutsch</a>
+          <a href="manual-en.html" hreflang="en">English</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Inhaltsverzeichnis">
+      <strong>Inhalt</strong>
+      <a href="#start">Schnellstart</a>
+      <a href="#oberflaeche">Oberfläche</a>
+      <a href="#download">Download durchführen</a>
+      <a href="#audio">Audio und MP3</a>
+      <a href="#playlists">Playlists, Alben, Live</a>
+      <a href="#browser">YouTube-Browser</a>
+      <a href="#warteschlange">Warteschlange</a>
+      <a href="#extras">Zusatzdateien</a>
+      <a href="#profile">Profile</a>
+      <a href="#bilder">Bilder extrahieren</a>
+      <a href="#einstellungen">Einstellungen</a>
+      <a href="#dateien">Dateien und Speicherorte</a>
+      <a href="#fehler">Problemlösung</a>
+      <a href="#tasten">Tastenkürzel</a>
+      <a href="#sicherheit">Sicherheit und Recht</a>
+    </nav>
+
+    <main>
+      <section id="start">
+        <h2>Schnellstart</h2>
+        <p class="lead">Für einen normalen Download reichen Link, Format und ein Klick auf „Download“.</p>
+        <ol class="steps">
+          <li>Yeal über <code>Run_Yeal.bat</code> starten.</li>
+          <li>Einen Video- oder Playlist-Link in das Linkfeld einfügen. Alternativ das Video im eingebetteten YouTube-Browser öffnen.</li>
+          <li><strong>Video</strong> oder <strong>Audio (MP3)</strong> sowie das gewünschte Profil auswählen.</li>
+          <li>Optional Beschreibung, Transkript, Online-Player, Liedtexte oder Albumtitel aktivieren.</li>
+          <li>Auf <strong>Download</strong> klicken und eventuelle Auswahlfenster bestätigen.</li>
+        </ol>
+        <div class="note"><strong>Hinweis:</strong> Ein im Browser geöffnetes Video wird nur in das Linkfeld übernommen. Der Download beginnt erst nach der Bestätigung.</div>
+      </section>
+
+      <section id="oberflaeche">
+        <h2>Die Oberfläche</h2>
+        <div class="grid">
+          <div class="card"><h3>Downloads / Workflow</h3><p>Linkfeld, Format, Profil, Zusatzoptionen, Download-Schaltfläche und die gruppierte Auftragsliste.</p></div>
+          <div class="card"><h3>Profile</h3><p>Wiederverwendbare Voreinstellungen für Qualität, Format, Untertitel, Metadaten, Liedtexte und Alben.</p></div>
+          <div class="card"><h3>Einstellungen</h3><p>Browser, Design, Zielordner, Geschwindigkeit, Anmeldung, Proxy, yt-dlp und erweiterte Optionen.</p></div>
+          <div class="card"><h3>YouTube-Browser</h3><p>Unter Windows neben dem Workflow. Die Seiten lassen sich tauschen und der Trenner kann gezogen werden.</p></div>
+        </div>
+        <p>Bei einem schmalen Fenster wechselt Yeal automatisch auf eine kompakte Navigation am unteren Rand.</p>
+      </section>
+
+      <section id="download">
+        <h2>Video oder Audio herunterladen</h2>
+        <h3>Links hinzufügen</h3>
+        <ul>
+          <li>Link direkt eingeben, aus der Zwischenablage einfügen oder in das Yeal-Fenster ziehen.</li>
+          <li>Mehrere HTTP(S)-Links können gemeinsam eingefügt werden.</li>
+          <li>Im YouTube-Browser wird der aktuelle Video-, Short-, Live- oder Playlist-Link automatisch erkannt.</li>
+        </ul>
+        <h3>Video</h3>
+        <p>Wähle ein Videoprofil und die maximale Auflösung. Für getrennte Bild- und Tonspuren benötigt Yeal <strong>ffmpeg</strong>, um beide Teile zusammenzuführen.</p>
+        <h3>Optionale Inhalte</h3>
+        <p>Je nach Profil können Beschreibung als HTML, Transkript als TXT, eine HTML-Seite mit Player, Liedtexte und Albumtitel erzeugt werden. Fehlende optionale Inhalte stoppen den eigentlichen Download nicht.</p>
+        <div class="success"><strong>Empfehlung bei langsamer Leitung:</strong> In den Einstellungen nur einen parallelen Download verwenden und ein Geschwindigkeitslimit setzen, damit der eingebettete Player genügend Bandbreite behält.</div>
+      </section>
+
+      <section id="audio">
+        <h2>Audio, MP3 und Tags</h2>
+        <p>MP3 wird mit 320 kbit/s erzeugt. Ist die Quelle hochwertiger als ein üblicher Stream, bietet Yeal zusätzlich AAC/M4A, den Originalstream und bei verlustfreier Quelle FLAC an.</p>
+        <ul>
+          <li><strong>MP3:</strong> größte Kompatibilität, von Yeal empfohlen.</li>
+          <li><strong>AAC/M4A:</strong> gute Qualität ohne MP3-Neukodierung, wenn passend verfügbar.</li>
+          <li><strong>Original:</strong> speichert den angebotenen Audiostream unverändert.</li>
+          <li><strong>FLAC:</strong> nur sinnvoll, wenn auch die Quelle verlustfrei ist.</li>
+        </ul>
+        <p>Nach einem MP3-Download kann Yeal fragen, ob die automatisch ermittelten Tags bearbeitet werden sollen. Titel, Interpret, Album, Genre, Jahr, Stimmung, Schlagwörter und Kommentar lassen sich anpassen. „Nein“ ist die Standardantwort; die automatisch gefundenen Tags bleiben trotzdem erhalten.</p>
+      </section>
+
+      <section id="playlists">
+        <h2>Playlists, Alben und Livestreams</h2>
+        <h3>Playlists</h3>
+        <p>Bei einem Playlist-Link erscheint eine Titelliste. Einzelne Einträge auswählen, mit <kbd>Umschalt</kbd> + Klick einen Bereich markieren oder mit <kbd>Strg</kbd> + <kbd>A</kbd> alles wählen. Die Dateien landen nummeriert unter <code>Playlists\Name</code>; zusätzlich wird eine HTML-Playlist erzeugt.</p>
+        <h3>Alben aus Zeitmarken</h3>
+        <p>Erkennt Yeal eine Trackliste in der Beschreibung, stehen „Nur Titel“, „Titel + vollständige Datei“ und „Nein danke“ zur Wahl. Die Einzelstücke erhalten Namen, Album- und Tracknummern sowie eine M3U8-Wiedergabeliste.</p>
+        <h3>Livestreams</h3>
+        <p>Bei einem laufenden Stream fragt Yeal nach der Aufnahmedauer: bis zum Ende, 15/30 Minuten, 1/2 Stunden oder eine eigene Zeit. Zeitbegrenzungen benötigen ffmpeg. Eine laufende Aufnahme kann in der Liste abgebrochen werden.</p>
+      </section>
+
+      <section id="browser">
+        <h2>Eingebetteter YouTube-Browser</h2>
+        <p>Unter Windows nutzt Yeal Microsoft Edge WebView2. Es wird kein zusätzlicher Browser mitgeliefert. Die Anmeldung bleibt im Yeal-Datenordner gespeichert.</p>
+        <ul>
+          <li>Zurück, Vor, Neu laden und YouTube-Startseite befinden sich über der Webseite.</li>
+          <li>„Diesen Link verwenden“ übernimmt den aktuellen Link erneut in den Workflow.</li>
+          <li>Das Browser-Symbol blendet die Webseite ein oder aus; das Stapel-Symbol tauscht die Seiten.</li>
+          <li>Die Breite lässt sich am Trenner verändern und wird gespeichert.</li>
+          <li>Das Design folgt dem hellen oder dunklen Yeal-Design.</li>
+        </ul>
+        <div class="warning"><strong>Werbeblocker:</strong> Die experimentelle Funktion kann YouTube beeinträchtigen. Bei ungewöhnlichem Verhalten deaktivieren und Yeal neu starten.</div>
+      </section>
+
+      <section id="warteschlange">
+        <h2>Warteschlange und Downloadliste</h2>
+        <p>Aufträge werden nach Datum gruppiert. Über die Filter „Alle“, „Aktiv“, „Wartend“, „Fertig“ und „Fehlgeschlagen“ sowie die Suche lässt sich die Liste eingrenzen.</p>
+        <ul>
+          <li><strong>Abbrechen:</strong> stoppt einen wartenden oder laufenden Auftrag.</li>
+          <li><strong>Wiederholen:</strong> startet einen fehlgeschlagenen oder abgebrochenen Auftrag erneut.</li>
+          <li><strong>Entfernen:</strong> entfernt den Eintrag aus der Liste, nicht automatisch die gespeicherte Datei.</li>
+          <li><strong>Details:</strong> zeigt Dateipfad, Status und technische Fehlermeldung.</li>
+          <li><strong>Im Ordner zeigen / mit VLC abspielen:</strong> steht für fertige Dateien zur Verfügung.</li>
+        </ul>
+        <p>Bei einem bereits bekannten Link fragt Yeal, ob erneut heruntergeladen oder die vorhandene Datei geöffnet werden soll.</p>
+      </section>
+
+      <section id="extras">
+        <h2>Zusatzdateien</h2>
+        <table>
+          <thead><tr><th>Option</th><th>Ergebnis</th></tr></thead>
+          <tbody>
+            <tr><td>Beschreibung</td><td>HTML-Datei mit anklickbaren Links.</td></tr>
+            <tr><td>Transkript</td><td>Lesbare TXT-Datei aus vorhandenen Untertiteln.</td></tr>
+            <tr><td>Online-Player</td><td>HTML-Seite mit lokalem Player und optional eingebettetem YouTube-/Vimeo-Player.</td></tr>
+            <tr><td>Liedtexte</td><td>TXT und zeitgesteuerte LRC; bei Videos außerdem SRT, sofern verfügbar.</td></tr>
+            <tr><td>Cover/Metadaten</td><td>Werden mit ffmpeg in unterstützte Ausgabedateien eingebettet.</td></tr>
+          </tbody>
+        </table>
+        <p>„Seite öffnen“ startet ausschließlich für den gewählten Ordner einen lokalen Server auf <code>127.0.0.1</code>, damit eingebettete Online-Player funktionieren.</p>
+      </section>
+
+      <section id="profile">
+        <h2>Profile verwenden</h2>
+        <p>Profile speichern häufig verwendete Kombinationen. Ein Profil kann Format, Qualitätsgrenze, Audioformat, Untertitel, Playlist-Verhalten, Metadaten, Albumaufteilung und Liedtexte enthalten.</p>
+        <ol>
+          <li>Die Seite <strong>Profile</strong> öffnen.</li>
+          <li>Ein vorhandenes Profil auswählen oder ein neues anlegen.</li>
+          <li>Optionen einstellen, einen eindeutigen Namen vergeben und speichern.</li>
+          <li>Im Workflow das Profil aus der Auswahlliste aktivieren.</li>
+        </ol>
+      </section>
+
+      <section id="bilder">
+        <h2>Bilder aus Videos extrahieren</h2>
+        <p>Die Funktion ist auf dem Desktop verfügbar und benötigt ffmpeg. Das Raster-Symbol im Workflow öffnet den Extraktor.</p>
+        <ol class="steps">
+          <li>Ein heruntergeladenes Video auswählen oder eine Videodatei aus dem Explorer hineinziehen.</li>
+          <li>Start und Ende über die roten Griffe oder als Zeitwerte festlegen.</li>
+          <li>Intervall und PNG oder JPG auswählen.</li>
+          <li>„Bilder erstellen“ starten.</li>
+        </ol>
+        <p>Die Bilder werden in einem eigenen Unterordner unter <code>Frames</code> gespeichert. Intervalle unter einer Sekunde sind nur für Shorts bis drei Minuten verfügbar.</p>
+      </section>
+
+      <section id="einstellungen">
+        <h2>Wichtige Einstellungen</h2>
+        <table>
+          <thead><tr><th>Einstellung</th><th>Wirkung</th></tr></thead>
+          <tbody>
+            <tr><td>YouTube-Browser</td><td>Blendet WebView2 auf der Downloadseite ein oder aus.</td></tr>
+            <tr><td>Downloadordner</td><td>Ziel für Video, Audio, Playlists, Frames und Zusatzdateien.</td></tr>
+            <tr><td>Parallele Downloads</td><td>Ein bis vier gleichzeitige Aufträge.</td></tr>
+            <tr><td>Geschwindigkeitslimit</td><td>KB/s je Download; 0 bedeutet unbegrenzt.</td></tr>
+            <tr><td>Schonender Modus</td><td>Pausen und längere Wartezeiten nach Fehlern; empfohlen.</td></tr>
+            <tr><td>Browser-Anmeldung</td><td>Nutzt optional Cookies aus Firefox, Edge oder Chrome für geschützte Inhalte.</td></tr>
+            <tr><td>Proxy</td><td>Optionale HTTP-/SOCKS-Adresse.</td></tr>
+            <tr><td>yt-dlp</td><td>Automatische Prüfung oder manuelle Aktualisierung.</td></tr>
+            <tr><td>Erweiterte Optionen</td><td>Sichere zusätzliche yt-dlp-Optionen als JSON.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="dateien">
+        <h2>Dateien und Speicherorte</h2>
+        <ul>
+          <li><code>Video\</code> – Videodownloads</li>
+          <li><code>Audio\</code> – Audio- und MP3-Downloads</li>
+          <li><code>Playlists\Name\</code> – ausgewählte Playlist-Inhalte</li>
+          <li><code>Frames\Video\</code> – extrahierte Einzelbilder</li>
+        </ul>
+        <p>Neue USB- und externe Laufwerke können automatisch als Ziel angeboten werden. Yeal zeigt freien und gesamten Speicherplatz an. Die letzten 500 abgeschlossenen Aufträge bleiben in der Historie.</p>
+      </section>
+
+      <section id="fehler">
+        <h2>Problemlösung</h2>
+        <h3>Video stockt während eines Downloads</h3>
+        <p>Parallele Downloads auf 1 setzen und eine Downloadrate unterhalb der verfügbaren Leitung wählen. Das beeinflusst die Bandbreite, nicht die vom YouTube-Player selbst verwaltete Pufferung.</p>
+        <h3>Ein Video beginnt nach einem Dialog neu</h3>
+        <p>Das ist kein normales Netzwerkpuffern. Yeal darf die Browseransicht während eines Dialogs nicht neu erzeugen. Mit der aktuellen Python-Quelle testen und das Verhalten zusammen mit dem verwendeten Dialog melden.</p>
+        <h3>YouTube-Download funktioniert nicht</h3>
+        <p>Unter Einstellungen prüfen, ob yt-dlp aktuell und eine JavaScript-Laufzeit (Node.js oder Deno) verfügbar ist. Bei Alters- oder Mitgliederbeschränkung kann die optionale Browser-Anmeldung helfen.</p>
+        <h3>Ton-/Videospuren werden nicht zusammengeführt</h3>
+        <p>ffmpeg muss verfügbar sein. Ohne ffmpeg kann Yeal nur Formate speichern, die bereits aus einer einzelnen Datei bestehen.</p>
+        <h3>Rate-Limit oder Bot-Prüfung</h3>
+        <p>Den schonenden Modus aktiviert lassen und warten. Yeal pausiert die Warteschlange automatisch. Häufige Wiederholungen erhöhen das Risiko weiterer Sperren.</p>
+        <h3>Datei fehlt oder Datenträger ist voll</h3>
+        <p>Zielordner, freien Speicherplatz und Schreibrechte prüfen. Bei externen Laufwerken kontrollieren, ob derselbe Laufwerksbuchstabe noch vorhanden ist.</p>
+      </section>
+
+      <section id="tasten">
+        <h2>Tastenkürzel</h2>
+        <table>
+          <tbody>
+            <tr><td><kbd>Strg</kbd> + <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd></td><td>Downloads, Profile oder Einstellungen öffnen</td></tr>
+            <tr><td><kbd>Strg</kbd> + <kbd>L</kbd></td><td>Linkfeld fokussieren</td></tr>
+            <tr><td><kbd>Alt</kbd> + <kbd>←</kbd>/<kbd>→</kbd></td><td>Im Browser zurück oder vor</td></tr>
+            <tr><td><kbd>F5</kbd></td><td>Browserseite neu laden</td></tr>
+            <tr><td><kbd>Strg</kbd> + <kbd>A</kbd></td><td>Alle Playlist-Einträge auswählen</td></tr>
+            <tr><td><kbd>Umschalt</kbd> + Klick</td><td>Playlist-Bereich auswählen</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="sicherheit">
+        <h2>Sicherheit, Datenschutz und Recht</h2>
+        <ul>
+          <li>Gespeicherte Anmeldedaten liegen im Admin-Tresor und werden unter Windows mit DPAPI plus passwortabgeleitetem Schlüssel geschützt.</li>
+          <li>Der Tresor sperrt sich nach fünf Minuten; kopierte Geheimnisse werden nach 30 Sekunden aus der Zwischenablage entfernt.</li>
+          <li>Die lokale HTML-Vorschau bindet nur an <code>127.0.0.1</code>.</li>
+          <li>Nur Inhalte herunterladen, für die eine entsprechende Erlaubnis oder ein Nutzungsrecht besteht.</li>
+        </ul>
+        <p>Projekt und Quellcode: <a href="https://github.com/Createsince1963/YEAL">github.com/Createsince1963/YEAL</a></p>
+      </section>
+    </main>
+  </div>
+  <footer>Yeal Benutzerhandbuch · Stand für Version 0.8.x</footer>
+</body>
+</html>

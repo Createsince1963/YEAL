@@ -10,6 +10,8 @@ Inspired by the feature set of the Android app Seal. Yeal is an independent, fro
 Current version: see [`VERSION`](VERSION). Full history: [`CHANGELOG.md`](CHANGELOG.md).
 How versions are kept safe: [`docs/VERSIONING.md`](docs/VERSIONING.md).
 
+User manuals: [Deutsch](help/manual-de.html) · [English](help/manual-en.html) · [Help index](help/README.md)
+
 ## Features (v0.8.x)
 
 ### Downloading
@@ -100,6 +102,7 @@ BIN/versions/v0.1/PyModul/      the app (this folder is what gets deployed)
   yeal/ui/qml/                  design system (Theme, Icon, controls) + pages and dialogs
 tests/                          test suites (core, QML smoke, local end-to-end)
 docs/                           ARCHITECTURE.md, ANDROID.md, VERSIONING.md
+help/                           German and English HTML user manuals
 ci/build-apk.yml                cloud APK build
 ```
 
