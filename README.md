@@ -35,6 +35,12 @@ User manuals: [Deutsch](help/manual-de.html) Â· [English](help/manual-en.html) Â
     <td><a href="docs/screenshots/yeal-frame-extractor.png"><img src="docs/screenshots/yeal-frame-extractor.png" alt="Yeal video frame extractor"></a></td>
   </tr>
   <tr>
+    <th colspan="2">Compact layout and profile menu</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><a href="docs/screenshots/yeal-compact-profile-menu.png"><img width="420" src="docs/screenshots/yeal-compact-profile-menu.png" alt="Compact Yeal download workflow with the profile menu open"></a></td>
+  </tr>
+  <tr>
     <th colspan="2">Saved HTML player page</th>
   </tr>
   <tr>
