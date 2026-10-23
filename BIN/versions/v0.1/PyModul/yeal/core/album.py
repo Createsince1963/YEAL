@@ -48,17 +48,23 @@ def tag_track(ffmpeg: str, path: Path, album: str, artist: str, number: int, tot
 
 
 def write_playlist(folder: Path, name: str, tracks: List[Path], chapters: list) -> Path:
-    """UTF-8 extended M3U with relative paths, in track order."""
-    lines = ["#EXTM3U", f"#PLAYLIST:{name}"]
+    """UTF-8 extended M3U with relative paths, in track order. VLC and Windows players are picky: the encoding is
+    declared (#EXTENC), lines end with CRLF, and the title line has no characters that confuse the parser."""
+    lines = ["#EXTM3U", "#EXTENC:UTF-8", f"#PLAYLIST:{_one_line(name)}"]
     for i, t in enumerate(tracks):
         ch = chapters[i] if i < len(chapters) else {}
         secs = int(round(float(ch.get("end_time", 0) or 0) - float(ch.get("start_time", 0) or 0)))
         title = track_title(chapters, i + 1, t)
-        lines += [f"#EXTINF:{secs if secs > 0 else -1},{title}", t.name]
+        lines += [f"#EXTINF:{secs if secs > 0 else -1},{_one_line(title)}", t.name]
     safe = re.sub(r'[<>:"/\\|?*]', "_", name)[:100] or "playlist"
     out = Path(folder) / f"{safe}.m3u8"
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with open(out, "w", encoding="utf-8", newline="") as fh:
+        fh.write("\r\n".join(lines) + "\r\n")
     return out
+
+
+def _one_line(text: str) -> str:
+    return re.sub(r"[\r\n]+", " ", str(text)).strip()
 
 
 def track_title(chapters: list, number: int, path: Path) -> str:

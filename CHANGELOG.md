@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.13
+- Album with tracks: the HTML page (player + track list) is now also written into the album folder as `<folder name>.html` when Description or Online player is on.
+- Album playlist (.m3u8) is written the way VLC and Windows players expect: `#EXTENC:UTF-8`, CRLF line ends, single-line titles. (If VLC still refuses it, please send the VLC error text.)
+
 ## 0.8.12
 - YouTube view: dialogs (export to MP3, audio choice, playlist, ...) no longer interrupt the page. The web view is no longer destroyed while a dialog is open (that restarted the video); it is collapsed under the dialog and expanded again, and the page keeps playing. If the view comes back with a wrong size it is re-laid out, and only after repeated failures re-created as before.
 

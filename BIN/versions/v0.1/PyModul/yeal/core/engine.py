@@ -269,6 +269,21 @@ class Engine:
         if written:
             job.filename = str(folder)
 
+    def _album_page(self, job: DownloadJob, info: dict, folder: Path) -> None:
+        """Album with tracks: write `<album folder>/<folder name>.html` (player + track list) into the album folder."""
+        chapters = info.get("chapters") or []
+        items = []
+        for i, t in enumerate(album.tracks_in(folder), 1):
+            ch = chapters[i - 1] if i <= len(chapters) else {}
+            secs = float(ch.get("end_time", 0) or 0) - float(ch.get("start_time", 0) or 0)
+            items.append({"index": i, "title": album.track_title(chapters, i, t), "file": t.name,
+                          "duration": fmt_duration(secs) if secs > 0 else "", "page": ""})
+        if items:
+            extras.write_playlist_page(folder, str(info.get("title") or folder.name),
+                                       str(info.get("uploader") or info.get("channel") or ""),
+                                       str(info.get("webpage_url") or job.url), items,
+                                       job.options.mode, job.options.html_theme)
+
     def run(self, job: DownloadJob, cancel: threading.Event,
             notify: Callable[[DownloadJob], None]) -> None:
         self.ctx.ensure_dirs()
@@ -440,6 +455,8 @@ class Engine:
                     album.finish(self.ctx.ffmpeg, folder, info.get("title") or folder.name,
                                  info.get("artist") or info.get("uploader") or info.get("channel") or "",
                                  info.get("chapters") or [])
+                    if job.options.save_description or job.options.online_player:
+                        self._album_page(job, info, folder)
                     if not job.options.keep_whole and job.filename and Path(job.filename).is_file():
                         try:   # tracks only: remove the full file, the job now points at the album folder
                             Path(job.filename).unlink()
