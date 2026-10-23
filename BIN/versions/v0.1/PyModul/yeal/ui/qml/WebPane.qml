@@ -11,11 +11,42 @@ Item {
     property bool suspended: false      // native view cannot sit under QML popups -> hide it then
     signal videoLink(string url)
 
-    // The native web view sits in a Loader (see webHost). A native view that was hidden and shown again keeps a
-    // stale size (blank white box), so while a dialog is open it is destroyed and created fresh afterwards,
-    // exactly like at start; lastUrl brings the user back to the page they were on.
+    // The native web view sits in a Loader (see webHost). While a dialog is open the view is NOT destroyed (that
+    // restarted the video and lost the page): it is collapsed to 2x2 px under the dialog and expanded again
+    // afterwards, so the page keeps playing. A native view can come back with a stale size (blank white box);
+    // after every expand the page's inner size is measured and the geometry nudged. Only if that fails
+    // repeatedly the view is re-created (rebuild) and lastUrl brings the user back to the page.
     readonly property var wv: webHost.item
     property string lastUrl: ""
+    readonly property bool hidden: suspended || testSuspend
+    property bool rebuilding: false
+    property int pad: 1
+    property int fixTries: 0
+    function measure(cb) {
+        pane.run("window.innerWidth+','+window.innerHeight", function (r) {
+            var a = String(r).replace(/"/g, "").split(",")
+            var w = parseFloat(a[0]), h = parseFloat(a[1])
+            cb(w > 0 && h > 0 && !!pane.wv && pane.wv.width > 0 && pane.wv.height > 0
+               && w >= pane.wv.width * 0.94 && w <= pane.wv.width * 1.06
+               && h >= pane.wv.height * 0.94 && h <= pane.wv.height * 1.06)
+        })
+    }
+    function relayout() { if (hidden || rebuilding) return; fixTries = 0; nudge.restart(); fixTimer.restart() }
+    function rebuild() { rebuilding = true; rebuildTimer.restart() }
+    Timer { id: rebuildTimer; interval: 80; onTriggered: pane.rebuilding = false }
+    // nudge: change the margin for a moment so the native view gets a new geometry
+    Timer { id: nudge; interval: 120; onTriggered: { pane.pad = 3; nudgeBack.restart() } }
+    Timer { id: nudgeBack; interval: 80; onTriggered: pane.pad = 1 }
+    Timer {
+        id: fixTimer
+        interval: 600
+        onTriggered: pane.measure(function (ok) {
+            if (ok || pane.hidden) return
+            if (pane.fixTries++ < 5) { nudge.restart(); fixTimer.restart() }
+            else pane.rebuild()
+        })
+    }
+    onHiddenChanged: if (!hidden) relayout()
 
     // TEST HOOK (remove after testing): with --selftest a dialog is simulated 8-11 s after start.
     property bool testSuspend: false
@@ -212,11 +243,15 @@ Item {
             clip: true
             border.width: 1
             border.color: Theme.separator
+            onWidthChanged: pane.relayout()      // window resized / maximized: the native view can keep its old size
+            onHeightChanged: pane.relayout()
             Loader {
                 id: webHost
-                anchors.fill: parent
-                anchors.margins: 1
-                active: !pane.suspended && !pane.testSuspend
+                x: pane.pad
+                y: pane.pad
+                width: pane.hidden ? 2 : parent.width - 2 * pane.pad
+                height: pane.hidden ? 2 : parent.height - 2 * pane.pad
+                active: !pane.rebuilding
                 sourceComponent: webComp
             }
             Component {

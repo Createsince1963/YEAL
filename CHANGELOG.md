@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.12
+- YouTube view: dialogs (export to MP3, audio choice, playlist, ...) no longer interrupt the page. The web view is no longer destroyed while a dialog is open (that restarted the video); it is collapsed under the dialog and expanded again, and the page keeps playing. If the view comes back with a wrong size it is re-laid out, and only after repeated failures re-created as before.
+
 ## 0.8.11
 - Browser view: Back / Forward work again after a dialog. The web view is re-created when a dialog opens, which wiped its history; Yeal now keeps its own page history as a fallback. Back uses a proper left arrow icon.
 - Browser view: the sound is muted during ads and restored afterwards again (this was lost when WebPane.qml was overwritten); the ad skipper no longer leaves the video muted.
