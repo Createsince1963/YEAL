@@ -11,32 +11,54 @@ Item {
     property bool suspended: false      // native view cannot sit under QML popups -> hide it then
     signal videoLink(string url)
 
+    // The native web view sits in a Loader (see webHost). A native view that was hidden and shown again keeps a
+    // stale size (blank white box), so while a dialog is open it is destroyed and created fresh afterwards,
+    // exactly like at start; lastUrl brings the user back to the page they were on.
+    readonly property var wv: webHost.item
+    property string lastUrl: ""
+
+    // TEST HOOK (remove after testing): with --selftest a dialog is simulated 8-11 s after start.
+    property bool testSuspend: false
+    Timer { interval: 8000; running: Qt.application.arguments.indexOf("--selftest") >= 0; onTriggered: pane.testSuspend = true }
+    Timer { interval: 11000; running: Qt.application.arguments.indexOf("--selftest") >= 0; onTriggered: pane.testSuspend = false }
+    function run(js, cb) {
+        if (!wv) return
+        if (cb) wv.runJavaScript(js, cb)
+        else wv.runJavaScript(js)
+    }
+    function reload() { if (wv) wv.reload() }
+    function navigate(u) { if (wv) wv.url = u; else lastUrl = u }
+
     property string live: ""           // address read from the page itself (see the poll timer)
     property string lastPublished: ""
-    readonly property string current: live !== "" ? live : web.url.toString()
+    readonly property string current: live !== "" ? live : (wv ? wv.url.toString() : lastUrl)
     readonly property var linkPattern: /^https?:\/\/((www|m|music)\.)?(youtube\.com\/(watch|shorts|playlist|live)|youtu\.be\/)/i
 
     // Follow the app theme: YouTube keeps its theme in the PREF cookie (f6 = 400 dark). The cookie is
     // merged (other YouTube settings stay) and the page is reloaded once when the value changed.
     readonly property bool dark: Theme.dark
+    // The reload runs at most once per theme change: if YouTube rewrites the PREF cookie itself (signed-in account,
+    // consent page) the value would never match and the page would reload forever (Back/Forward/Reload impaired).
+    property int themeReloads: 0
     function applyTheme() {
-        if (!/^https?:\/\/([\w-]+\.)?youtube\.com\//i.test(current))
+        if (!/^https?:\/\/([\w-]+\.)?youtube\.com\//i.test(current) || themeReloads >= 1)
             return
-        web.runJavaScript("(function(dark){var m=document.cookie.match(/(?:^|; )PREF=([^;]*)/);"
+        themeReloads++
+        pane.run("(function(dark){var m=document.cookie.match(/(?:^|; )PREF=([^;]*)/);"
             + "var parts=m?m[1].split('&').filter(function(x){return x&&x.indexOf('f6=')!==0}):[];"
             + "var old=m?(m[1].split('&').filter(function(x){return x.indexOf('f6=')===0})[0]||''):'';"
             + "var want=dark?'f6=400':'f6=80000';if(old===want)return;parts.push(want);"
             + "document.cookie='PREF='+parts.join('&')+'; domain=.youtube.com; path=/; max-age=31536000; secure';"
             + "location.reload()})(" + (dark ? "true" : "false") + ")")
     }
-    onDarkChanged: applyTheme()
+    onDarkChanged: { themeReloads = 0; applyTheme() }
 
     // Video ads: hide ad slots, press "Skip", and jump to the end of an ad that cannot be skipped.
     // (Blocking the ad domains alone does not help: YouTube serves its own ads from its own servers.)
     function applyAdScript() {
         if (!backend.settings.adblock_experimental || !/^https?:\/\/([\w-]+\.)?youtube\.com\//i.test(current))
             return
-        web.runJavaScript("(function(){if(window.__yealAds)return;window.__yealAds=1;"
+        pane.run("(function(){if(window.__yealAds)return;window.__yealAds=1;"
             + "var s=document.createElement('style');s.textContent='ytd-ad-slot-renderer,#player-ads,"
             + "ytd-banner-promo-renderer,ytd-statement-banner-renderer,ytd-in-feed-ad-layout-renderer,"
             + ".ytp-ad-overlay-container,ytd-promoted-sparkles-web-renderer,#masthead-ad{display:none!important}';"
@@ -45,8 +67,24 @@ Item {
             + "if(!p||!p.classList.contains('ad-showing'))return;"
             + "var b=document.querySelector('.ytp-skip-ad-button,.ytp-ad-skip-button-modern,.ytp-ad-skip-button');"
             + "if(b){b.click();return}"
-            + "var v=p.querySelector('video');if(v&&isFinite(v.duration)&&v.duration>0){v.muted=true;v.currentTime=v.duration}"
+            + "var v=p.querySelector('video');if(v&&isFinite(v.duration)&&v.duration>0){v.currentTime=v.duration}"
             + "},400)})()")
+    }
+
+    // Mute while a YouTube ad runs, restore the sound when the video itself plays. The player marks an ad
+    // with the class "ad-showing" on .html5-video-player; that is polled 5x per second. The mute state the
+    // user had before the ad is remembered and put back (a user who muted the video stays muted).
+    function applyMuteScript() {
+        if (!/^https?:\/\/([\w-]+\.)?youtube\.com\//i.test(current))
+            return
+        pane.run("(function(){if(window.__yealMute)return;window.__yealMute=1;var ours=false,prev=false;"
+            + "function isM(p,v){return typeof p.isMuted==='function'?p.isMuted():v.muted}"
+            + "function setM(p,v,m){if(typeof p.mute==='function'&&typeof p.unMute==='function'){m?p.mute():p.unMute()}v.muted=m}"
+            + "setInterval(function(){var p=document.querySelector('.html5-video-player');if(!p)return;"
+            + "var v=p.querySelector('video');if(!v)return;"
+            + "var ad=p.classList.contains('ad-showing')||p.classList.contains('ad-interrupting');"
+            + "if(ad){if(!ours){prev=isM(p,v);ours=true}if(!isM(p,v)||!v.muted)setM(p,v,true)}"
+            + "else if(ours){ours=false;setM(p,v,prev)}},200)})()")
     }
 
     // Clean link of the page: a watch page keeps only the video id (no mix/radio list, time stamp, tracking).
@@ -54,17 +92,56 @@ Item {
         var m = /^https?:\/\/(?:www\.|m\.|music\.)?youtube\.com\/watch\?(?:.*&)?v=([\w-]{6,})/i.exec(u)
         return m ? "https://www.youtube.com/watch?v=" + m[1] : u
     }
+    // Own page history. The native view is destroyed while a dialog is open and created fresh afterwards, so its
+    // history (and with it Back) was gone. Every address the view reports is kept here; Back/Forward use the
+    // page's own history first (instant in-page navigation) and fall back to this list when that does nothing.
+    property var navStack: []
+    property int navIndex: -1
+    function track(u) {
+        u = String(u)
+        if (!/^https?:\/\//i.test(u)) return
+        var s = navStack, i = navIndex
+        if (i >= 0 && s[i] === u) return
+        if (i > 0 && s[i - 1] === u) { navIndex = i - 1; return }
+        if (i >= 0 && i < s.length - 1 && s[i + 1] === u) { navIndex = i + 1; return }
+        s = s.slice(0, i + 1)
+        s.push(u)
+        if (s.length > 60) s = s.slice(s.length - 60)
+        navStack = s
+        navIndex = s.length - 1
+    }
+    function stepStack(d) {
+        var i = navIndex + d
+        if (i >= 0 && i < navStack.length) pane.navigate(navStack[i])
+    }
+    function histStep(d) {
+        pane.run("location.href", function (before) {
+            pane.run(d < 0 ? "history.back()" : "history.forward()")
+            stepCheck.before = String(before)
+            stepCheck.dir = d
+            stepCheck.restart()
+        })
+    }
+    Timer {      // the page history did not move (fresh view, or its start) -> use the own list
+        id: stepCheck
+        property string before: ""
+        property int dir: -1
+        interval: 900
+        onTriggered: pane.run("location.href", function (now) {
+            if (String(now) === stepCheck.before) pane.stepStack(stepCheck.dir)
+        })
+    }
     function goBack() {
-        if (web.canGoBack) web.goBack()
-        else web.runJavaScript("history.back()")
+        if (wv && wv.canGoBack) wv.goBack()
+        else histStep(-1)
     }
     function goForward() {
-        if (web.canGoForward) web.goForward()
-        else web.runJavaScript("history.forward()")
+        if (wv && wv.canGoForward) wv.goForward()
+        else histStep(1)
     }
     Shortcut { sequence: "Alt+Left"; enabled: pane.visible && !pane.suspended; onActivated: pane.goBack() }
     Shortcut { sequence: "Alt+Right"; enabled: pane.visible && !pane.suspended; onActivated: pane.goForward() }
-    Shortcut { sequence: "F5"; enabled: pane.visible && !pane.suspended; onActivated: web.reload() }
+    Shortcut { sequence: "F5"; enabled: pane.visible && !pane.suspended; onActivated: pane.reload() }
 
     function publish(force) {
         if (!linkPattern.test(current))
@@ -82,13 +159,15 @@ Item {
         interval: 1000
         repeat: true
         running: pane.visible && !pane.suspended
-        onTriggered: web.runJavaScript("location.href", function (result) {
+        onTriggered: pane.run("location.href", function (result) {
             var href = result
             if (typeof href === "string" && href.charAt(0) === '"') {   // some backends return the JSON text
                 try { href = JSON.parse(href) } catch (e) { return }
             }
             if (typeof href === "string" && href !== "" && href !== pane.live) {
                 pane.live = href
+                pane.track(href)
+                if (/^https?:\/\/([\w-]+\.)?youtube\.com\//i.test(href)) pane.lastUrl = href   // for the fresh view after a dialog
                 pane.publish(false)
             }
         })
@@ -103,14 +182,14 @@ Item {
             Layout.fillWidth: true
             // canGoBack/canGoForward are not reliable for YouTube's in-page navigation (it changes the address
             // without a page load), so the buttons are always on and use the page's own history.
-            IconButton { iconName: "chevronRight"; tip: qsTr("Back (Alt+Left)"); rotation: 180
+            IconButton { iconName: "chevronLeft"; tip: qsTr("Back (Alt+Left)")
                          onClicked: pane.goBack() }
             IconButton { iconName: "chevronRight"; tip: qsTr("Forward (Alt+Right)")
                          onClicked: pane.goForward() }
-            IconButton { iconName: "retry"; tip: qsTr("Reload"); onClicked: web.reload() }
-            IconButton { iconName: "play"; tip: qsTr("YouTube start page"); onClicked: web.url = pane.home }
+            IconButton { iconName: "retry"; tip: qsTr("Reload"); onClicked: pane.reload() }
+            IconButton { iconName: "play"; tip: qsTr("YouTube start page"); onClicked: pane.navigate(pane.home) }
             Text {
-                text: web.title !== "" ? web.title : pane.current
+                text: (pane.wv && pane.wv.title !== "") ? pane.wv.title : pane.current
                 color: Theme.textSecondary
                 font.pixelSize: Theme.footnote
                 elide: Text.ElideRight
@@ -133,22 +212,30 @@ Item {
             clip: true
             border.width: 1
             border.color: Theme.separator
-            WebView {
-                id: web
+            Loader {
+                id: webHost
                 anchors.fill: parent
                 anchors.margins: 1
-                url: pane.home
-                visible: !pane.suspended
-                onUrlChanged: { pane.live = ""; pane.publish(false) }
-                onLoadingChanged: function (req) {
-                    if (req.status === WebView.LoadSucceededStatus)
-                        { pane.applyTheme(); pane.applyAdScript() }
+                active: !pane.suspended && !pane.testSuspend
+                sourceComponent: webComp
+            }
+            Component {
+                id: webComp
+                WebView {
+                    anchors.fill: parent
+                    // set once at creation (not a binding: later lastUrl changes must not navigate again)
+                    Component.onCompleted: url = pane.lastUrl !== "" ? pane.lastUrl : pane.home
+                    onUrlChanged: { pane.live = ""; pane.lastUrl = url.toString(); pane.track(pane.lastUrl); pane.publish(false) }
+                    onLoadingChanged: function (req) {
+                        if (req.status === WebView.LoadSucceededStatus)
+                            { pane.applyTheme(); pane.applyAdScript(); pane.applyMuteScript() }
+                    }
                 }
             }
             Rectangle {   // thin load indicator
-                visible: web.loadProgress > 0 && web.loadProgress < 100
+                visible: !!pane.wv && pane.wv.loadProgress > 0 && pane.wv.loadProgress < 100
                 height: 2
-                width: parent.width * web.loadProgress / 100
+                width: pane.wv ? parent.width * pane.wv.loadProgress / 100 : 0
                 color: Theme.accentFill
             }
         }

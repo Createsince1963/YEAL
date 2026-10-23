@@ -3,6 +3,8 @@
 # unused Qt modules / QML modules / Qt plugins / translations and unrelated Python packages
 # (the central WinPython has hundreds) are removed.
 #   YEAL_EMBED_TOOLS=1  -> also pack ffmpeg.exe + node.exe inside (big: ~100 MB more)
+#   YEAL_SLIM_MEDIA=1   -> leave out Qt's bundled FFmpeg (about 8 MB smaller); the video preview in the frame
+#                          extractor then uses the Windows media backend (plugins\multimedia\windowsmediaplugin.dll)
 #   otherwise           -> they are looked up in "bin\" next to the exe (copied there by the .bat)
 import os
 import re
@@ -13,6 +15,7 @@ from PyInstaller.utils.hooks import collect_submodules
 ROOT = Path(SPECPATH)
 SRC = ROOT / "BIN" / "versions" / "v0.1" / "PyModul"
 EMBED = os.environ.get("YEAL_EMBED_TOOLS") == "1"
+SLIM_MEDIA = os.environ.get("YEAL_SLIM_MEDIA") == "1"
 TC = Path(os.environ.get("TOOLS_CENTRAL", ROOT.parent / "Tools_Central"))
 if not TC.is_dir():
     TC = Path(r"C:\Users\mail\AI_Coworker_Claude\Tools_Central")
@@ -23,6 +26,8 @@ EXCLUDES = [
     "numpy", "scipy", "pandas", "matplotlib", "PIL", "cv2", "IPython", "jupyter", "notebook", "pytest",
     "cryptography", "Cryptodome", "chardet", "sphinx", "docutils", "jedi", "black", "cython", "Cython", "numba", "sympy", "sqlalchemy",
     "PyQt5", "PyQt6", "PySide2", "shiboken2", "shiboken6.Shiboken_Qt6",
+    # tools of the central WinPython that the app never imports (found in the exe's module list)
+    "werkzeug", "flask", "watchdog", "pyreadline3", "_pyrepl", "pydoc_data",
     # PySide6 modules the app never imports
     "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick",
     "PySide6.Qt3DCore", "PySide6.Qt3DRender", "PySide6.Qt3DInput", "PySide6.Qt3DLogic",
@@ -54,7 +59,15 @@ DROP = re.compile("|".join([
     r"platforminputcontexts|virtualkeyboard|generic|egldeviceintegrations|wayland\w*|xcbglintegrations|"
     r"platformthemes|iconengines|styles)",
     r"imageformats/\w*(tiff|webp|gif|icns|ico|wbmp|tga|qpdf)",
-]), re.IGNORECASE)
+    # Leaf Qt modules nothing in the app needs. Checked with the library dependencies of the Qt build: only their
+    # own QML plugins (or 3D/Lottie modules that are not shipped) link against them. NOT droppable: Qt6QmlWorkerScript
+    # and Qt6Concurrent (needed by Qt6Quick / Qt6Multimedia), Qt6OpenGL + QtOpenGL.pyd (needed by Qt6Quick / QtQuick).
+    r"qt6(quicktest|quicktimeline\w*|quickvectorimage\w*|qmlxmllistmodel|qmllocalstorage|quickparticles|shadertools)",
+    r"/plugins/platforms/(qdirect2d|qminimal|qoffscreen)",           # qwindows is the one that is used
+    r"/qml/qt/labs/", r"/qml/qtquick/(timeline|vectorimage)", r"/qml/qtqml/(statemachine|xmllistmodel)",
+    r"/quickimpl/qml/\+(fusion|imagine|material|universal)",          # alternative styles of the (unused) QML dialogs
+    r"\.bak\d*$",                                                     # editor backups next to the QML files
+] + ([r"/(avcodec|avformat|avutil|swscale|swresample)-\d+\.dll", r"/plugins/multimedia/ffmpegmediaplugin"] if SLIM_MEDIA else [])), re.IGNORECASE)
 
 
 def keep(entry) -> bool:

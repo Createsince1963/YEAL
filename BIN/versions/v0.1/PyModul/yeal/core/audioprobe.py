@@ -5,8 +5,6 @@ MP3 default when the source is better than a typical 128-160 kbps stream.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
-
 MP3_MIN_KBPS = 320                   # MP3 is only ever made at 320 kbps, otherwise no download
 HIGH_ABR = 120                       # kbps; at or above this the choice dialog is shown
 LOSSLESS = ("flac", "alac", "wav", "pcm", "aiff")

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.11
+- Browser view: Back / Forward work again after a dialog. The web view is re-created when a dialog opens, which wiped its history; Yeal now keeps its own page history as a fallback. Back uses a proper left arrow icon.
+- Browser view: the sound is muted during ads and restored afterwards again (this was lost when WebPane.qml was overwritten); the ad skipper no longer leaves the video muted.
+- Browser view: the dark-theme reload runs at most once per theme change, so a YouTube page that rewrites its own theme cookie cannot reload endlessly.
+- Smaller exe: unused Qt modules (ShaderTools, QuickTest, Timeline, VectorImage, Particles, XmlListModel, LocalStorage), unused platform plugins, werkzeug / watchdog / pyreadline3 and editor backups are no longer packed (about 3.5 MB). `Build_Yeal_Exe.bat slim` also leaves out Qt's bundled FFmpeg (about 8 MB more; the preview player then uses the Windows media backend).
+- New README with all functions, and docs/VERSIONING.md (every version is tagged and pushed).
+
 ## 0.8.10
 - Drive dialog is now a dropdown. The top entry is always the Windows Downloads folder (default); the found drives follow, each with free/total space (TB for big disks).
 - All non-system drives are found now, also USB SSDs/HDDs that Windows reports as SATA/SCSI/NVMe (e.g. WD_BLACK4TB on G:) and secondary internal disks. Detection uses the Win32 drive list instead of PowerShell bus-type filters.

@@ -2,6 +2,8 @@
 rem Windows build: ONE small portable file  ->  dist\Yeal.exe   (PyInstaller, see Yeal.spec)
 rem   Build_Yeal_Exe.bat          slim exe; ffmpeg.exe + node.exe are copied to dist\bin\ (the exe finds them there)
 rem   Build_Yeal_Exe.bat embed    ffmpeg + node packed INSIDE the exe (about 100 MB bigger, one single file)
+rem   Build_Yeal_Exe.bat slim     like the default but without Qt's bundled FFmpeg (about 8 MB smaller; the video
+rem                               preview of the frame extractor then uses the Windows media backend)
 rem Only the Qt/Python parts the app really uses are packed (see Yeal.spec).
 rem Run only dist\Yeal.exe - the folder "build\" holds intermediate files that do not start.
 setlocal
@@ -11,7 +13,9 @@ set "TC=%~dp0..\Tools_Central"
 if not exist "%TC%" set "TC=C:\Users\mail\AI_Coworker_Claude\Tools_Central"
 set "TOOLS_CENTRAL=%TC%"
 set "YEAL_EMBED_TOOLS="
+set "YEAL_SLIM_MEDIA="
 if /i "%~1"=="embed" set "YEAL_EMBED_TOOLS=1"
+if /i "%~1"=="slim" set "YEAL_SLIM_MEDIA=1"
 
 if exist "%~dp0build" rmdir /s /q "%~dp0build"
 if exist "%~dp0dist" rmdir /s /q "%~dp0dist"

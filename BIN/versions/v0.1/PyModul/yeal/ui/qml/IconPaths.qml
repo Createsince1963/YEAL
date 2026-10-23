@@ -16,6 +16,7 @@ QtObject {
         "link": "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
         "check": "M5 12.5l4.5 4.5L19 7",
         "chevronRight": "M9 5l7 7-7 7",
+        "chevronLeft": "M15 5l-7 7 7 7",
         "chevronDown": "M5 9l7 7 7-7",
         "open": "M14 4h6v6 M20 4l-9 9 M18 14v5H5V6h5",
         "clipboard": "M9 4h6v3H9z M7 5.5H5v15h14v-15h-2",
