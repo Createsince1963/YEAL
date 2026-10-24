@@ -24,7 +24,7 @@ from ..core.queue import DownloadQueue
 from ..core import frames as framelib
 from ..core import audioprobe, history, localserve, mp3tags, updater, vault as vaultlib
 from ..core.presets import build_ydl_opts
-from ..core.settings import HTML_CREATE_MODES, HTML_OPEN_MODES, THEMES, Settings
+from ..core.settings import DL_BUTTON_POSITIONS, DL_BUTTON_STYLES, HTML_CREATE_MODES, HTML_OPEN_MODES, THEMES, Settings
 
 def _extras_text(job: DownloadJob) -> str:
     """Short status of the optional description / transcript files."""
@@ -274,6 +274,8 @@ class Backend(QObject):
         self._drive_mask = None
         self._drive_offered: set = set()      # offered in this session (asked once per drive and start)
         self._drive_busy = False
+        self._drive_pending = False           # a drive appeared but was not readable yet -> rescan
+        self._drive_retries = 0
         self._drivesFound.connect(self._on_drives)
         self._tracklistProbed.connect(self._on_tracklist)
         if not ctx.is_mobile:
@@ -994,14 +996,22 @@ class Backend(QObject):
 
         def work() -> None:
             try:
-                found = platforms.drives.external_drives()
+                found, self._drive_pending = platforms.drives.scan_drives()
             except Exception:  # noqa: BLE001
-                found = []
+                found, self._drive_pending = [], False
             self._drivesFound.emit(found)
         threading.Thread(target=work, name="yeal-drives", daemon=True).start()
 
     def _on_drives(self, found: list) -> None:
         self._drive_busy = False
+        # A freshly plugged drive is announced before it is readable: rescan on the next tick (max ~1 min).
+        if self._drive_pending and self._drive_retries < 15:
+            self._drive_retries += 1
+            self._drive_mask = None
+        else:
+            self._drive_retries = 0
+        # Drives that were removed can be offered again when they come back.
+        self._drive_offered &= {d["id"] for d in found}
         current = str(self._ctx.download_dir).lower()
         for d in found:
             if d["id"] in self._drive_offered or d["id"] in self._settings.drive_ignored:
@@ -1220,7 +1230,7 @@ class Backend(QObject):
 
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value: Any) -> None:
-        if key not in ("theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create"):
+        if key not in ("theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "dl_button_style", "dl_button_pos"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1232,6 +1242,10 @@ class Backend(QObject):
         if key == "html_open_mode" and value not in HTML_OPEN_MODES:
             return
         if key == "html_create" and value not in HTML_CREATE_MODES:
+            return
+        if key == "dl_button_style" and value not in DL_BUTTON_STYLES:
+            return
+        if key == "dl_button_pos" and value not in DL_BUTTON_POSITIONS:
             return
         setattr(self._settings, key, value)
         self._settings.validate()

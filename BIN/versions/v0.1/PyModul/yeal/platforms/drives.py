@@ -8,6 +8,7 @@ are skipped by a minimum size. Linux: mounts below /media, /run/media, /mnt.
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
@@ -15,18 +16,38 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+log = logging.getLogger("yeal.drives")
+
 _SAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 # Volumes smaller than this are driver CD-ROMs / empty readers, not places to store downloads.
-MIN_DRIVE_BYTES = 1 << 30
+# (Was 1 GiB: that hid small USB sticks. The 16 MB "Ugreen Driver" pseudo drive is still below it.)
+MIN_DRIVE_BYTES = 64 << 20
 
 
-def drive_mask() -> int:
-    """Cheap fingerprint of the mounted drives (changes when one is plugged in or removed)."""
+def drive_mask():
+    """Cheap fingerprint of the mounted drives (changes when one is plugged in, removed or swapped).
+
+    Windows: the drive-letter bitmask plus the volume serial of every removable drive, so a different
+    stick that gets the same letter within one poll interval is noticed as well."""
     if sys.platform.startswith("win"):
         try:
             import ctypes
-            return int(ctypes.windll.kernel32.GetLogicalDrives())  # type: ignore[attr-defined]
+            kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+            mask = int(kernel32.GetLogicalDrives())
+            serials = []
+            old_mode = kernel32.SetErrorMode(1)
+            try:
+                for i in range(26):
+                    if mask >> i & 1:
+                        root = f"{chr(ord('A') + i)}:\\"
+                        if kernel32.GetDriveTypeW(root) == 2:
+                            serial = ctypes.c_uint32(0)
+                            ok = kernel32.GetVolumeInformationW(root, None, 0, ctypes.byref(serial), None, None, None, 0)
+                            serials.append((i, serial.value if ok else -1))
+            finally:
+                kernel32.SetErrorMode(old_mode)
+            return (mask, tuple(serials))
         except (OSError, AttributeError):
             return 0
     return len(_linux_mounts())
@@ -90,14 +111,19 @@ def user_downloads_dir() -> Path:
     return Path.home() / "Downloads"
 
 
-def _windows_drives() -> List[dict]:
-    """All fixed/removable volumes except the system drive (USB, UASP/SCSI/SATA enclosures, 2nd disks)."""
+def _windows_drives() -> "tuple[List[dict], bool]":
+    """All fixed/removable volumes except the system drive (USB, UASP/SCSI/SATA enclosures, 2nd disks).
+
+    Returns (drives, pending). pending is True when a removable/fixed volume exists but could not be
+    read yet (Windows announces the drive letter before the file system is mounted) -> scan again soon.
+    """
+    pending = False
     try:
         import ctypes
         kernel32 = ctypes.windll.kernel32                            # type: ignore[attr-defined]
         mask = int(kernel32.GetLogicalDrives())
     except (OSError, AttributeError):
-        return []
+        return [], False
     system = (os.environ.get("SystemDrive") or "C:").upper().rstrip("\\/")
     found = []
     old_mode = kernel32.SetErrorMode(1)      # SEM_FAILCRITICALERRORS: no "insert a disk" popups
@@ -109,25 +135,61 @@ def _windows_drives() -> List[dict]:
             root = f"{letter}:\\"
             if f"{letter}:" == system:
                 continue
-            if kernel32.GetDriveTypeW(root) not in (2, 3):           # 2 removable, 3 fixed
+            dtype = kernel32.GetDriveTypeW(root)
+            if dtype not in (2, 3):                                  # 2 removable, 3 fixed
+                log.info("drive %s skipped: drive type %s (only removable/fixed are offered)", root, dtype)
                 continue
             label = ctypes.create_unicode_buffer(261)
             if not kernel32.GetVolumeInformationW(root, label, 261, None, None, None, None, 0):
-                continue                                              # not ready (empty reader)
+                log.info("drive %s not ready yet (no file system readable) - will retry", root)
+                pending = True                                        # still mounting, or an empty reader
+                continue
             e = _entry(root, label.value.strip())
-            if e and e["total"] >= MIN_DRIVE_BYTES:
-                found.append(e)
+            if not e:
+                log.info("drive %s: size not readable yet - will retry", root)
+                pending = True
+                continue
+            if e["total"] < MIN_DRIVE_BYTES:
+                log.info("drive %s skipped: only %d MB (pseudo drive / driver volume)", root, e["total"] >> 20)
+                continue
+            found.append(e)
     finally:
         kernel32.SetErrorMode(old_mode)
-    return found
+    return found, pending
 
 
-def external_drives() -> List[dict]:
-    """Writable extra drives: [{root, label, free, total, id}]."""
+def _writable(root: str) -> bool:
+    """os.access() alone is unreliable on Windows volume roots, so fall back to a real write probe."""
+    if os.access(root, os.W_OK):
+        return True
+    import tempfile
+    try:
+        with tempfile.TemporaryFile(dir=root):
+            return True
+    except OSError:
+        return False
+
+
+def scan_drives() -> "tuple[List[dict], bool]":
+    """Writable extra drives [{root, label, free, total, id}] and a 'pending' flag (rescan soon)."""
+    pending = False
     if sys.platform.startswith("win"):
-        found = _windows_drives()
+        found, pending = _windows_drives()
     elif sys.platform.startswith("linux") and "ANDROID_ARGUMENT" not in os.environ:
         found = [e for e in (_entry(mp, Path(mp).name) for mp in _linux_mounts()) if e]
     else:
         found = []
-    return [d for d in found if d["total"] >= MIN_DRIVE_BYTES and os.access(d["root"], os.W_OK)]
+    out = []
+    for d in found:
+        if d["total"] < MIN_DRIVE_BYTES:
+            continue
+        if not _writable(d["root"]):
+            log.info("drive %s skipped: not writable (write-protected or no permission)", d["root"])
+            continue
+        out.append(d)
+    return out, pending
+
+
+def external_drives() -> List[dict]:
+    """Writable extra drives: [{root, label, free, total, id}]."""
+    return scan_drives()[0]

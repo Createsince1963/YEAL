@@ -12,6 +12,8 @@ from .models import AUDIO_FORMATS, COOKIE_BROWSERS, MODES, QUALITIES, DownloadOp
 THEMES = ("system", "light", "dark")
 HTML_OPEN_MODES = ("file", "server")
 HTML_CREATE_MODES = ("server", "file", "both")
+DL_BUTTON_STYLES = ("icon", "label", "off")   # header Download button: icon only / icon + text / hidden
+DL_BUTTON_POSITIONS = ("left", "right")      # header Download button: next to the title or at the end of the bar
 MAX_PROFILE_NAME = 40
 
 
@@ -72,6 +74,8 @@ class Settings:
     ask_mp3_tags: bool = True         # after an MP3 download: ask "edit the MP3 tags?" (the answer defaults to No)
     html_open_mode: str = "server"    # saved HTML pages: local Python HTTP server (online player) or file:// (independent)
     html_create: str = "both"         # which description pages are written: server | file | both (linked to each other)
+    dl_button_style: str = "icon"     # direct Download button in the header button bar: icon | label | off
+    dl_button_pos: str = "left"       # ... and where it sits in that bar: left | right
     download_dir: str = ""            # empty -> platform default
     rate_limit_kbps: int = 0          # 0 = unlimited
     proxy: str = ""
@@ -98,6 +102,10 @@ class Settings:
             self.html_open_mode = "server"
         if self.html_create not in HTML_CREATE_MODES:
             self.html_create = "both"
+        if self.dl_button_style not in DL_BUTTON_STYLES:
+            self.dl_button_style = "icon"
+        if self.dl_button_pos not in DL_BUTTON_POSITIONS:
+            self.dl_button_pos = "left"
         self.max_parallel = max(1, min(4, int(self.max_parallel or 1)))
         try:
             self.rate_limit_kbps = max(0, min(10_000_000, int(self.rate_limit_kbps)))

@@ -22,6 +22,43 @@ Item {
     ]
     readonly property bool overlayOpen: framesDialog.opened || audioChoice.opened || liveDialog.opened || playlistDialog.opened || details.opened || duplicates.opened || driveDialog.opened || tagsDialog.opened
 
+    // Direct Download button in the header button bar. Right-click: look (icon / icon + text / hidden)
+    // and position (next to the title / end of the bar), both remembered in the settings.
+    readonly property string dlStyle: backend.settings.dl_button_style || "icon"
+    readonly property string dlPos: backend.settings.dl_button_pos || "left"
+    Component {
+      id: headerDownloadComp
+      AppButton {
+        id: hd
+        kind: "primary"
+        iconName: "download"
+        text: panel.dlStyle === "label" ? qsTr("Download") : ""
+        readonly property bool ready: urlField.text.trim() !== ""
+        opacity: ready ? 1.0 : 0.5          // stays clickable so the right-click menu always works
+        ToolTip.visible: hovered && !Theme.compact
+        ToolTip.delay: 600
+        ToolTip.text: qsTr("Download the link above (right-click: change look and position)")
+        Accessible.name: qsTr("Download")
+        onClicked: { if (ready) panel.submit(); else backend.notify(qsTr("Paste a video or playlist link first.")) }
+        TapHandler {
+            acceptedButtons: Qt.RightButton
+            onTapped: dlMenu.popup(hd, 0, hd.height + 4)
+        }
+        AppMenu {
+            id: dlMenu
+            AppMenuItem { text: qsTr("Icon only"); marked: panel.dlStyle === "icon"
+                          onTriggered: backend.setSetting("dl_button_style", "icon") }
+            AppMenuItem { text: qsTr("Icon and text"); marked: panel.dlStyle === "label"
+                          onTriggered: backend.setSetting("dl_button_style", "label") }
+            MenuSeparator {}
+            AppMenuItem { text: qsTr("Position: next to the title"); marked: panel.dlPos === "left"
+                          onTriggered: backend.setSetting("dl_button_pos", "left") }
+            AppMenuItem { text: qsTr("Position: end of the bar"); marked: panel.dlPos === "right"
+                          onTriggered: backend.setSetting("dl_button_pos", "right") }
+        }
+      }
+    }
+
     function submit() {
         if (backend.addUrls(urlField.text) > 0) {
             urlField.clear()
@@ -101,8 +138,14 @@ Item {
                 font.pixelSize: panel.inSidebar ? Theme.headline : (Theme.compact ? Theme.title : Theme.largeTitle)
                 font.weight: Font.DemiBold
                 color: Theme.text
+                elide: Text.ElideRight
                 Layout.fillWidth: true
                 Accessible.role: Accessible.Heading
+            }
+            Loader {
+                sourceComponent: headerDownloadComp
+                active: panel.dlStyle !== "off" && panel.dlPos === "left"
+                visible: active
             }
             IconButton { iconName: "play"; tip: qsTr("Show / hide the YouTube browser")
                          visible: backend.browserAvailable
@@ -122,6 +165,11 @@ Item {
                 iconName: "trash"
                 kind: "plain"
                 onClicked: backend.clearFinished()
+            }
+            Loader {
+                sourceComponent: headerDownloadComp
+                active: panel.dlStyle !== "off" && panel.dlPos === "right"
+                visible: active
             }
         }
 
