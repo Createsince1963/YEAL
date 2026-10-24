@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Fixed `dist\Yeal.exe` showing the splash screen and then never opening the window: the Qt WebView2 plugin (`plugins\webview\qtwebview_webview2.dll`) was not packed into the exe, so the embedded YouTube view failed when it was created right after the splash. `Yeal.spec` now packs it and stops the build if it is missing. The exe also writes `%APPDATA%\Yeal\yeal.log` (previous run: `yeal.prev.log`) with Python errors, native crashes and Qt/QML messages.
 - Settings page: every setting is a collapsed one-line item (icon, name, current value) that opens on click to edit; the groups have icons too. No more endless rows.
 - New setting "Create HTML pages" (Server / File / Both, default Both). Both writes `name.html` (online player, opened through Yeal's local server) and `name.file.html` (standalone, works from disk), linked to each other. Pages always link to the media by file name only (same folder, no full path). "Open saved HTML pages" now defaults to the local server for new installs; in File mode the standalone page is opened.
 - Description pages no longer embed the online YouTube player for videos whose owner forbids embedding (YouTube showed "This video is not available" inside the page); the local file player is used.

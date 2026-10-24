@@ -90,6 +90,15 @@ if EMBED:
         if p.is_file():
             binaries.append((str(p), "bin"))
 
+# Qt WebView backend for the embedded YouTube view (Windows: system WebView2). PyInstaller does NOT collect this
+# plugin by itself. Without PySide6/plugins/webview/qtwebview_webview2.dll the exe shows the splash screen and
+# then dies when the browser pane is created (about 1.6 s after start). It only needs Qt6Core/Gui/WebView + system DLLs.
+import PySide6
+WEBVIEW_PLUGIN = Path(PySide6.__file__).resolve().parent / "plugins" / "webview" / "qtwebview_webview2.dll"
+if not WEBVIEW_PLUGIN.is_file():
+    raise SystemExit("Build stopped: " + str(WEBVIEW_PLUGIN) + " not found (PySide6 install without QtWebView?).")
+binaries.append((str(WEBVIEW_PLUGIN), "PySide6/plugins/webview"))
+
 a = Analysis(
     [str(SRC / "main.py")],
     pathex=[str(SRC)],
@@ -109,6 +118,8 @@ _UNNEEDED = ("setuptools", "pkg_resources", "_distutils_hack", "distutils")
 a.pure = [m for m in a.pure if not m[0].split(".")[0] in _UNNEEDED]
 a.datas = [d for d in a.datas if not str(d[0]).replace("\\", "/").split("/")[0] in _UNNEEDED]
 a.binaries = [b for b in a.binaries if keep(b)]
+if not any(str(b[0]).replace("\\", "/").lower().endswith("plugins/webview/qtwebview_webview2.dll") for b in a.binaries):
+    raise SystemExit("Build stopped: the WebView2 plugin was filtered out of the bundle (check DROP / keep() in Yeal.spec).")
 a.datas = [d for d in a.datas if keep(d)]
 
 pyz = PYZ(a.pure)
