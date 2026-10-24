@@ -11,7 +11,7 @@ Switch {
         implicitWidth: 46
         implicitHeight: 28
         radius: 14
-        color: control.checked ? Theme.success : Theme.track
+        color: control.checked ? Theme.accentFill : Theme.track
         border.width: control.visualFocus ? 2 : 0
         border.color: Theme.accent
         Behavior on color { ColorAnimation { duration: Theme.dur } }

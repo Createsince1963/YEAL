@@ -82,14 +82,20 @@ User manuals: [Deutsch](help/manual-de.html) · [English](help/manual-en.html) �
 ### Image extractor (desktop, needs ffmpeg)
 Split a video into images: video tiles (also drag in from Explorer), film strip with a selection frame, preview player,
 interval 0.1 / 0.5 / 1 ... 60 s (below 1 s only for Shorts), JPG or PNG, one folder per video under `Frames\`.
+Switching to another video rebuilds both the player preview and film strip; late preview results from the previous selection
+are discarded, so they cannot replace the newly selected video.
 
 ### Embedded YouTube browser (Windows)
-- The Microsoft Edge WebView2 of Windows 11 is used; no browser is bundled. Sign-in is kept in the Yeal data folder.
+- The Microsoft Edge WebView2 of Windows 11 is used; no browser is bundled. Google can refuse account sign-in in embedded
+  views. For protected downloads, sign in through Firefox / Edge / Chrome, choose the same browser under
+  **Settings > Use browser login for downloads**, close it, then retry the job.
 - Back / Forward (also Alt+Left / Alt+Right) / Reload (F5) / start page. Back and Forward keep their own page history, so they
   still work after a dialog re-created the view.
+- **Open in your browser** sends the current page to the system browser, including when an external sign-in is needed.
 - Opening a video, Short or playlist fills the link field with a cleaned link (video id only); nothing downloads until you press Download.
-- Follows the app theme (dark / light); the sound is muted during ads and restored afterwards.
-- Experimental ad blocking (off by default): local filter proxy plus a script that hides ad slots and skips ads.
+- Follows the app theme (dark / light); the sound is muted during ads and restored afterwards. Visible YouTube skip
+  controls are pressed automatically in German (`Überspringen`) and English (`Skip` / `Skip ad`).
+- Experimental ad blocking (off by default): local filter proxy plus a script that hides ad slots and advances unskippable ads.
 - Show / hide the browser, swap the sides and drag the divider; width and side are remembered.
 
 ### Workflow, files and drives
@@ -105,10 +111,16 @@ interval 0.1 / 0.5 / 1 ... 60 s (below 1 s only for Shorts), JPG or PNG, one fol
 ### Settings, security, updates
 - Theme (light / dark / system), parallel downloads, speed limit, proxy, custom yt-dlp options as JSON (a safe subset: no exec
   hooks, no external downloaders).
+- Every Settings group can be expanded or collapsed. The ffmpeg and Node.js rows show their full executable path and version;
+  each helper can be selected manually, detected again automatically, or opened on its official update page.
+- On first start, Yeal asks for the cookie browser (Chrome by default) and download folder. Later Settings changes are staged
+  and can be saved or discarded; leaving with unsaved changes asks what to do. Selected controls use the blue accent.
 - **yt-dlp self-update** from PyPI (sha256 checked, checked every 3 days, button in Settings).
 - **Admin vault**: stored logins locked with an admin password, encrypted with Windows DPAPI plus a password-derived key;
-  auto-lock after 5 minutes, clipboard cleared after 30 s. "Delete all logins" also wipes the browser sign-in.
+  auto-lock after 5 minutes, clipboard cleared after 30 s. New vaults start with `1234` and require a private replacement
+  before entries become available. Existing vault passwords are not changed. "Delete all logins" also wipes the browser sign-in.
 - Layout adapts to the window width (sidebar or bottom bar); window size and position are remembered.
+- **Info** includes the complete version history and a versioned license overview of the included runtime modules.
 - Shortcuts: Ctrl+1 / 2 / 3 switch pages, Ctrl+L focuses the link field.
 
 ## Quick start (Windows, central Python from Tools_Central)

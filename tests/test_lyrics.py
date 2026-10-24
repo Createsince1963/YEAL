@@ -120,6 +120,18 @@ class FallbackTests(unittest.TestCase):
         self.assertIn("cover", apply_fallback(RuntimeError("Unable to embed thumbnail"), opts, set()))
         self.assertFalse(opts["writethumbnail"])
 
+    def test_cookie_decrypt_error_drops_browser_login(self):
+        from yeal.core.engine import apply_fallback, friendly_error
+        err = RuntimeError("Failed to decrypt with DPAPI. See https://github.com/yt-dlp/yt-dlp/issues/10927 for more info")
+        opts = {"cookiesfrombrowser": ("chrome",)}
+        done = set()
+        self.assertIn("browser login", apply_fallback(err, opts, done))
+        self.assertNotIn("cookiesfrombrowser", opts)
+        self.assertEqual(apply_fallback(err, {"cookiesfrombrowser": ("chrome",)}, done), "")   # only once
+        self.assertEqual(apply_fallback(err, {}, set()), "")                                   # no cookies set -> no fallback
+        self.assertIn("Firefox", friendly_error(err))
+        from yeal.core import engine as _e; _e._UNREADABLE_BROWSERS.clear()
+
     def test_engine_continues_after_subtitle_error(self):
         import threading
         from yeal.core.engine import Engine
@@ -159,6 +171,9 @@ class FriendlyErrorTests(unittest.TestCase):
         self.assertTrue(e.startswith("Stopped automatically:"))
         self.assertTrue(rate_limited(e))                       # the queue still pauses itself
         self.assertIn("private", friendly_error(RuntimeError("ERROR: [youtube] x: Private video. Sign in")).lower())
+        age = friendly_error(RuntimeError("ERROR: [youtube] x: Sign in to confirm your age"))
+        self.assertIn("not inside Yeal", age)
+        self.assertIn("close it", age)
         self.assertIn("connection", friendly_error(OSError("<urlopen error timed out>")).lower())
         self.assertIn("Update yt-dlp", friendly_error(RuntimeError("ERROR: [youtube] x: nsig extraction failed")))
         other = friendly_error(RuntimeError("ERROR: something odd"))

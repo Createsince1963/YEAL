@@ -4,6 +4,21 @@ import QtQuick
 // 24x24 stroke icons (SVG path data).
 QtObject {
     readonly property var d: ({
+        "globe": "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3.5 3.5 3.5 14.5 0 18 M12 3c-3.5 3.5-3.5 14.5 0 18",
+        "shield": "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
+        "sun": "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5.3 5.3l1.4 1.4 M17.3 17.3l1.4 1.4 M5.3 18.7l1.4-1.4 M17.3 6.7l1.4-1.4",
+        "tag": "M3 12V4h8l10 10-8 8z M7.5 8v.01",
+        "code": "M9 7l-5 5 5 5 M15 7l5 5-5 5",
+        "gauge": "M4 17a8 8 0 1 1 16 0 M12 17l4-5",
+        "lock": "M6 11h12v9H6z M8 11V8a4 4 0 0 1 8 0v3",
+        "network": "M5 5h4v4H5z M15 5h4v4h-4z M10 15h4v4h-4z M7 9v3h10V9 M12 12v3",
+        "cpu": "M7 7h10v10H7z M10 10h4v4h-4z M9 3v4 M15 3v4 M9 17v4 M15 17v4 M3 9h4 M3 15h4 M17 9h4 M17 15h4",
+        "terminal": "M4 5h16v14H4z M7 9l3 3-3 3 M12 15h5",
+        "info": "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 11v6 M12 7.5v.01",
+        "block": "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M5.6 5.6l12.8 12.8",
+        "doc": "M6 3h9l4 4v14H6z M14 3v5h5 M9 13h7 M9 17h7",
+        "window": "M3 5h18v14H3z M3 9h18",
+        "layers": "M12 3l9 5-9 5-9-5z M3 12.5l9 5 9-5",
         "download": "M12 4v11 M7 11l5 5 5-5 M5 20h14",
         "plus": "M12 5v14 M5 12h14",
         "x": "M6 6l12 12 M18 6L6 18",

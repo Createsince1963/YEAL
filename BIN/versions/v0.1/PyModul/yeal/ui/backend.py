@@ -1,8 +1,12 @@
 """Qt bridge: exposes the download queue and settings to QML."""
 from __future__ import annotations
 
+import copy
 import json
 import re
+import shutil
+import subprocess
+import sys
 import threading
 from dataclasses import asdict
 from pathlib import Path
@@ -20,7 +24,7 @@ from ..core.queue import DownloadQueue
 from ..core import frames as framelib
 from ..core import audioprobe, history, localserve, mp3tags, updater, vault as vaultlib
 from ..core.presets import build_ydl_opts
-from ..core.settings import HTML_OPEN_MODES, THEMES, Settings
+from ..core.settings import HTML_CREATE_MODES, HTML_OPEN_MODES, THEMES, Settings
 
 def _extras_text(job: DownloadJob) -> str:
     """Short status of the optional description / transcript files."""
@@ -199,7 +203,10 @@ class Backend(QObject):
     _jobRemoved = Signal(int)
     _updateFinished = Signal(str, str)   # (version, message); message '' = nothing to report
     settingsChanged = Signal()
+    settingsEditChanged = Signal()
     ytdlpChanged = Signal()
+    helpersChanged = Signal()
+    infoChanged = Signal()
     statsChanged = Signal()
     framesChanged = Signal()
     filmstripReady = Signal(str, float, list, str)   # (video path, duration s, [image urls], error); duration 0 = failed
@@ -225,7 +232,18 @@ class Backend(QObject):
         super().__init__(parent)
         self._ctx = ctx
         ctx.ensure_dirs()
+        new_install = not ctx.settings_path.is_file()
         self._settings = Settings.load(ctx.settings_path)
+        if new_install:
+            self._settings.setup_complete = False
+            self._settings.cookies_browser = "chrome"
+        self._settings_edit_snapshot = None
+        # A manually selected helper wins over automatic platform detection. Invalid/stale paths
+        # fall back to the automatically detected helper instead of disabling the feature.
+        if self._settings.ffmpeg_path and Path(self._settings.ffmpeg_path).is_file():
+            ctx.ffmpeg = Path(self._settings.ffmpeg_path)
+        if self._settings.node_path and Path(self._settings.node_path).is_file():
+            ctx.js_runtime = Path(self._settings.node_path)
         self._default_download_dir = ctx.download_dir
         self._apply_download_dir()
         self._model = JobModel(self)
@@ -235,6 +253,8 @@ class Backend(QObject):
         for sig in (self._model.rowsInserted, self._model.rowsRemoved, self._model.dataChanged):
             sig.connect(lambda *_: self.statsChanged.emit())
         self._updateFinished.connect(self._on_update_finished)
+        self._ytdlp_info_connection = self.ytdlpChanged.connect(self.infoChanged.emit)
+        self._helpers_info_connection = self.helpersChanged.connect(self.infoChanged.emit)
         self._framesFinished.connect(self._on_frames_finished)
         self._audioProbed.connect(self._on_audio_probed)
         self._playlistProbed.connect(self._on_playlist_probed)
@@ -244,6 +264,7 @@ class Backend(QObject):
         # embedded browser: Windows only, needs QtWebView (WebView2 plugin shipped with PySide6)
         self._browser_ok = ctx.name == "windows" and _webview_importable()
         self._frames_busy = False
+        self._filmstrip_serial = 0
         self._updating = False
         self._engine = engine or Engine(ctx)
         self._queue = DownloadQueue(
@@ -312,6 +333,13 @@ class Backend(QObject):
         data["active_mode"] = self._settings.get_profile()["mode"]
         return data
 
+    setupRequired = Property(bool, lambda self: not self._settings.setup_complete, notify=settingsChanged)
+
+    @Property(bool, notify=settingsEditChanged)
+    def settingsDirty(self) -> bool:  # type: ignore[override]
+        return (self._settings_edit_snapshot is not None
+                and asdict(self._settings) != asdict(self._settings_edit_snapshot))
+
     @Property(bool, notify=framesChanged)
     def framesBusy(self) -> bool:  # type: ignore[override]
         return self._frames_busy
@@ -324,14 +352,175 @@ class Backend(QObject):
     def ytdlpBusy(self) -> bool:  # type: ignore[override]
         return self._updating
 
-    jsRuntimeAvailable = Property(bool, lambda self: self._ctx.js_runtime is not None, constant=True)
+    jsRuntimeAvailable = Property(bool, lambda self: self._ctx.js_runtime is not None, notify=helpersChanged)
     platformName = Property(str, lambda self: self._ctx.name, constant=True)
     isMobile = Property(bool, lambda self: self._ctx.is_mobile, constant=True)
-    ffmpegAvailable = Property(bool, lambda self: self._ctx.can_merge, constant=True)
+    ffmpegAvailable = Property(bool, lambda self: self._ctx.can_merge, notify=helpersChanged)
+    ffmpegPath = Property(str, lambda self: str(self._ctx.ffmpeg or ""), notify=helpersChanged)
+    jsRuntimePath = Property(str, lambda self: str(self._ctx.js_runtime or ""), notify=helpersChanged)
     appVersion = Property(str, lambda self: __version__, constant=True)
     browserAvailable = Property(bool, lambda self: self._browser_ok, constant=True)
 
+    @staticmethod
+    def _default_helper_path(name: str) -> str:
+        if sys.platform.startswith("win"):
+            name += ".exe"
+        if not platforms.is_android():
+            from ..platforms import desktop
+            return str(desktop.app_dir() / "bin" / name)
+        return ""
+
+    ffmpegDefaultPath = Property(str, lambda self: self._default_helper_path("ffmpeg"), constant=True)
+    jsRuntimeDefaultPath = Property(str, lambda self: self._default_helper_path("node"), constant=True)
+
+    @staticmethod
+    def _tool_version(path: Path | None, node: bool = False) -> str:
+        if path is None or not path.is_file():
+            return ""
+        try:
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            proc = subprocess.run([str(path), "--version"], capture_output=True, text=True,
+                                  timeout=3, creationflags=flags)
+            line = (proc.stdout or proc.stderr).strip().splitlines()[0]
+            if node:
+                return line
+            match = re.match(r"ffmpeg version\s+(\S+)", line, re.IGNORECASE)
+            return match.group(1) if match else line[:80]
+        except (OSError, subprocess.SubprocessError, IndexError):
+            return ""
+
+    ffmpegVersion = Property(str, lambda self: self._tool_version(self._ctx.ffmpeg), notify=helpersChanged)
+    jsRuntimeVersion = Property(str, lambda self: self._tool_version(self._ctx.js_runtime, True), notify=helpersChanged)
+
+    @staticmethod
+    def _project_text(name: str) -> str:
+        candidates = []
+        bundle = getattr(sys, "_MEIPASS", None)
+        if bundle:
+            candidates.append(Path(bundle) / name)
+        here = Path(__file__).resolve()
+        candidates.extend(parent / name for parent in here.parents)
+        for path in candidates:
+            try:
+                if path.is_file():
+                    return path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                pass
+        return "No version history is available in this build."
+
+    versionHistory = Property(str, lambda self: self._project_text("CHANGELOG.md"), constant=True)
+
+    @Property(str, notify=infoChanged)
+    def thirdPartyLicenses(self) -> str:  # type: ignore[override]
+        versions = {}
+        try:
+            from importlib.metadata import version
+            for name in ("PySide6", "shiboken6", "mutagen"):
+                try:
+                    versions[name] = version(name)
+                except Exception:  # package metadata may be stripped in small builds
+                    pass
+        except ImportError:  # pragma: no cover
+            pass
+        rows = [
+            f"yt-dlp {self.ytdlpVersion} — Unlicense",
+            f"PySide6 / Qt {versions.get('PySide6', '-')} — LGPL-3.0-only / GPL-2.0-only / GPL-3.0-only / commercial",
+            f"Shiboken6 {versions.get('shiboken6', '-')} — LGPL-3.0-only / GPL-2.0-only / GPL-3.0-only",
+            f"Mutagen {versions.get('mutagen', '-')} — GPL-2.0-or-later",
+            f"Python {sys.version.split()[0]} — Python Software Foundation License 2.0",
+            f"FFmpeg {self.ffmpegVersion or '-'} — LGPL-2.1-or-later / GPL-2.0-or-later (depends on build)",
+            f"Node.js {self.jsRuntimeVersion or '-'} — MIT License",
+            "Microsoft Edge WebView2 Runtime — Microsoft Software License Terms",
+        ]
+        return "\n".join(rows)
+
     # ---- slots ----------------------------------------------------------
+    @Slot()
+    def beginSettingsEdit(self) -> None:
+        if self._settings_edit_snapshot is None:
+            self._settings_edit_snapshot = copy.deepcopy(self._settings)
+        self.settingsEditChanged.emit()
+
+    @Slot()
+    def commitSettingsEdit(self) -> None:
+        """Save now and keep tracking later changes while Settings remains open."""
+        try:
+            self._settings.save(self._ctx.settings_path)
+            self._settings_edit_snapshot = copy.deepcopy(self._settings)
+        except OSError:
+            self.toast.emit("Could not save settings.")
+        self.settingsEditChanged.emit()
+
+    def _apply_runtime_settings(self) -> None:
+        self._ctx.download_dir = (Path(self._settings.download_dir) if self._settings.download_dir
+                                  else self._default_download_dir)
+        self._queue.set_max_parallel(self._settings.max_parallel)
+        self._filtered.setGroup(self._settings.list_group)
+        self._filtered.set_collapsed(self._settings.ui_collapsed)
+        if self._settings.html_open_mode == "file":
+            localserve.shutdown_all()
+        if not self._ctx.is_mobile:
+            from ..platforms import desktop
+            ff = Path(self._settings.ffmpeg_path) if self._settings.ffmpeg_path else None
+            node = Path(self._settings.node_path) if self._settings.node_path else None
+            self._ctx.ffmpeg = ff if ff and ff.is_file() else desktop.find_ffmpeg()
+            self._ctx.js_runtime = node if node and node.is_file() else desktop.find_node()
+            self.helpersChanged.emit()
+
+    @Slot(bool)
+    def finishSettingsEdit(self, save: bool) -> None:
+        """Close the Settings transaction and either save or restore its starting state."""
+        if self._settings_edit_snapshot is None:
+            return
+        if not save:
+            self._settings = self._settings_edit_snapshot
+            self._apply_runtime_settings()
+        try:
+            self._settings.save(self._ctx.settings_path)
+        except OSError:
+            self.toast.emit("Could not save settings.")
+        self._settings_edit_snapshot = None
+        self.settingsChanged.emit()
+        self.settingsEditChanged.emit()
+
+    @Slot(str, str, result=str)
+    def completeSetup(self, browser: str, folder: str) -> str:
+        if browser not in ("", "firefox", "edge", "chrome"):
+            return "Please choose a supported browser."
+        err = self.setDownloadDir(folder) if (folder or "").strip() else ""
+        if err:
+            return err
+        self._settings.cookies_browser = browser
+        self._settings.setup_complete = True
+        self._save()
+        return ""
+
+    @Slot(str, str, result=str)
+    def setHelperPath(self, kind: str, value: str) -> str:
+        """Select ffmpeg/node from a FileDialog, or reset to automatic detection with an empty value."""
+        if self._ctx.is_mobile or kind not in ("ffmpeg", "node"):
+            return "This helper cannot be changed on this platform."
+        from ..platforms import desktop
+        setting = "ffmpeg_path" if kind == "ffmpeg" else "node_path"
+        target = "ffmpeg" if kind == "ffmpeg" else "js_runtime"
+        value = (value or "").strip()
+        if value:
+            path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
+            expected = ("ffmpeg.exe", "ffmpeg") if kind == "ffmpeg" else ("node.exe", "node")
+            if not path.is_file():
+                return "The selected file does not exist."
+            if path.name.lower() not in expected:
+                return f"Please select {expected[0]}."
+            resolved = path.resolve()
+            setattr(self._settings, setting, str(resolved))
+        else:
+            resolved = desktop.find_ffmpeg() if kind == "ffmpeg" else desktop.find_node()
+            setattr(self._settings, setting, "")
+        setattr(self._ctx, target, resolved)
+        self._save()
+        self.helpersChanged.emit()
+        return ""
+
     @Slot(str, result=int)
     def addUrls(self, text: str) -> int:
         urls = list(dict.fromkeys(_URL.findall(text or "")))
@@ -578,6 +767,11 @@ class Backend(QObject):
         v = self._vault()
         return bool(v and v.uses_default_password())
 
+    @Property(str, notify=vaultChanged)
+    def vaultDefaultHint(self) -> str:
+        v = self._vault()
+        return v.default_password_hint() if v else ""
+
     @Slot(str, result=str)
     def vaultUnlock(self, password: str) -> str:
         """Returns '' on success, else an error text."""
@@ -708,7 +902,11 @@ class Backend(QObject):
             self.toast.emit("No HTML page saved for this download.")
             return
         from PySide6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl(localserve.page_url(page, self._settings.html_open_mode)))
+        mode = self._settings.html_open_mode
+        if mode == "file":      # the standalone page (when it was written) is the one meant for opening from disk
+            alt = page.with_name(page.stem + ".file.html")
+            page = alt if alt.is_file() else page
+        QDesktopServices.openUrl(QUrl(localserve.page_url(page, mode)))
 
     @Slot(int)
     def showInFolder(self, job_id: int) -> None:
@@ -928,7 +1126,14 @@ class Backend(QObject):
 
     @Slot(str)
     def loadFilmstrip(self, path: str) -> None:
-        """Create preview thumbnails in a worker thread; result arrives via filmstripReady."""
+        """Create preview thumbnails in a worker thread; only the newest request may publish.
+
+        Every request gets a separate folder. Reusing ``strip_00.jpg`` in one shared folder let
+        Qt's image cache keep showing the previous video and made overlapping workers overwrite
+        each other's preview files when the user selected another video quickly.
+        """
+        self._filmstrip_serial += 1
+        request = self._filmstrip_serial
         video = Path(path) if path else None
         if video is None or not video.is_file():
             self.filmstripReady.emit(path, 0.0, [], "The video file was not found.")
@@ -936,14 +1141,32 @@ class Backend(QObject):
         if not self._ctx.ffmpeg:
             self.filmstripReady.emit(path, 0.0, [], "ffmpeg was not found.")
             return
-        out_dir = Path(self._ctx.temp_dir) / "filmstrip"
+        root = Path(self._ctx.temp_dir) / "filmstrip"
+        out_dir = root / f"request-{request}"
+
+        def discard_old() -> None:
+            try:
+                children = list(root.iterdir())
+            except OSError:
+                return
+            for child in children:
+                if child != out_dir:
+                    shutil.rmtree(child, ignore_errors=True)
 
         def work() -> None:
             try:
                 duration, files = framelib.filmstrip(self._ctx.ffmpeg, video, out_dir)
+                if request != self._filmstrip_serial:
+                    shutil.rmtree(out_dir, ignore_errors=True)
+                    return
+                discard_old()
                 urls = [QUrl.fromLocalFile(str(f)).toString() for f in files]
                 self.filmstripReady.emit(path, float(duration), urls, "")
             except Exception as exc:  # any failure must reach the dialog, never kill the thread silently
+                if request != self._filmstrip_serial:
+                    shutil.rmtree(out_dir, ignore_errors=True)
+                    return
+                discard_old()
                 self.filmstripReady.emit(path, 0.0, [], str(exc) or exc.__class__.__name__)
 
         threading.Thread(target=work, name="yeal-filmstrip", daemon=True).start()
@@ -997,7 +1220,7 @@ class Backend(QObject):
 
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value: Any) -> None:
-        if key not in ("theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode"):
+        if key not in ("theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1007,6 +1230,8 @@ class Backend(QObject):
         if key == "theme" and value not in THEMES:
             return
         if key == "html_open_mode" and value not in HTML_OPEN_MODES:
+            return
+        if key == "html_create" and value not in HTML_CREATE_MODES:
             return
         setattr(self._settings, key, value)
         self._settings.validate()
@@ -1229,8 +1454,10 @@ class Backend(QObject):
             self._ctx.download_dir = Path(self._settings.download_dir)
 
     def _save(self) -> None:
-        try:
-            self._settings.save(self._ctx.settings_path)
-        except OSError:
-            self.toast.emit("Could not save settings.")
+        if self._settings_edit_snapshot is None:
+            try:
+                self._settings.save(self._ctx.settings_path)
+            except OSError:
+                self.toast.emit("Could not save settings.")
         self.settingsChanged.emit()
+        self.settingsEditChanged.emit()

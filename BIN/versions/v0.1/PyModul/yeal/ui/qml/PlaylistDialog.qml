@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// A playlist link was added: list all entries; the user ticks single / several / all and starts the download.
+// A playlist link was added: list all entries as thumbnail tiles; the user ticks single / several / all and starts the download.
 Popup {
     id: dlg
     objectName: "playlistDialog"
@@ -34,6 +34,12 @@ Popup {
         var arr = []
         var e = current ? current.entries : []
         for (var i = 0; i < e.length; ++i) arr.push(on && e[i].available)
+        recount(arr)
+    }
+    function invert() {
+        var arr = []
+        var e = current ? current.entries : []
+        for (var i = 0; i < e.length; ++i) arr.push(e[i].available && !sel[i])
         recount(arr)
     }
     function toggle(i, range) {      // Shift+click selects the range from the last clicked entry
@@ -70,8 +76,8 @@ Popup {
     readonly property rect area: Theme.dialogArea.width > 0 ? Theme.dialogArea : Qt.rect(0, 0, Overlay.overlay ? Overlay.overlay.width : 0, Overlay.overlay ? Overlay.overlay.height : 0)
     x: area.x + (area.width - width) / 2
     y: area.y + (area.height - height) / 2
-    width: Math.min(760, area.width - 2 * Theme.s4)
-    height: Math.min(680, area.height - 2 * Theme.s4)
+    width: Math.min(980, area.width - 2 * Theme.s4)
+    height: Math.min(780, area.height - 2 * Theme.s4)
     padding: Theme.s4
     closePolicy: Popup.NoAutoClose
     Overlay.modal: Rectangle { color: Theme.dark ? "#99000000" : "#55000000" }
@@ -113,6 +119,7 @@ Popup {
             spacing: Theme.s2
             AppButton { text: qsTr("Select all"); onClicked: dlg.selectAll(true) }
             AppButton { text: qsTr("Select none"); onClicked: dlg.selectAll(false) }
+            AppButton { text: qsTr("Invert"); onClicked: dlg.invert() }
             Item { Layout.fillWidth: true }
             Text {
                 text: qsTr("%1 of %2 selected").arg(dlg.count).arg(dlg.current ? dlg.current.entries.length : 0)
@@ -120,70 +127,96 @@ Popup {
                 font.pixelSize: Theme.footnote
             }
         }
-        ListView {
+        GridView {
             id: list
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            readonly property int cols: Math.max(2, Math.floor(width / 190))
+            cellWidth: Math.floor((width - 12) / cols)
+            cellHeight: Math.round(cellWidth * 9 / 16) + 52
             model: dlg.current ? dlg.current.entries : []
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {}
-            delegate: Rectangle {
+            delegate: Item {
                 id: row
                 required property var modelData
                 required property int index
                 readonly property bool on: dlg.sel[index] === true
-                width: ListView.view.width - 12
-                height: Math.max(40, label.implicitHeight + Theme.s2 * 2)
-                radius: Theme.radius
-                color: tap.pressed ? Theme.pressed : hov.hovered ? Theme.hover : "transparent"
+                width: list.cellWidth
+                height: list.cellHeight
                 opacity: modelData.available ? 1 : 0.45
                 Accessible.role: Accessible.CheckBox
                 Accessible.name: modelData.title
                 Accessible.checked: on
-                HoverHandler { id: hov; cursorShape: Qt.PointingHandCursor }
-                TapHandler {
-                    id: tap
-                    onTapped: dlg.toggle(row.index, (Qt.application.keyboardModifiers & Qt.ShiftModifier) !== 0)
-                }
-                RowLayout {
-                    anchors { fill: parent; leftMargin: Theme.s2; rightMargin: Theme.s2 }
-                    spacing: Theme.s3
-                    Rectangle {
-                        implicitWidth: 20; implicitHeight: 20
-                        radius: 5
-                        color: row.on ? Theme.accentFill : "transparent"
-                        border.width: row.on ? 0 : 2
-                        border.color: Theme.separator
-                        Icon { anchors.centerIn: parent; size: 14; strokeWidth: 2.5; name: "check"; visible: row.on; color: "white" }
+                Rectangle {              // the tile
+                    anchors { fill: parent; margins: 4 }
+                    radius: Theme.radius
+                    color: tap.pressed ? Theme.pressed : hov.hovered ? Theme.hover : "transparent"
+                    border.width: row.on ? 2 : 0
+                    border.color: Theme.accentFill
+                    HoverHandler { id: hov; cursorShape: Qt.PointingHandCursor }
+                    TapHandler {
+                        id: tap
+                        onTapped: dlg.toggle(row.index, (Qt.application.keyboardModifiers & Qt.ShiftModifier) !== 0)
                     }
-                    Text {
-                        text: row.modelData.index
-                        color: Theme.textTertiary
-                        font.pixelSize: Theme.footnote
-                        Layout.preferredWidth: 32
-                        horizontalAlignment: Text.AlignRight
-                    }
-                    Text {
-                        id: label
-                        text: row.modelData.title
-                        color: Theme.text
-                        font.pixelSize: Theme.body
-                        wrapMode: Text.Wrap
-                        maximumLineCount: 2
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        text: row.modelData.available ? dlg.dur(row.modelData.duration) : qsTr("unavailable")
-                        color: Theme.textSecondary
-                        font.pixelSize: Theme.footnote
+                    ColumnLayout {
+                        anchors { fill: parent; margins: 4 }
+                        spacing: 4
+                        Rectangle {      // thumbnail 16:9
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.round(width * 9 / 16)
+                            radius: Theme.radius - 2
+                            color: Theme.surface
+                            clip: true
+                            Image {
+                                anchors.fill: parent
+                                source: row.modelData.thumbnail || ""
+                                asynchronous: true
+                                cache: true
+                                fillMode: Image.PreserveAspectCrop
+                                sourceSize.width: 320
+                            }
+                            Icon { anchors.centerIn: parent; size: 28; name: "film"; color: Theme.textTertiary; visible: !row.modelData.thumbnail }
+                            Rectangle {  // check mark
+                                x: 6; y: 6
+                                implicitWidth: 22; implicitHeight: 22
+                                width: 22; height: 22
+                                radius: 6
+                                color: row.on ? Theme.accentFill : "#99000000"
+                                border.width: row.on ? 0 : 2
+                                border.color: "white"
+                                Icon { anchors.centerIn: parent; size: 14; strokeWidth: 2.5; name: "check"; visible: row.on; color: "white" }
+                            }
+                            Rectangle {  // number
+                                anchors { right: parent.right; top: parent.top; margins: 6 }
+                                width: numText.implicitWidth + 10; height: 18; radius: 5; color: "#99000000"
+                                Text { id: numText; anchors.centerIn: parent; text: row.modelData.index; color: "white"; font.pixelSize: Theme.caption }
+                            }
+                            Rectangle {  // duration
+                                visible: durText.text !== ""
+                                anchors { right: parent.right; bottom: parent.bottom; margins: 6 }
+                                width: durText.implicitWidth + 10; height: 18; radius: 5; color: "#cc000000"
+                                Text { id: durText; anchors.centerIn: parent; color: "white"; font.pixelSize: Theme.caption
+                                       text: row.modelData.available ? dlg.dur(row.modelData.duration) : qsTr("unavailable") }
+                            }
+                        }
+                        Text {
+                            text: row.modelData.title
+                            color: Theme.text
+                            font.pixelSize: Theme.footnote
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 2
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
                     }
                 }
             }
         }
         Text {
-            text: qsTr("Tip: Shift+click selects a range, Ctrl+A selects all.")
+            text: qsTr("Tip: click a tile to tick it, Shift+click selects a range, Ctrl+A selects all.")
             color: Theme.textTertiary
             font.pixelSize: Theme.footnote
             Layout.fillWidth: true

@@ -5,6 +5,8 @@ MP3 default when the source is better than a typical 128-160 kbps stream.
 """
 from __future__ import annotations
 
+import re
+
 MP3_MIN_KBPS = 320                   # MP3 is only ever made at 320 kbps, otherwise no download
 HIGH_ABR = 120                       # kbps; at or above this the choice dialog is shown
 LOSSLESS = ("flac", "alac", "wav", "pcm", "aiff")
@@ -79,7 +81,13 @@ def probe_playlist(url: str, ydl_class, opts: dict) -> dict:
     entries = []
     for n, e in enumerate([e for e in info["entries"] if isinstance(e, dict)], 1):
         title = str(e.get("title") or e.get("id") or "")
+        thumbs = [t.get("url") for t in (e.get("thumbnails") or []) if isinstance(t, dict) and t.get("url")]
+        thumb = str(e.get("thumbnail") or "") or (thumbs[-1] if thumbs else "")
+        if not thumb.startswith("https://") and re.fullmatch(r"[\w-]{11}", str(e.get("id") or "")) \
+                and "youtube" in str(e.get("ie_key") or e.get("url") or "youtube").lower():
+            thumb = "https://i.ytimg.com/vi/%s/mqdefault.jpg" % e["id"]
         entries.append({"index": n, "id": str(e.get("id") or ""), "title": title,
+                        "thumbnail": thumb if thumb.startswith("https://") else "",
                         "duration": int(e.get("duration") or 0),
                         "url": str(e.get("url") or e.get("webpage_url") or ""),
                         "available": not title.startswith(("[Private video]", "[Deleted video]"))})

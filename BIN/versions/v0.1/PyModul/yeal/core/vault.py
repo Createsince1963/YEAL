@@ -22,10 +22,11 @@ from pathlib import Path
 from typing import Optional, Protocol
 
 ITERATIONS = 300_000
-# Initial admin password: a neutral, publicly known placeholder (the user is asked to change it). A personal
-# initial password is NOT kept in the source: put it in the environment variable YEAL_ADMIN_DEFAULT or in the
-# file `admin_default.txt` next to vault.json (first line) - both stay out of the repository.
-DEFAULT_PASSWORD = os.environ.get("YEAL_ADMIN_DEFAULT") or "change-me-yeal"
+# Initial admin password: a publicly known onboarding value. The UI blocks access to stored entries until it is
+# replaced with a private password of at least eight characters. Deployments may override it through
+# YEAL_ADMIN_DEFAULT or `admin_default.txt` beside vault.json.
+DEFAULT_PASSWORD = os.environ.get("YEAL_ADMIN_DEFAULT") or "1234"
+LEGACY_DEFAULT_PASSWORD = "change-me-yeal"
 MAX_FIELD = 2000
 MAX_ENTRIES = 500
 
@@ -132,6 +133,22 @@ class Vault:
         except (OSError, ValueError):
             return False
 
+    def default_password_hint(self) -> str:
+        """Public initial password matching this vault; existing vaults are never weakened or rewritten."""
+        try:
+            doc = self._read()
+            if not doc.get("default"):
+                return ""
+            salt = base64.b64decode(doc["salt"])
+            verify = base64.b64decode(doc["verify"])
+            if hmac.compare_digest(_derive(self._default, salt)[:32], verify):
+                return self._default
+            if hmac.compare_digest(_derive(LEGACY_DEFAULT_PASSWORD, salt)[:32], verify):
+                return LEGACY_DEFAULT_PASSWORD
+        except (OSError, ValueError, KeyError):
+            pass
+        return "the installation default"
+
     def wait_seconds(self) -> int:
         return max(0, int(self._locked_until - self._clock() + 0.999))
 
@@ -208,10 +225,10 @@ class Vault:
 
     def change_password(self, old: str, new: str) -> str:
         """Returns an error text or ''."""
-        if len(new) < 8:
-            return "The new password needs at least 8 characters."
         if new in (DEFAULT_PASSWORD, self._default):
             return "Please choose a different password than the default."
+        if len(new) < 8:
+            return "The new password needs at least 8 characters."
         if not self.unlocked and not self.unlock(old):
             return "The current password is wrong."
         doc = self._read()

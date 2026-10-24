@@ -1,12 +1,20 @@
 import socket
 import threading
 import unittest
+from pathlib import Path
 
-import _path  # noqa: F401
+import _path
 from yeal.core import adblock
 
 
 class AdblockTests(unittest.TestCase):
+    def test_webview_skip_script_handles_german_and_english_labels(self):
+        qml = (Path(_path.PYMODUL) / "yeal" / "ui" / "qml" / "WebPane.qml").read_text(encoding="utf-8")
+        self.assertIn("window.__yealSkip", qml)
+        self.assertIn("überspringen", qml.lower())
+        self.assertIn("skip ad", qml.lower())
+        self.assertIn("pane.applySkipScript()", qml)
+
     def test_matching(self):
         d = adblock.load_domains()
         self.assertTrue(adblock.is_blocked("ad.doubleclick.net", d))

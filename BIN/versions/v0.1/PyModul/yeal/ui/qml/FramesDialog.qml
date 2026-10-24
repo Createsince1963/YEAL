@@ -19,6 +19,7 @@ Popup {
     property var stripUrls: []
     property bool loading: false
     property bool dragOver: false
+    readonly property url previewSource: backend.videoUrl(videoPath)
     readonly property bool wide: width >= 760
     readonly property bool isShort: duration > 0 && duration <= 180
     readonly property var intervals: ["0.1", "0.5", "1", "2", "5", "10", "30", "60"]
@@ -422,7 +423,9 @@ Popup {
                         Layout.preferredHeight: status === Loader.Ready ? Math.min(width * 9 / 16, 200) : 0
                         visible: status === Loader.Ready
                         onLoaded: {
-                            item.source = backend.videoUrl(dlg.videoPath)
+                            // Keep the media source bound to the current tile even when the Loader survives
+                            // a very fast selection change.
+                            item.source = Qt.binding(() => dlg.previewSource)
                             item.startSec = Qt.binding(() => strip.startSec)
                             item.endSec = Qt.binding(() => strip.endSec)
                         }

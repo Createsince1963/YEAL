@@ -6,19 +6,47 @@ ColumnLayout {
     id: root
     property string title: ""
     property string footer: ""
+    property string icon: ""
+    property bool collapsible: false
+    property bool collapsed: false
     default property alias rows: card.data
     spacing: Theme.s2
 
-    Text {
+    RowLayout {
         visible: root.title !== ""
-        text: root.title.toUpperCase()
-        font.pixelSize: Theme.caption
-        font.letterSpacing: 0.4
-        color: Theme.textSecondary
+        Layout.fillWidth: true
         Layout.leftMargin: Theme.s3
-        Accessible.role: Accessible.Heading
+        Layout.rightMargin: Theme.s3
+        spacing: Theme.s2
+        Icon {
+            visible: root.icon !== ""
+            name: root.icon
+            size: 16
+            color: Theme.textSecondary
+        }
+        Text {
+            text: root.title.toUpperCase()
+            font.pixelSize: Theme.caption
+            font.letterSpacing: 0.4
+            color: Theme.textSecondary
+            Layout.fillWidth: true
+            Accessible.role: Accessible.Heading
+        }
+        Icon {
+            visible: root.collapsible
+            name: "chevronDown"
+            size: 15
+            color: Theme.textSecondary
+            rotation: root.collapsed ? -90 : 0
+            Behavior on rotation { NumberAnimation { duration: 120 } }
+        }
+        TapHandler {
+            enabled: root.collapsible
+            onTapped: root.collapsed = !root.collapsed
+        }
     }
     Rectangle {
+        visible: !root.collapsed
         Layout.fillWidth: true
         implicitHeight: card.implicitHeight
         radius: Theme.radiusCard
@@ -33,7 +61,7 @@ ColumnLayout {
         }
     }
     Text {
-        visible: root.footer !== ""
+        visible: !root.collapsed && root.footer !== ""
         text: root.footer
         font.pixelSize: Theme.caption
         color: Theme.textSecondary

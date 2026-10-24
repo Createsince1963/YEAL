@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+- Settings page: every setting is a collapsed one-line item (icon, name, current value) that opens on click to edit; the groups have icons too. No more endless rows.
+- New setting "Create HTML pages" (Server / File / Both, default Both). Both writes `name.html` (online player, opened through Yeal's local server) and `name.file.html` (standalone, works from disk), linked to each other. Pages always link to the media by file name only (same folder, no full path). "Open saved HTML pages" now defaults to the local server for new installs; in File mode the standalone page is opened.
+- Description pages no longer embed the online YouTube player for videos whose owner forbids embedding (YouTube showed "This video is not available" inside the page); the local file player is used.
+- Playlist dialog shows every video as a thumbnail tile (number, duration, tick mark) and offers Select all / none / Invert, single and Shift-range selection. Only the ticked videos are downloaded.
+- The playlist HTML page has its own layout: video playlists get a tile grid with thumbnails under a sticky player, audio playlists a cover header with a track list; both have Play all, Shuffle and a title filter.
+- A video watched inside a YouTube playlist now offers "Use playlist" next to "Use this link": the whole playlist is listed, saved in `Playlists\<playlist name>\` with the playlist HTML page. Before, only the single video was taken (the playlist part of the link was cut off).
+- Playlist rows show a third bar for the whole playlist (video n/N) above the download bar of the current video and the conversion bar.
+- The browser login is checked once before a download. If it cannot be read, the download continues without it (before, a playlist silently skipped most videos). Playlists that could not be fully downloaded now say how many videos were skipped.
+- Fixed downloads failing with "Failed to decrypt with DPAPI" (yt-dlp issue 10927): Chrome and Edge protect their cookies, so the browser login cannot be read. Yeal now retries automatically without the browser login, shows a clear note, and explains that Firefox is the reliable choice for protected videos.
+- Fixed the image extractor preview when switching videos: each selection gets fresh filmstrip files, the player resets to the new source, and a late result from the previous selection can no longer replace the current preview.
+- The embedded YouTube browser now presses visible ad-skip controls automatically with both German (`Überspringen`) and English (`Skip` / `Skip ad`) labels, independently of the experimental ad blocker.
+- First start now asks for the browser used by protected YouTube downloads (Chrome is preselected) and the download folder.
+- Selected segmented options and enabled switches use Yeal's blue accent consistently throughout Settings.
+- Settings changes are staged. The page shows Save / Discard and asks whether to save, discard, or stay when the user leaves Settings or closes Yeal; no prompt appears when nothing changed.
+- New Admin vaults start with password `1234` and require a private replacement before YouTube/browser login entries can be added or viewed. Existing vault passwords are preserved.
+- Every group on the Settings page can now be expanded and collapsed.
+- The download-engine section shows the detected ffmpeg and Node.js versions and full executable paths. Both helpers can be selected manually, reset to automatic detection, or opened on their official download page for updates; manual paths are saved and used immediately.
+- The Info group now contains the complete Yeal version history and a versioned license overview for the runtime modules. The changelog is also included in packaged builds.
+- Protected YouTube downloads now explain that Google can reject sign-in inside the embedded view and direct the user to the supported external-browser cookie workflow. The YouTube toolbar can open the current page in the system browser.
+
 ## 0.8.14
 - Saved HTML pages can now open directly from disk (`file://`, the independent default) or through Yeal's optional local Python server (`127.0.0.1`). The server mode keeps embedded YouTube/Vimeo players working while Yeal runs; local-file mode needs no server or running app and links to the original site instead. Switching back to local-file mode also stops an active HTML server.
 - Added the setting under Downloads and documented both modes in the German and English HTML manuals.

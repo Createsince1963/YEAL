@@ -37,6 +37,8 @@ def embed_url(info: dict) -> str:
     """Official embeddable player URL for sites that offer one (YouTube, Vimeo), else ''."""
     vid = str(info.get("id") or "")
     site = str(info.get("extractor_key") or info.get("extractor") or "").lower()
+    if info.get("playable_in_embed") is False:      # the owner (often label / VEVO videos) forbids embedding
+        return ""
     if site.startswith("youtube") and re.fullmatch(r"[\w-]{11}", vid):
         return f"https://www.youtube-nocookie.com/embed/{vid}"
     if site == "vimeo" and vid.isdigit():
@@ -45,9 +47,13 @@ def embed_url(info: dict) -> str:
 
 
 def description_html(info: dict, media_name: str = "", media_kind: str = "video",
-                     online_player: bool = False, theme: str = "auto", lyrics: Optional[dict] = None) -> str:
+                     online_player: bool = False, theme: str = "auto", lyrics: Optional[dict] = None,
+                     flavour: str = "server", sibling: str = "") -> str:
     """Standalone HTML page with the description (http(s) links clickable). When `media_name`
-    is given, the file next to the page is embedded as a player (relative link)."""
+    is given, the file next to the page is embedded as a player (relative link: only the file name, the
+    page and the media always sit in the same folder). `flavour`: "server" plays the online player when the
+    page is opened over http (Yeal's local server); "file" never embeds it (works from disk, offline).
+    `sibling` = file name of the other flavour in the same folder; a relative link to it is shown on top."""
     title = html.escape(str(info.get("title") or "Description"))
     meta = []
     if info.get("uploader") or info.get("channel"):
@@ -88,6 +94,17 @@ def description_html(info: dict, media_name: str = "", media_kind: str = "video"
                   'f.allowFullscreen=true;f.referrerPolicy="strict-origin-when-cross-origin";'
                   'b.replaceChildren(f)})();</script>\n'
                   + player)
+    if flavour == "file" and "<script>" in player:      # standalone page: no iframe script, no server hint
+        i = player.index("<script>")
+        j = player.index("</script>\n", i) + len("</script>\n")
+        player = player[:i] + player[j:]
+        player = player.replace(
+            'It plays inside this page when it is opened with "Open page" in Yeal; opened from disk, the picture links to the original site.',
+            "This standalone page works from disk without Yeal; the picture links to the original site.")
+    nav = ""
+    if sibling:
+        label = "Standalone version (file, works offline)" if flavour != "file" else "Online version (needs Yeal's local server)"
+        nav = f'<p class="meta"><a href="{html.escape(quote(sibling), quote=True)}">{label}</a></p>\n'
     lines = _linkify(html.escape(str(info.get("description") or ""))).replace("\r\n", "\n").split("\n")
     tracks = len(info.get("chapters") or []) >= 2
     if tracks:   # tracklist: every leading timestamp jumps to that position in the player
@@ -159,38 +176,58 @@ def description_html(info: dict, media_name: str = "", media_kind: str = "video"
         "#lyrics .ly.on{opacity:1;font-weight:600;background:#8884}#lyrics p{margin:.15rem 0}"
         ".poster span{position:relative;background:#000a;padding:.6rem 1rem;border-radius:999px}"
         f"{theme_css}\n</style>\n</head>\n<body>\n"
-        f"<h1>{title}</h1>\n<p class=\"meta\">{' &middot; '.join(meta)}</p>\n{player}"
+        f"<h1>{title}</h1>\n<p class=\"meta\">{' &middot; '.join(meta)}</p>\n{nav}{player}"
         f"<div>\n{body}\n</div>\n{lyr}{seek}</body>\n</html>\n")
 
 
 def playlist_html(title: str, uploader: str, source: str, items: List[dict],
                   media_kind: str = "video", theme: str = "auto") -> str:
-    """Standalone page for a downloaded playlist: one player, the track list below it. A click on an entry
-    plays that file (relative links, so the page works from the playlist folder), the next entry follows
-    automatically. items: [{index, title, duration, file, page}] - `file` '' = not downloaded (greyed out),
-    `page` = the entry's own description page, if one was saved."""
+    """Standalone page for a downloaded playlist (a different layout than the single-video page).
+    Video: sticky player on top, a grid of thumbnail tiles below. Audio: cover header with Play/Shuffle and a
+    track list with covers, the player bar stays at the top. A click plays that file (relative links, so the page
+    works from the playlist folder), the next entry follows automatically. A filter box searches the titles.
+    items: [{index, title, duration, file, page, thumb}] - `file` '' = not downloaded (greyed out),
+    `page` = the entry's own description page, `thumb` = https thumbnail address (optional)."""
     esc = html.escape
-    tag = "audio" if media_kind == "audio" else "video"
+    audio = media_kind == "audio"
+    tag = "audio" if audio else "video"
+
+    def thumb_of(it: dict) -> str:
+        t = str(it.get("thumb") or "")
+        return t if t.startswith("https://") else ""
+
     rows = []
     for it in items:
         f = str(it.get("file") or "")
         page = str(it.get("page") or "")
         dur = esc(str(it.get("duration") or ""))
-        link = f' <a class="pg" href="{esc(quote(page), quote=True)}" title="Description">&#9432;</a>' if page else ""
+        ttl = esc(str(it.get("title") or f))
+        n = int(it.get("index") or 0)
+        th = thumb_of(it)
+        img = (f'<img src="{esc(th, quote=True)}" alt="" loading="lazy" referrerpolicy="no-referrer" '
+               'onerror="this.style.visibility=\'hidden\'">') if th else ""
+        link = f'<a class="pg" href="{esc(quote(page), quote=True)}" title="Description">&#9432;</a>' if page else ""
         if f:
-            rows.append(f'<li class="it" data-src="{esc(quote(f), quote=True)}"><span class="n">{int(it.get("index") or 0)}</span>'
-                        f'<span class="t">{esc(str(it.get("title") or f))}</span><span class="d">{dur}</span>{link}</li>')
+            rows.append(f'<li class="it" data-src="{esc(quote(f), quote=True)}" data-t="{esc(ttl.lower(), quote=True)}">'
+                        f'<span class="n">{n}</span><span class="c">{img}<i class="d">{dur}</i></span>'
+                        f'<span class="t">{ttl}</span>{link}</li>')
         else:
-            rows.append(f'<li class="it off"><span class="n">{int(it.get("index") or 0)}</span>'
-                        f'<span class="t">{esc(str(it.get("title") or ""))}</span><span class="d">not downloaded</span></li>')
+            rows.append(f'<li class="it off" data-t="{esc(ttl.lower(), quote=True)}"><span class="n">{n}</span>'
+                        f'<span class="c">{img}</span><span class="t">{ttl}</span><span class="x">not downloaded</span></li>')
+    got = sum(1 for i in items if i.get("file"))
     meta = []
     if uploader:
         meta.append(esc(uploader))
-    meta.append(f"{sum(1 for i in items if i.get('file'))} of {len(items)} items")
+    meta.append(f"{got} of {len(items)} items")
     if source.startswith(("http://", "https://")):
         meta.append(_linkify(esc(source)))
-    light = ("color:#1d1d1f;background:#fff", ".meta,.d,.n{color:#6e6e73}a{color:#0071e3}.it:hover{background:#0000000d}.it.on{background:#0071e322}")
-    dark = ("color:#f5f5f7;background:#121214", ".meta,.d,.n{color:#a1a1a6}a{color:#2997ff}.it:hover{background:#ffffff14}.it.on{background:#2997ff33}")
+    cover = next((thumb_of(i) for i in items if thumb_of(i)), "")
+    cover_html = (f'<img class="cv" src="{esc(cover, quote=True)}" alt="" referrerpolicy="no-referrer" '
+                  'onerror="this.style.display=\'none\'">') if (audio and cover) else ""
+    light = ("color:#1d1d1f;background:#fff", ".meta,.d,.n,.x{color:#6e6e73}a{color:#0071e3}.it:hover{background:#0000000d}"
+             ".it.on{background:#0071e322}.c{background:#e5e5ea}input,button{background:#f2f2f7;color:#1d1d1f}")
+    dark = ("color:#f5f5f7;background:#121214", ".meta,.d,.n,.x{color:#a1a1a6}a{color:#2997ff}.it:hover{background:#ffffff14}"
+            ".it.on{background:#2997ff33}.c{background:#2c2c2e}input,button{background:#2c2c2e;color:#f5f5f7}")
     if theme == "dark":
         theme_css, scheme = f"html{{color-scheme:dark}}body{{{dark[0]}}}{dark[1]}", "dark"
     elif theme == "light":
@@ -198,28 +235,53 @@ def playlist_html(title: str, uploader: str, source: str, items: List[dict],
     else:
         theme_css = (f"body{{{light[0]}}}{light[1]}@media(prefers-color-scheme:dark){{body{{{dark[0]}}}{dark[1]}}}")
         scheme = "light dark"
+    layout = (
+        # audio: list rows with small square covers
+        "ol.a{display:block}.a .it{display:flex;gap:.75rem;align-items:center;padding:.4rem .6rem}"
+        ".a .c{width:3rem;height:3rem;flex:none}.a .c i{display:none}.a .t{flex:1;min-width:0;overflow-wrap:anywhere}"
+        ".a .n{min-width:2rem;text-align:right}"
+        ".hd{display:flex;gap:1.25rem;align-items:flex-end;margin-bottom:.5rem}.cv{width:9rem;height:9rem;object-fit:cover;border-radius:14px}"
+        if audio else
+        # video: grid of 16:9 tiles
+        "ol.v{display:grid;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));gap:1rem}"
+        ".v .it{display:flex;flex-direction:column;gap:.4rem;padding:.4rem}.v .c{aspect-ratio:16/9;width:100%}"
+        ".v .c i{position:absolute;right:.4rem;bottom:.4rem;background:#000b;color:#fff;border-radius:5px;padding:0 .35rem;font-style:normal}"
+        ".v .n{position:absolute;left:.4rem;top:.4rem;z-index:1;background:#000b;color:#fff;border-radius:5px;padding:0 .35rem;min-width:0}"
+        ".v .it{position:relative}.v .t{font-size:.95rem;line-height:1.3;max-height:2.6em;overflow:hidden}"
+    )
     return (
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f'<meta name="color-scheme" content="{scheme}">\n<title>{esc(title)}</title>\n<style>\n'
-        "body{font:16px/1.55 system-ui,sans-serif;max-width:50rem;margin:2rem auto;padding:0 1rem}"
-        "h1{font-size:1.5rem}.meta{font-size:.9rem}"
-        "#p{position:sticky;top:0;z-index:1;padding:.5rem 0;background:inherit}"
+        f"body{{font:16px/1.5 system-ui,sans-serif;max-width:{'50rem' if audio else '72rem'};margin:1.5rem auto;padding:0 1rem}}"
+        "h1{font-size:1.5rem;margin:.2rem 0}.meta{font-size:.9rem;margin:.2rem 0}"
+        "#p{position:sticky;top:0;z-index:2;padding:.5rem 0;background:inherit}"
         "audio{width:100%;height:3rem;border-radius:12px}"
-        "video{display:block;width:100%;max-height:60vh;border-radius:12px;background:#000}"
-        "ol{list-style:none;margin:0;padding:0}"
-        ".it{display:flex;gap:.75rem;align-items:baseline;padding:.45rem .6rem;border-radius:8px;cursor:pointer}"
-        ".it.off{opacity:.45;cursor:default}.it .t{flex:1;min-width:0;overflow-wrap:anywhere}"
-        ".n{min-width:2rem;text-align:right;font-variant-numeric:tabular-nums}.d{font-size:.85rem}.pg{text-decoration:none}"
-        f"{theme_css}\n</style>\n</head>\n<body>\n<h1>{esc(title)}</h1>\n"
-        f'<p class="meta">{" &middot; ".join(meta)}</p>\n'
+        "video{display:block;width:100%;max-height:55vh;border-radius:12px;background:#000}"
+        ".bar{display:flex;gap:.5rem;margin:.6rem 0 1rem;flex-wrap:wrap}"
+        "input,button{border:0;border-radius:10px;padding:.5rem .8rem;font:inherit}input{flex:1;min-width:10rem}button{cursor:pointer}"
+        "ol{list-style:none;margin:0;padding:0}.it{border-radius:10px;cursor:pointer}"
+        ".c{position:relative;border-radius:8px;overflow:hidden;display:block}.c img{width:100%;height:100%;object-fit:cover;display:block}"
+        ".it.off{opacity:.45;cursor:default}.d,.x{font-size:.85rem}.n{font-variant-numeric:tabular-nums}.pg{text-decoration:none}"
+        f"{layout}{theme_css}\n</style>\n</head>\n<body>\n"
+        f'<div class="hd">{cover_html}<div><h1>{esc(title)}</h1>\n<p class="meta">{" &middot; ".join(meta)}</p></div></div>\n'
         f'<div id="p"><{tag} id="m" controls preload="metadata"></{tag}></div>\n'
-        f'<ol>\n{chr(10).join(rows)}\n</ol>\n'
-        '<script>(function(){var m=document.getElementById("m"),L=[].slice.call(document.querySelectorAll(".it[data-src]")),cur=-1;'
+        '<div class="bar"><button id="all" type="button">&#9654; Play all</button><button id="shuf" type="button">&#128256; Shuffle</button>'
+        '<input id="q" type="search" placeholder="Filter titles" aria-label="Filter titles"></div>\n'
+        f'<ol class="{"a" if audio else "v"}" id="l">\n{chr(10).join(rows)}\n</ol>\n'
+        '<script>(function(){var m=document.getElementById("m"),L=[].slice.call(document.querySelectorAll(".it[data-src]")),cur=-1,order=null;'
+        'function vis(e){return e.style.display!=="none"}'
         'function go(i){if(i<0||i>=L.length)return;if(cur>=0)L[cur].classList.remove("on");cur=i;L[i].classList.add("on");'
         'm.src=L[i].dataset.src;m.play();L[i].scrollIntoView({block:"nearest"})}'
+        'function next(){var a=order||L.map(function(_,i){return i});var p=a.indexOf(cur);'
+        'for(var k=p+1;k<a.length;k++){if(vis(L[a[k]])){go(a[k]);return}}}'
         'L.forEach(function(e,i){e.addEventListener("click",function(ev){if(ev.target.closest(".pg"))return;go(i)})});'
-        'm.addEventListener("ended",function(){go(cur+1)});'
+        'm.addEventListener("ended",next);'
+        'document.getElementById("all").onclick=function(){order=null;var f=L.findIndex(vis);if(f>=0)go(f)};'
+        'document.getElementById("shuf").onclick=function(){order=L.map(function(_,i){return i}).sort(function(){return Math.random()-.5});'
+        'var f=order.find(function(i){return vis(L[i])});if(f!==undefined)go(f)};'
+        'document.getElementById("q").oninput=function(){var s=this.value.toLowerCase();'
+        '[].slice.call(document.querySelectorAll("#l .it")).forEach(function(e){e.style.display=e.dataset.t.indexOf(s)<0?"none":""})};'
         'if(L.length){m.src=L[0].dataset.src;L[0].classList.add("on");cur=0}})();</script>\n</body>\n</html>\n')
 
 
@@ -261,7 +323,7 @@ def pick_subtitle(info: dict, langs: Iterable[str]) -> str:
 def write_extras(info: dict, video_path: str, want_description: bool, want_transcript: bool,
                  langs: Iterable[str], keep_subtitles: bool, media_kind: str = "video",
                  online_player: bool = False, theme: str = "auto",
-                 lyrics: Optional[dict] = None) -> tuple[bool, bool]:
+                 lyrics: Optional[dict] = None, html_create: str = "both") -> tuple[bool, bool]:
     """Write the requested extras next to `video_path`, with the same base name
     (`name.html`, `name.txt`) so the page's embedded player finds the media file.
     Returns (description_saved, transcript_saved)."""
@@ -269,8 +331,16 @@ def write_extras(info: dict, video_path: str, want_description: bool, want_trans
     saved_desc = saved_tr = False
     try:
         if (want_description and has_description(info)) or (online_player and embed_url(info)):
-            base.with_name(base.name + ".html").write_text(
-                description_html(info, Path(video_path).name, media_kind, online_player, theme, lyrics), encoding="utf-8")
+            name = Path(video_path).name          # links are always the bare file name (same folder)
+            main = base.with_name(base.name + ".html")
+            alt = base.with_name(base.name + ".file.html")
+            two = html_create == "both" and bool(online_player and embed_url(info))   # a 2nd page only differs by the embed
+            flavour = "file" if html_create == "file" else "server"
+            main.write_text(description_html(info, name, media_kind, online_player, theme, lyrics, flavour,
+                                             alt.name if two else ""), encoding="utf-8")
+            if two:
+                alt.write_text(description_html(info, name, media_kind, online_player, theme, lyrics, "file",
+                                                main.name), encoding="utf-8")
             saved_desc = True
         sub = pick_subtitle(info, langs) if want_transcript else ""
         if sub:

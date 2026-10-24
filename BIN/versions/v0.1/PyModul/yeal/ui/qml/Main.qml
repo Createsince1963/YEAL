@@ -14,6 +14,34 @@ ApplicationWindow {
     color: Theme.window
 
     property int page: 0
+    property int pendingPage: -2       // -1 = close app, >= 0 = navigate after Settings decision
+    property bool forceClose: false
+
+    function requestPage(index) {
+        if (index === page) return
+        if (page === 2) {
+            if (backend.settingsDirty) {
+                pendingPage = index
+                settingsSavePrompt.open()
+                return
+            }
+            backend.finishSettingsEdit(true)
+        }
+        page = index
+        if (index === 2) backend.beginSettingsEdit()
+    }
+    function resolveSettings(save) {
+        backend.finishSettingsEdit(save)
+        settingsSavePrompt.close()
+        var target = pendingPage
+        pendingPage = -2
+        if (target === -1) {
+            forceClose = true
+            Qt.callLater(function () { win.close() })
+        } else if (target >= 0) {
+            page = target
+        }
+    }
 
     Component.onCompleted: {
         var g = backend.settings.window
@@ -28,7 +56,14 @@ ApplicationWindow {
             if (g.max) visibility = Window.Maximized
         }
     }
-    onClosing: {
+    onClosing: function(close) {
+        if (!forceClose && page === 2 && backend.settingsDirty) {
+            close.accepted = false
+            pendingPage = -1
+            settingsSavePrompt.open()
+            return
+        }
+        if (page === 2) backend.finishSettingsEdit(true)
         // save the normal (non-maximized) geometry
         if (visibility === Window.Maximized) {
             var g = backend.settings.window || {}
@@ -80,7 +115,7 @@ ApplicationWindow {
             currentIndex: win.page
             onRight: win.barRight
             rowNav: win.browserMode
-            onSelected: (i) => win.page = i
+            onSelected: (i) => win.requestPage(i)
         }
     }
 
@@ -98,11 +133,11 @@ ApplicationWindow {
         DownloadsPage {
             id: downloads
             browserMode: win.browserMode
-            suspendWeb: panel.overlayOpen
+            suspendWeb: panel.overlayOpen || firstRun.opened || settingsSavePrompt.opened
             onVideoLink: (url) => panel.browserLink(url)
         }
         ProfilesPage {
-            onUseProfile: win.page = 0
+            onUseProfile: win.requestPage(0)
             onToastRequest: (m) => toast.show(m)
         }
         SettingsPage {
@@ -145,7 +180,7 @@ ApplicationWindow {
         parent: win.panelInSidebar && sidebarLoader.item ? sidebarLoader.item.slot : downloads.slot
         anchors.fill: parent
         visible: win.page === 0
-        onManageProfiles: win.page = 1
+        onManageProfiles: win.requestPage(1)
     }
 
     Loader {
@@ -156,7 +191,7 @@ ApplicationWindow {
         sourceComponent: BottomBar {
             items: win.navItems
             currentIndex: win.page
-            onSelected: (i) => win.page = i
+            onSelected: (i) => win.requestPage(i)
         }
     }
 
@@ -168,14 +203,56 @@ ApplicationWindow {
         z: 10
     }
 
+    FirstRunDialog { id: firstRun }
+
+    Popup {
+        id: settingsSavePrompt
+        modal: true
+        focus: true
+        parent: Overlay.overlay
+        width: Math.min(520, win.width - 2 * Theme.s4)
+        x: (win.width - width) / 2
+        y: (win.height - height) / 2
+        padding: Theme.s5
+        closePolicy: Popup.NoAutoClose
+        Overlay.modal: Rectangle { color: Theme.dark ? "#99000000" : "#55000000" }
+        background: Rectangle {
+            radius: Theme.radiusCard + 4
+            color: Theme.raised
+            border.width: 1
+            border.color: Theme.separator
+        }
+        contentItem: ColumnLayout {
+            spacing: Theme.s4
+            Text { text: qsTr("Save settings?"); color: Theme.text; font.pixelSize: Theme.title; font.weight: Font.DemiBold }
+            Text {
+                text: qsTr("Settings were changed. Save them before leaving?")
+                color: Theme.textSecondary
+                font.pixelSize: Theme.body
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                AppButton { text: qsTr("Stay here"); kind: "plain"; onClicked: { settingsSavePrompt.close(); win.pendingPage = -2 } }
+                AppButton { text: qsTr("Discard"); onClicked: win.resolveSettings(false) }
+                AppButton { text: qsTr("Save"); iconName: "check"; kind: "primary"; onClicked: win.resolveSettings(true) }
+            }
+        }
+    }
+
     Splash {
         anchors.fill: parent
         z: 100
-        onFinished: destroy()
+        onFinished: {
+            destroy()
+            if (backend.setupRequired) Qt.callLater(function () { firstRun.open() })
+        }
     }
 
-    Shortcut { sequence: "Ctrl+1"; onActivated: win.page = 0 }
-    Shortcut { sequence: "Ctrl+2"; onActivated: win.page = 1 }
-    Shortcut { sequence: "Ctrl+3"; onActivated: win.page = 2 }
-    Shortcut { sequence: "Ctrl+L"; onActivated: { win.page = 0; panel.focusInput() } }
+    Shortcut { sequence: "Ctrl+1"; onActivated: win.requestPage(0) }
+    Shortcut { sequence: "Ctrl+2"; onActivated: win.requestPage(1) }
+    Shortcut { sequence: "Ctrl+3"; onActivated: win.requestPage(2) }
+    Shortcut { sequence: "Ctrl+L"; onActivated: { win.requestPage(0); panel.focusInput() } }
 }

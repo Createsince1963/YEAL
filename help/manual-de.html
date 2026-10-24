@@ -106,14 +106,17 @@
 
       <section id="browser">
         <h2>Eingebetteter YouTube-Browser</h2>
-        <p>Unter Windows nutzt Yeal Microsoft Edge WebView2. Es wird kein zusätzlicher Browser mitgeliefert. Die Anmeldung bleibt im Yeal-Datenordner gespeichert.</p>
+        <p>Unter Windows nutzt Yeal Microsoft Edge WebView2. Es wird kein zusätzlicher Browser mitgeliefert. Google kann die Kontoanmeldung in eingebetteten Browsern verweigern.</p>
         <ul>
           <li>Zurück, Vor, Neu laden und YouTube-Startseite befinden sich über der Webseite.</li>
+          <li>„Im Browser öffnen“ öffnet die aktuelle Seite im normalen Systembrowser.</li>
           <li>„Diesen Link verwenden“ übernimmt den aktuellen Link erneut in den Workflow.</li>
           <li>Das Browser-Symbol blendet die Webseite ein oder aus; das Stapel-Symbol tauscht die Seiten.</li>
           <li>Die Breite lässt sich am Trenner verändern und wird gespeichert.</li>
           <li>Das Design folgt dem hellen oder dunklen Yeal-Design.</li>
+          <li>Während Werbung wird der Ton stummgeschaltet. Sichtbare Schaltflächen „Überspringen“, „Skip“ und „Skip ad“ betätigt Yeal automatisch.</li>
         </ul>
+        <div class="warning"><strong>Altersbeschränkte oder geschützte Videos:</strong> In Firefox, Edge oder Chrome bei YouTube anmelden, denselben Browser unter „Einstellungen &gt; Browser-Anmeldung“ auswählen, den Browser schließen und den Download wiederholen. Die Anmeldung im eingebetteten Yeal-Browser wird dafür nicht verwendet.</div>
         <div class="warning"><strong>Werbeblocker:</strong> Die experimentelle Funktion kann YouTube beeinträchtigen. Bei ungewöhnlichem Verhalten deaktivieren und Yeal neu starten.</div>
       </section>
 
@@ -170,6 +173,7 @@
 
       <section id="einstellungen">
         <h2>Wichtige Einstellungen</h2>
+        <p>Beim ersten Start fragt Yeal nach dem Browser für geschützte YouTube-Downloads (Chrome ist vorausgewählt) und dem Downloadordner. Alle Einstellungsbereiche lassen sich über ihre Überschrift auf- und zuklappen. Änderungen werden erst mit „Speichern“ übernommen; beim Verlassen stehen Speichern, Verwerfen und Zurückkehren zur Wahl. Ohne Änderungen erscheint keine Rückfrage.</p>
         <table>
           <thead><tr><th>Einstellung</th><th>Wirkung</th></tr></thead>
           <tbody>
@@ -182,6 +186,8 @@
             <tr><td>Browser-Anmeldung</td><td>Nutzt optional Cookies aus Firefox, Edge oder Chrome für geschützte Inhalte.</td></tr>
             <tr><td>Proxy</td><td>Optionale HTTP-/SOCKS-Adresse.</td></tr>
             <tr><td>yt-dlp</td><td>Automatische Prüfung oder manuelle Aktualisierung.</td></tr>
+            <tr><td>ffmpeg / Node.js</td><td>Zeigt Version und vollständigen Pfad. Die Programmdatei kann gewählt oder automatisch neu erkannt werden; „Update“ öffnet die offizielle Downloadseite.</td></tr>
+            <tr><td>Info</td><td>Enthält die Versionshistorie und die Versionen und Lizenzen der verwendeten Module.</td></tr>
             <tr><td>Erweiterte Optionen</td><td>Sichere zusätzliche yt-dlp-Optionen als JSON.</td></tr>
           </tbody>
         </table>
@@ -231,7 +237,7 @@
       <section id="sicherheit">
         <h2>Sicherheit, Datenschutz und Recht</h2>
         <ul>
-          <li>Gespeicherte Anmeldedaten liegen im Admin-Tresor und werden unter Windows mit DPAPI plus passwortabgeleitetem Schlüssel geschützt.</li>
+          <li>Gespeicherte YouTube-/Browser-Anmeldedaten liegen im Admin-Tresor und werden unter Windows mit DPAPI plus passwortabgeleitetem Schlüssel geschützt. Ein neuer Tresor beginnt mit <code>1234</code>; vor dem Zugriff auf Einträge muss dieses öffentliche Startpasswort durch ein privates Passwort ersetzt werden.</li>
           <li>Der Tresor sperrt sich nach fünf Minuten; kopierte Geheimnisse werden nach 30 Sekunden aus der Zwischenablage entfernt.</li>
           <li>Die lokale HTML-Vorschau bindet nur an <code>127.0.0.1</code>.</li>
           <li>Nur Inhalte herunterladen, für die eine entsprechende Erlaubnis oder ein Nutzungsrecht besteht.</li>

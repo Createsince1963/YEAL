@@ -38,7 +38,7 @@ Rectangle {
         width: w
         height: root.height - 4
         radius: Theme.radius - 2
-        color: Theme.raised
+        color: Theme.accentFill
         border.width: root.activeFocus ? 2 : (Theme.dark ? 0 : 1)
         border.color: root.activeFocus ? Theme.accent : Theme.separator
         Behavior on x { NumberAnimation { duration: Theme.dur; easing.type: Easing.OutCubic } }
@@ -65,7 +65,7 @@ Rectangle {
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: Theme.footnote + (Theme.compact ? 0 : 1)
                     font.weight: seg.index === root.index ? Font.Medium : Font.Normal
-                    color: seg.index === root.index ? Theme.text : Theme.textSecondary
+                    color: seg.index === root.index ? Theme.textOnAccent : Theme.textSecondary
                 }
                 TapHandler { onTapped: root.activated(seg.modelData.value) }
             }

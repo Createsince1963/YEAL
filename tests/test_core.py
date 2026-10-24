@@ -414,7 +414,7 @@ class SettingsTests(unittest.TestCase):
             path.write_text(json.dumps({"theme": "light", "unknown": 1}), encoding="utf-8")
             self.assertEqual(Settings.load(path).theme, "light")
             self.assertEqual(Settings.load(Path(d) / "missing.json").get_profile()["max_height"], 1080)
-            self.assertEqual(Settings(html_open_mode="invalid").validate().html_open_mode, "file")
+            self.assertEqual(Settings(html_open_mode="invalid").validate().html_open_mode, "server")
 
     def test_legacy_settings_become_a_profile(self):
         with tempfile.TemporaryDirectory() as d:

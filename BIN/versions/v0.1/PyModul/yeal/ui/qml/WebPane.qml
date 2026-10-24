@@ -84,7 +84,7 @@ Item {
     }
     onDarkChanged: { themeReloads = 0; applyTheme() }
 
-    // Video ads: hide ad slots, press "Skip", and jump to the end of an ad that cannot be skipped.
+    // Experimental ad handling: hide ad slots and jump to the end of an ad that cannot be skipped.
     // (Blocking the ad domains alone does not help: YouTube serves its own ads from its own servers.)
     function applyAdScript() {
         if (!backend.settings.adblock_experimental || !/^https?:\/\/([\w-]+\.)?youtube\.com\//i.test(current))
@@ -95,11 +95,32 @@ Item {
             + ".ytp-ad-overlay-container,ytd-promoted-sparkles-web-renderer,#masthead-ad{display:none!important}';"
             + "document.documentElement.appendChild(s);"
             + "setInterval(function(){var p=document.querySelector('.html5-video-player');"
-            + "if(!p||!p.classList.contains('ad-showing'))return;"
-            + "var b=document.querySelector('.ytp-skip-ad-button,.ytp-ad-skip-button-modern,.ytp-ad-skip-button');"
-            + "if(b){b.click();return}"
+            + "if(!p||(!p.classList.contains('ad-showing')&&!p.classList.contains('ad-interrupting')))return;"
             + "var v=p.querySelector('video');if(v&&isFinite(v.duration)&&v.duration>0){v.currentTime=v.duration}"
             + "},400)})()")
+    }
+
+    // Press YouTube's own visible ad-skip control. This is separate from experimental blocking and therefore
+    // works with that setting off. YouTube changes the element classes regularly, so use both known selectors
+    // and the accessible German/English label ("Ueberspringen" / "Skip ad") as a fallback.
+    function applySkipScript() {
+        if (!/^https?:\/\/([\w-]+\.)?youtube\.com\//i.test(current))
+            return
+        pane.run("(function(){if(window.__yealSkip)return;window.__yealSkip=1;"
+            + "function visible(e){if(!e||e.disabled)return false;var r=e.getBoundingClientRect(),s=getComputedStyle(e);"
+            + "return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}"
+            + "function press(e){e=e&&e.closest?e.closest('button,[role=button]')||e:e;if(!visible(e))return false;"
+            + "e.click();return true}"
+            + "setInterval(function(){var p=document.querySelector('.html5-video-player');"
+            + "if(!p||(!p.classList.contains('ad-showing')&&!p.classList.contains('ad-interrupting')))return;"
+            + "var known=p.querySelectorAll('.ytp-skip-ad-button,.ytp-ad-skip-button-modern,.ytp-ad-skip-button,.ytp-skip-ad-button__text');"
+            + "for(var i=0;i<known.length;i++){if(press(known[i]))return}"
+            + "var controls=p.querySelectorAll('button,[role=button]');"
+            + "for(var j=0;j<controls.length;j++){var e=controls[j];"
+            + "var label=((e.getAttribute('aria-label')||'')+' '+(e.getAttribute('title')||'')+' '+(e.textContent||'')).trim().toLowerCase();"
+            + "if(label==='skip'||label.indexOf('skip ad')>=0||label.indexOf('skip ads')>=0"
+            + "||label.indexOf('ueberspringen')>=0||label.indexOf('überspringen')>=0){if(press(e))return}}"
+            + "},300)})()")
     }
 
     // Mute while a YouTube ad runs, restore the sound when the video itself plays. The player marks an ad
@@ -174,6 +195,17 @@ Item {
     Shortcut { sequence: "Alt+Right"; enabled: pane.visible && !pane.suspended; onActivated: pane.goForward() }
     Shortcut { sequence: "F5"; enabled: pane.visible && !pane.suspended; onActivated: pane.reload() }
 
+    // Playlist the watched video belongs to (not YouTube's endless "mix" lists, which start with RD).
+    readonly property string playlistId: {
+        var m = /[?&]list=([\w-]+)/i.exec(current)
+        return (m && !/^RD/i.test(m[1]) && linkPattern.test(current)) ? m[1] : ""
+    }
+    function publishPlaylist() {
+        if (playlistId === "") return
+        lastPublished = ""
+        pane.videoLink("https://www.youtube.com/playlist?list=" + playlistId)
+    }
+
     function publish(force) {
         if (!linkPattern.test(current))
             return
@@ -219,6 +251,11 @@ Item {
                          onClicked: pane.goForward() }
             IconButton { iconName: "retry"; tip: qsTr("Reload"); onClicked: pane.reload() }
             IconButton { iconName: "play"; tip: qsTr("YouTube start page"); onClicked: pane.navigate(pane.home) }
+            IconButton {
+                iconName: "open"
+                tip: qsTr("Open in your browser (use it to sign in for protected downloads)")
+                onClicked: backend.openLink(pane.current !== "" ? pane.current : pane.home)
+            }
             Text {
                 text: (pane.wv && pane.wv.title !== "") ? pane.wv.title : pane.current
                 color: Theme.textSecondary
@@ -226,6 +263,13 @@ Item {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.s2
+            }
+            AppButton {
+                text: qsTr("Use playlist")
+                iconName: "stack"
+                kind: "secondary"
+                visible: pane.playlistId !== ""
+                onClicked: pane.publishPlaylist()
             }
             AppButton {
                 text: qsTr("Use this link")
@@ -263,7 +307,7 @@ Item {
                     onUrlChanged: { pane.live = ""; pane.lastUrl = url.toString(); pane.track(pane.lastUrl); pane.publish(false) }
                     onLoadingChanged: function (req) {
                         if (req.status === WebView.LoadSucceededStatus)
-                            { pane.applyTheme(); pane.applyAdScript(); pane.applyMuteScript() }
+                            { pane.applyTheme(); pane.applyAdScript(); pane.applySkipScript(); pane.applyMuteScript() }
                     }
                 }
             }

@@ -141,6 +141,15 @@ Rectangle {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
+            StepBar {      // whole playlist (all videos)
+                visible: (row.active || row.queued) && row.playlistText !== ""
+                Layout.fillWidth: true
+                Layout.topMargin: 3
+                caption: qsTr("Playlist")
+                value: row.progress
+                waiting: row.queued
+                detail: qsTr("video %1").arg(row.playlistText)
+            }
             StepBar {
                 visible: row.active || row.queued
                 Layout.fillWidth: true

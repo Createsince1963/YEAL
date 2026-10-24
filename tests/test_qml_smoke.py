@@ -46,6 +46,10 @@ class QmlSmokeTest(unittest.TestCase):
             engine.rootContext().setContextProperty("jobModel", backend.model)
             engine.load(QUrl.fromLocalFile(str(QML)))
             self.assertTrue(engine.rootObjects(), "\n".join(messages))
+            self.assertTrue(backend.setupRequired)
+            self.assertEqual(backend.settings["cookies_browser"], "chrome")
+            self.assertEqual(backend.completeSetup("chrome", backend.settings["download_dir"]), "")
+            self.assertFalse(backend.setupRequired)
 
             self.assertEqual(backend.addUrls("see https://example.com/a and https://example.com/a\n"
                                              "https://example.com/b"), 2)
@@ -102,6 +106,9 @@ class QmlSmokeTest(unittest.TestCase):
             self.assertIn("Not allowed", backend.setCustomOptions('{"exec_cmd": "x"}'))
             self.assertIn("Invalid JSON", backend.setCustomOptions("{"))
             self.assertEqual(backend.setCustomOptions('{"ratelimit": 100}'), "")
+            self.assertIn("0.8.14", backend.versionHistory)
+            self.assertIn("yt-dlp", backend.thirdPartyLicenses)
+            self.assertIn("FFmpeg", backend.thirdPartyLicenses)
 
             # download folder chooser backend
             new_dir = Path(tmp) / "chosen" / "sub"
@@ -115,6 +122,44 @@ class QmlSmokeTest(unittest.TestCase):
             self.assertEqual(backend.setDownloadDir(""), "")
             self.assertEqual(Path(backend.settings["download_dir"]), ctx.download_dir)
             self.assertEqual(Settings.load(ctx.settings_path).download_dir, "")
+
+            # helper paths selected in Settings are persisted and immediately used by the engine
+            helpers = Path(tmp) / "helpers"
+            helpers.mkdir()
+            ffmpeg = helpers / "ffmpeg.exe"
+            node = helpers / "node.exe"
+            ffmpeg.write_bytes(b"not a real executable")
+            node.write_bytes(b"not a real executable")
+            self.assertEqual(backend.setHelperPath("ffmpeg", ffmpeg.as_uri()), "")
+            self.assertEqual(backend.setHelperPath("node", node.as_uri()), "")
+            self.assertEqual(ctx.ffmpeg, ffmpeg.resolve())
+            self.assertEqual(ctx.js_runtime, node.resolve())
+            saved = Settings.load(ctx.settings_path)
+            self.assertEqual(Path(saved.ffmpeg_path), ffmpeg.resolve())
+            self.assertEqual(Path(saved.node_path), node.resolve())
+            wrong = helpers / "wrong.exe"
+            wrong.write_bytes(b"x")
+            self.assertIn("ffmpeg.exe", backend.setHelperPath("ffmpeg", wrong.as_uri()))
+            backend.setHelperPath("ffmpeg", "")
+            backend.setHelperPath("node", "")
+            self.assertEqual(Settings.load(ctx.settings_path).ffmpeg_path, "")
+            self.assertEqual(Settings.load(ctx.settings_path).node_path, "")
+
+            # Settings are staged: leaving can discard them, while Save persists and resets dirty state.
+            original_theme = backend.settings["theme"]
+            draft_theme = "light" if original_theme != "light" else "dark"
+            backend.beginSettingsEdit()
+            backend.setSetting("theme", draft_theme)
+            self.assertTrue(backend.settingsDirty)
+            self.assertEqual(Settings.load(ctx.settings_path).theme, original_theme)
+            backend.finishSettingsEdit(False)
+            self.assertEqual(backend.settings["theme"], original_theme)
+            backend.beginSettingsEdit()
+            backend.setSetting("theme", draft_theme)
+            backend.commitSettingsEdit()
+            self.assertFalse(backend.settingsDirty)
+            self.assertEqual(Settings.load(ctx.settings_path).theme, draft_theme)
+            backend.finishSettingsEdit(True)
 
             backend.clearFinished()
             end = time.time() + 2

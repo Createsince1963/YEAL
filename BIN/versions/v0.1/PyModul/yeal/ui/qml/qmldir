@@ -23,6 +23,7 @@ DuplicateDialog 1.0 DuplicateDialog.qml
 TagsDialog 1.0 TagsDialog.qml
 ExternalDriveDialog 1.0 ExternalDriveDialog.qml
 SettingsRow 1.0 SettingsRow.qml
+SettingsItem 1.0 SettingsItem.qml
 Badge 1.0 Badge.qml
 Chip 1.0 Chip.qml
 Toast 1.0 Toast.qml
@@ -41,3 +42,4 @@ FramesDialog 1.0 FramesDialog.qml
 FilmStrip 1.0 FilmStrip.qml
 VideoPreview 1.0 VideoPreview.qml
 SettingsPage 1.0 SettingsPage.qml
+FirstRunDialog 1.0 FirstRunDialog.qml

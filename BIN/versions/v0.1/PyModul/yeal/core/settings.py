@@ -11,6 +11,7 @@ from .models import AUDIO_FORMATS, COOKIE_BROWSERS, MODES, QUALITIES, DownloadOp
 
 THEMES = ("system", "light", "dark")
 HTML_OPEN_MODES = ("file", "server")
+HTML_CREATE_MODES = ("server", "file", "both")
 MAX_PROFILE_NAME = 40
 
 
@@ -61,13 +62,16 @@ class Settings:
     max_parallel: int = 2
     gentle_mode: bool = True          # pauses between requests/downloads, back-off on errors
     cookies_browser: str = ""         # reuse the YouTube login of firefox/edge/chrome for downloads
+    ffmpeg_path: str = ""             # optional user-selected helper; empty = automatic lookup
+    node_path: str = ""               # optional user-selected helper; empty = automatic lookup
     panel_width: int = 400            # width of the tools panel next to the YouTube view
     panel_right: bool = False         # tools panel on the right instead of the left
     adblock_experimental: bool = False  # Windows browser view: block ad/tracker domains (experimental, needs restart)
     show_browser: bool = True         # Windows: embedded YouTube browser on the Downloads page
     auto_update: bool = True          # keep yt-dlp current (checked every few days)
     ask_mp3_tags: bool = True         # after an MP3 download: ask "edit the MP3 tags?" (the answer defaults to No)
-    html_open_mode: str = "file"      # saved HTML pages: file:// (independent) or local Python HTTP server
+    html_open_mode: str = "server"    # saved HTML pages: local Python HTTP server (online player) or file:// (independent)
+    html_create: str = "both"         # which description pages are written: server | file | both (linked to each other)
     download_dir: str = ""            # empty -> platform default
     rate_limit_kbps: int = 0          # 0 = unlimited
     proxy: str = ""
@@ -78,6 +82,7 @@ class Settings:
     drive_folder: str = "Yeal"         # default folder name offered on an external drive
     list_group: str = "all"           # filter of the download list (all|active|queued|done|failed)
     active_profile: str = "Video 1080p"
+    setup_complete: bool = True        # Backend changes this to False only for a new data folder
     window: dict = field(default_factory=dict)   # last window geometry: x, y, w, h, max
     profiles_version: int = 2         # 2 = "Video 4K" default profile exists
 
@@ -87,8 +92,12 @@ class Settings:
             self.theme = "system"
         if self.cookies_browser not in COOKIE_BROWSERS:
             self.cookies_browser = ""
+        self.ffmpeg_path = str(self.ffmpeg_path or "")[:1000]
+        self.node_path = str(self.node_path or "")[:1000]
         if self.html_open_mode not in HTML_OPEN_MODES:
-            self.html_open_mode = "file"
+            self.html_open_mode = "server"
+        if self.html_create not in HTML_CREATE_MODES:
+            self.html_create = "both"
         self.max_parallel = max(1, min(4, int(self.max_parallel or 1)))
         try:
             self.rate_limit_kbps = max(0, min(10_000_000, int(self.rate_limit_kbps)))
@@ -178,7 +187,8 @@ class Settings:
             keep_whole=prof["keep_whole"],
             rate_limit_kbps=self.rate_limit_kbps, proxy=self.proxy,
             profile=prof["name"], custom=dict(self.custom_options),
-            cookies_browser=self.cookies_browser, gentle=self.gentle_mode).normalized()
+            cookies_browser=self.cookies_browser, gentle=self.gentle_mode,
+            html_create=self.html_create).normalized()
 
     # ---- persistence ----------------------------------------------------
     @classmethod

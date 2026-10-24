@@ -28,7 +28,9 @@ class VaultTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_default_password_and_no_plaintext(self):
+        self.assertEqual(DEFAULT_PASSWORD, "1234")
         self.assertTrue(self.v.uses_default_password())
+        self.assertEqual(self.v.default_password_hint(), "1234")
         self.assertFalse(self.v.unlock("wrong"))
         self.assertTrue(self.v.unlock(DEFAULT_PASSWORD))
         self.v.save_entry({"service": "YouTube", "user": "me@example.com", "password": "s3cret-pw"})

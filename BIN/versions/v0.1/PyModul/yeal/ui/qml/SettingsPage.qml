@@ -24,6 +24,30 @@ Flickable {
             }
         }
     }
+    Loader {
+        id: ffmpegLoader
+        active: !backend.isMobile
+        sourceComponent: FileDialog {
+            title: qsTr("Choose ffmpeg")
+            nameFilters: [qsTr("ffmpeg executable (ffmpeg.exe)"), qsTr("All files (*)")]
+            onAccepted: {
+                var err = backend.setHelperPath("ffmpeg", selectedFile.toString())
+                page.toastRequest(err || qsTr("ffmpeg path saved"))
+            }
+        }
+    }
+    Loader {
+        id: nodeLoader
+        active: !backend.isMobile
+        sourceComponent: FileDialog {
+            title: qsTr("Choose Node.js")
+            nameFilters: [qsTr("Node.js executable (node.exe)"), qsTr("All files (*)")]
+            onAccepted: {
+                var err = backend.setHelperPath("node", selectedFile.toString())
+                page.toastRequest(err || qsTr("Node.js path saved"))
+            }
+        }
+    }
 
     ColumnLayout {
         id: column
@@ -32,26 +56,55 @@ Flickable {
         width: Math.min(720, page.width - 2 * (Theme.compact ? Theme.s4 : Theme.s6))
         spacing: Theme.s5
 
-        Text {
-            text: qsTr("Settings")
-            font.pixelSize: Theme.compact ? Theme.title : Theme.largeTitle
-            font.weight: Font.DemiBold
-            color: Theme.text
-            Accessible.role: Accessible.Heading
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.s2
+            Text {
+                text: qsTr("Settings")
+                font.pixelSize: Theme.compact ? Theme.title : Theme.largeTitle
+                font.weight: Font.DemiBold
+                color: Theme.text
+                Layout.fillWidth: true
+                Accessible.role: Accessible.Heading
+            }
+            Badge {
+                visible: !Theme.compact
+                text: backend.settingsDirty ? qsTr("Unsaved changes") : qsTr("No changes")
+                kind: backend.settingsDirty ? "warning" : "success"
+            }
+            AppButton {
+                visible: backend.settingsDirty
+                text: qsTr("Discard")
+                kind: "plain"
+                onClicked: { backend.finishSettingsEdit(false); backend.beginSettingsEdit() }
+            }
+            AppButton {
+                text: qsTr("Save")
+                iconName: "check"
+                kind: "primary"
+                enabled: backend.settingsDirty
+                onClicked: { backend.commitSettingsEdit(); page.toastRequest(qsTr("Settings saved")) }
+            }
         }
 
         SettingsGroup {
             title: qsTr("Browser")
+            icon: "globe"
+            collapsible: true
             visible: backend.browserAvailable
             Layout.fillWidth: true
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("YouTube browser on the Downloads page")
+                icon: "window"
+                summary: page.s.show_browser ? qsTr("On") : qsTr("Off")
                 hint: qsTr("Uses the Microsoft Edge WebView2 of Windows. Opening a video fills the link field.")
                 stacked: false
                 AppSwitch { checked: page.s.show_browser; onToggled: backend.setSetting("show_browser", checked) }
             }
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Block ads and trackers in the browser (experimental)")
+                icon: "block"
+                summary: page.s.adblock_experimental ? qsTr("On") : qsTr("Off")
                 hint: qsTr("Refuses known ad and tracker domains (own list: blocklist.txt in the Yeal data folder, hosts format). Video ads from YouTube itself are skipped by a script. Off by default. If YouTube misbehaves, leave it off. Takes effect after a restart.")
                 stacked: false
                 AppSwitch { checked: page.s.adblock_experimental; onToggled: backend.setSetting("adblock_experimental", checked) }
@@ -60,9 +113,13 @@ Flickable {
 
         SettingsGroup {
             title: qsTr("Appearance")
+            icon: "sun"
+            collapsible: true
             Layout.fillWidth: true
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Theme")
+                icon: "sun"
+                summary: page.s.theme === "dark" ? qsTr("Dark") : page.s.theme === "light" ? qsTr("Light") : qsTr("System")
                 Segmented {
                     current: page.s.theme
                     options: [{ text: qsTr("System"), value: "system" }, { text: qsTr("Light"), value: "light" },
@@ -76,9 +133,13 @@ Flickable {
 
         SettingsGroup {
             title: qsTr("Downloads")
+            icon: "download"
+            collapsible: true
             Layout.fillWidth: true
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Save to")
+                icon: "folder"
+                summary: page.s.download_dir
                 hint: page.s.download_dir
                 stacked: Theme.compact
                 AppButton { visible: !backend.isMobile; text: qsTr("Choose…"); iconName: "folder"
@@ -88,8 +149,10 @@ Flickable {
                 AppButton { visible: !backend.isMobile && page.s.download_dir !== ""; kind: "plain"; text: qsTr("Reset")
                             onClicked: backend.setDownloadDir("") }
             }
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Parallel downloads")
+                icon: "layers"
+                summary: String(page.s.max_parallel)
                 hint: qsTr("How many links are downloaded at the same time.")
                 Stepper {
                     value: page.s.max_parallel
@@ -98,15 +161,38 @@ Flickable {
                     onMoved: (v) => backend.setSetting("max_parallel", v)
                 }
             }
-            SettingsRow {
+            SettingsItem {
                 visible: backend.mp3TagsAvailable
                 label: qsTr("Ask whether to edit MP3 tags")
+                icon: "tag"
+                summary: page.s.ask_mp3_tags ? qsTr("Yes") : qsTr("No")
                 hint: qsTr("After an MP3 download, a short question appears. The answer is No by default. The tags are filled in from the video description either way.")
                 stacked: false
                 AppSwitch { checked: page.s.ask_mp3_tags; onToggled: backend.setSetting("ask_mp3_tags", checked) }
             }
-            SettingsRow {
+            SettingsItem {
+                label: qsTr("Create HTML pages")
+                icon: "code"
+                summary: page.s.html_create === "both" ? qsTr("Server + file") : page.s.html_create === "file" ? qsTr("File") : qsTr("Server")
+                hint: page.s.html_create === "both"
+                    ? qsTr("Two linked pages next to the file: one with the online player (server) and a standalone one (file). Links use only the file name.")
+                    : page.s.html_create === "server"
+                    ? qsTr("One page with the online player; it plays when opened through Yeal's local server.")
+                    : qsTr("One standalone page that works from disk without Yeal or a server.")
+                stacked: Theme.compact
+                Segmented {
+                    current: page.s.html_create
+                    options: [{ text: qsTr("Server"), value: "server" },
+                              { text: qsTr("File"), value: "file" },
+                              { text: qsTr("Both"), value: "both" }]
+                    Layout.preferredWidth: 290
+                    onActivated: (v) => backend.setSetting("html_create", v)
+                }
+            }
+            SettingsItem {
                 label: qsTr("Open saved HTML pages")
+                icon: "globe"
+                summary: page.s.html_open_mode === "server" ? qsTr("Local server") : qsTr("Local file")
                 hint: page.s.html_open_mode === "server"
                     ? qsTr("Local server (127.0.0.1): embedded YouTube players work while Yeal is running.")
                     : qsTr("Local file: works without Yeal or a server; YouTube opens on the original site.")
@@ -119,8 +205,10 @@ Flickable {
                     onActivated: (v) => backend.setSetting("html_open_mode", v)
                 }
             }
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Speed limit")
+                icon: "gauge"
+                summary: page.s.rate_limit_kbps > 0 ? qsTr("%1 KB/s").arg(page.s.rate_limit_kbps) : qsTr("Unlimited")
                 hint: qsTr("In KB/s per download. 0 means unlimited.")
                 AppField {
                     id: rateField
@@ -133,15 +221,19 @@ Flickable {
                     Accessible.name: qsTr("Speed limit in KB per second")
                 }
             }
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Gentle mode")
+                icon: "shield"
+                summary: page.s.gentle_mode ? qsTr("On") : qsTr("Off")
                 hint: qsTr("Recommended. Pauses between requests, waits longer after errors, pauses the queue when YouTube asks to slow down.")
                 stacked: false
                 AppSwitch { checked: page.s.gentle_mode; onToggled: backend.setSetting("gentle_mode", checked) }
             }
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Use browser login for downloads")
-                hint: qsTr("Optional: age-restricted, members-only or Premium videos. Reads the cookies of an installed browser (Firefox works best). Off by default.")
+                icon: "lock"
+                summary: page.s.cookies_browser === "" ? qsTr("Off") : page.s.cookies_browser.charAt(0).toUpperCase() + page.s.cookies_browser.slice(1)
+                hint: qsTr("For protected videos: sign in to YouTube in Firefox, Edge or Chrome, select the same browser here, then close it before retrying. Google may refuse sign-in inside Yeal's embedded browser. Firefox works best: Chrome and Edge protect their cookies, so Yeal may not be able to read them (it then downloads without login).")
                 stacked: false
                 Segmented {
                     current: page.s.cookies_browser
@@ -151,8 +243,10 @@ Flickable {
                     onActivated: (v) => backend.setCookiesBrowser(v)
                 }
             }
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Proxy")
+                icon: "network"
+                summary: page.s.proxy !== "" ? page.s.proxy : qsTr("None")
                 hint: proxyError.text !== "" ? proxyError.text : qsTr("Optional, e.g. socks5://127.0.0.1:9050")
                 stacked: true
                 AppField {
@@ -169,42 +263,77 @@ Flickable {
 
         SettingsGroup {
             title: qsTr("Download engine")
+            icon: "cpu"
+            collapsible: true
             Layout.fillWidth: true
             footer: qsTr("yt-dlp is checked for updates every few days. Updating keeps downloads working when sites change.")
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("yt-dlp")
+                icon: "download"
+                summary: backend.ytdlpBusy ? qsTr("Updating…") : backend.ytdlpVersion
                 hint: backend.ytdlpBusy ? qsTr("Updating…") : qsTr("Version %1").arg(backend.ytdlpVersion)
                 AppButton { text: qsTr("Update now"); iconName: "retry"; enabled: !backend.ytdlpBusy
                             onClicked: backend.updateYtDlp() }
             }
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Update automatically")
+                icon: "retry"
+                summary: page.s.auto_update ? qsTr("On") : qsTr("Off")
                 stacked: false
                 AppSwitch { checked: page.s.auto_update; onToggled: backend.setSetting("auto_update", checked) }
             }
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("ffmpeg")
-                hint: backend.ffmpegAvailable ? qsTr("Merging and conversion available")
-                                              : qsTr("Not found – only single-file formats can be downloaded")
+                icon: "film"
+                summary: backend.ffmpegAvailable ? qsTr("Ready") : qsTr("Missing")
+                hint: backend.ffmpegAvailable
+                    ? qsTr("Version %1\n%2").arg(backend.ffmpegVersion || qsTr("unknown")).arg(backend.ffmpegPath)
+                    : qsTr("Not found – expected at %1").arg(backend.ffmpegDefaultPath)
+                stacked: true
                 Badge { text: backend.ffmpegAvailable ? qsTr("Ready") : qsTr("Missing")
                         kind: backend.ffmpegAvailable ? "success" : "warning" }
+                AppButton { visible: !backend.isMobile; text: qsTr("Choose…"); iconName: "folder"
+                            onClicked: ffmpegLoader.item.open() }
+                AppButton { visible: !backend.isMobile; text: qsTr("Automatic"); kind: "plain"
+                            onClicked: {
+                                var err = backend.setHelperPath("ffmpeg", "")
+                                page.toastRequest(err || qsTr("ffmpeg path detected again"))
+                            } }
+                AppButton { visible: !backend.isMobile; text: qsTr("Update…"); iconName: "open"; kind: "plain"
+                            onClicked: backend.openLink("https://ffmpeg.org/download.html") }
             }
-            SettingsRow {
-                label: qsTr("JavaScript runtime")
-                hint: backend.jsRuntimeAvailable ? qsTr("Needed for YouTube – available")
-                                                 : qsTr("Node.js or Deno is required for YouTube")
+            SettingsItem {
+                label: qsTr("Node.js JavaScript runtime")
+                icon: "code"
+                summary: backend.jsRuntimeAvailable ? qsTr("Ready") : qsTr("Missing")
+                hint: backend.jsRuntimeAvailable
+                    ? qsTr("Version %1\n%2").arg(backend.jsRuntimeVersion || qsTr("unknown")).arg(backend.jsRuntimePath)
+                    : qsTr("Not found – expected at %1").arg(backend.jsRuntimeDefaultPath)
+                stacked: true
                 Badge { text: backend.jsRuntimeAvailable ? qsTr("Ready") : qsTr("Missing")
                         kind: backend.jsRuntimeAvailable ? "success" : "warning" }
+                AppButton { visible: !backend.isMobile; text: qsTr("Choose…"); iconName: "folder"
+                            onClicked: nodeLoader.item.open() }
+                AppButton { visible: !backend.isMobile; text: qsTr("Automatic"); kind: "plain"
+                            onClicked: {
+                                var err = backend.setHelperPath("node", "")
+                                page.toastRequest(err || qsTr("Node.js path detected again"))
+                            } }
+                AppButton { visible: !backend.isMobile; text: qsTr("Update…"); iconName: "open"; kind: "plain"
+                            onClicked: backend.openLink("https://nodejs.org/en/download") }
             }
         }
 
         SettingsGroup {
             title: qsTr("Advanced")
+            icon: "terminal"
+            collapsible: true
             Layout.fillWidth: true
             footer: customError.text !== "" ? customError.text
                 : qsTr("Extra yt-dlp options as a JSON object, applied to every download. Unsafe options are rejected.")
-            SettingsRow {
+            SettingsItem {
                 label: qsTr("Custom yt-dlp options")
+                icon: "terminal"
                 stacked: true
                 ColumnLayout {
                     spacing: Theme.s2
@@ -245,13 +374,17 @@ Flickable {
 
         SettingsGroup {
             title: qsTr("Admin")
+            icon: "lock"
+            collapsible: true
             visible: backend.vaultAvailable
             Layout.fillWidth: true
             AdminPanel {}
         }
 
         SettingsGroup {
-            title: qsTr("About")
+            title: qsTr("Info")
+            icon: "info"
+            collapsible: true
             Layout.fillWidth: true
             Item {
                 Layout.fillWidth: true
@@ -267,8 +400,60 @@ Flickable {
                     Accessible.name: qsTr("Yeal logo")
                 }
             }
-            SettingsRow { label: qsTr("Yeal"); Text { text: backend.appVersion; color: Theme.textSecondary; font.pixelSize: Theme.body } }
-            SettingsRow { label: qsTr("Platform"); Text { text: backend.platformName; color: Theme.textSecondary; font.pixelSize: Theme.body } }
+            SettingsItem { label: qsTr("Yeal"); icon: "info"; summary: backend.appVersion }
+            SettingsItem { label: qsTr("Platform"); icon: "window"; summary: backend.platformName }
+            SettingsItem {
+                id: historyRow
+                property bool open: false
+                label: qsTr("Version history")
+                icon: "clock"
+                hint: qsTr("Changes in this and previous Yeal versions")
+                stacked: true
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    AppButton { text: historyRow.open ? qsTr("Hide") : qsTr("Show"); kind: "plain"
+                                iconName: historyRow.open ? "chevronDown" : "chevronRight"
+                                onClicked: historyRow.open = !historyRow.open }
+                    ScrollView {
+                        visible: historyRow.open
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 300
+                        TextArea {
+                            text: backend.versionHistory
+                            readOnly: true
+                            selectByMouse: true
+                            wrapMode: TextArea.Wrap
+                            color: Theme.text
+                            font.family: "Consolas, Menlo, monospace"
+                            font.pixelSize: Theme.caption + 1
+                            background: Rectangle { color: Theme.field; radius: Theme.radius }
+                        }
+                    }
+                }
+            }
+            SettingsItem {
+                id: licensesRow
+                property bool open: false
+                label: qsTr("Module licenses")
+                icon: "doc"
+                hint: qsTr("Versions and licenses of the included runtime modules")
+                stacked: true
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    AppButton { text: licensesRow.open ? qsTr("Hide") : qsTr("Show"); kind: "plain"
+                                iconName: licensesRow.open ? "chevronDown" : "chevronRight"
+                                onClicked: licensesRow.open = !licensesRow.open }
+                    Text {
+                        visible: licensesRow.open
+                        text: backend.thirdPartyLicenses
+                        color: Theme.textSecondary
+                        font.pixelSize: Theme.footnote
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
+                        Layout.topMargin: Theme.s2
+                    }
+                }
+            }
         }
         Item { Layout.preferredHeight: Theme.s2 }
     }

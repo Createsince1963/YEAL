@@ -9,6 +9,12 @@ Item {
     property real endSec: 0
     readonly property bool playing: player.playbackState === MediaPlayer.PlayingState
     property bool ready: false
+    onSourceChanged: {
+        // A preview item may survive a fast A -> B selection. Stop the old stream and let the
+        // new source emit LoadedMedia before seeking into the newly selected video.
+        ready = false
+        player.stop()
+    }
     function seek(sec) {
         player.position = Math.round(sec * 1000)
         if (player.playbackState === MediaPlayer.StoppedState) player.pause()

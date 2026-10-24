@@ -34,6 +34,20 @@ def _cancel_exception():
     return _cancel_exc
 
 
+_COOKIE_READ_KEYS = ("failed to decrypt", "dpapi", "cookie database", "cookies from browser",
+                     "could not find firefox cookies", "could not find chrome cookies", "could not find edge cookies")
+
+
+def is_cookie_read_error(text: str) -> bool:
+    """yt-dlp could not read the login cookies of the selected browser (Chrome/Edge 127+ app-bound
+    encryption, a locked cookie database, a browser that is not installed)."""
+    low = text.lower()
+    return any(k in low for k in _COOKIE_READ_KEYS)
+
+
+_UNREADABLE_BROWSERS: set = set()   # cookie browsers that failed this session: not tried again (no repeated warning)
+
+
 def apply_fallback(exc: BaseException, opts: dict, done: set) -> str:
     """An optional part failed (subtitles, cover image, the chosen quality): switch it off in `opts`
     and return a short note so the download can continue with what is available. '' = no fallback."""
@@ -54,6 +68,12 @@ def apply_fallback(exc: BaseException, opts: dict, done: set) -> str:
         drop("EmbedThumbnail", "FFmpegThumbnailsConvertor")
         done.add("cover")
         return "The cover image was not available - downloaded without it."
+    if "cookies" not in done and opts.get("cookiesfrombrowser") and is_cookie_read_error(text):
+        for b in opts.pop("cookiesfrombrowser", ())[:1]:
+            _UNREADABLE_BROWSERS.add(str(b))
+        done.add("cookies")
+        return ("The browser login could not be read (Chrome and Edge lock their cookies) - downloaded without it. "
+                "For protected videos choose Firefox under Settings > Use browser login.")
     if "quality" not in done and ("requested format is not available" in text or "format is not available" in text):
         opts["format"] = "bestaudio/best" if "audio" in str(opts.get("format", "")) else "bv*+ba/b"
         done.add("quality")
@@ -129,13 +149,19 @@ def clean_error(exc: BaseException) -> str:
 
 # (keywords in the lower-cased error text, why it stopped, what the user can do) - first match wins
 _REASONS = [
+    (_COOKIE_READ_KEYS,
+     "The browser login (cookies) could not be read.",
+     "Chrome and Edge protect their cookies so that other programs cannot decrypt them. Select Firefox under "
+     "Settings > Use browser login (sign in to YouTube there), or switch the browser login off, then press Retry."),
     (("not a bot", "429", "too many requests", "rate-limit", "rate limit"),
      "YouTube asks for a pause (too many requests / bot check, HTTP 429).",
      "Wait a few minutes (the queue pauses itself), keep Gentle mode on, or use your browser login (Settings)."),
     (("private video", "this video is private"),
      "The video is private.", "Only the owner can open it. Sign in with an account that has access."),
     (("sign in to confirm your age", "age-restricted", "age restricted", "confirm your age"),
-     "The video is age-restricted.", "Use your browser login for downloads (Settings > Use browser login)."),
+     "The video is age-restricted.",
+     "Sign in via Firefox, Edge or Chrome - not inside Yeal. Select the same browser under "
+     "Settings > Use browser login, close it, then press Retry."),
     (("members-only", "members only", "join this channel", "premium"),
      "The video is for channel members or Premium.", "Use the browser login of an account with access (Settings)."),
     (("not available in your country", "geo", "blocked it in your country", "uploader has not made this video available"),
@@ -259,7 +285,8 @@ class Engine:
                 page = ""
             items.append({"index": int(entry.get("playlist_index") or n), "title": entry.get("title") or "",
                           "duration": fmt_duration(entry.get("duration")),
-                          "file": Path(path).name if exists else "", "page": page})
+                          "file": Path(path).name if exists else "", "page": page,
+                          "thumb": str(entry.get("thumbnail") or "")})
         if folder is None:
             return
         written = extras.write_playlist_page(folder, str(info.get("title") or folder.name),
@@ -411,8 +438,23 @@ class Engine:
 
         opts["progress_hooks"] = [on_progress]
         opts["postprocessor_hooks"] = [on_postprocess]
+        fallbacks: set = set()
+        cb = opts.get("cookiesfrombrowser")
+        if cb and str(cb[0]) not in _UNREADABLE_BROWSERS and self._ydl_class is None:
+            # Read the cookies once before the download. In a playlist yt-dlp would swallow the per-video
+            # errors (ignoreerrors) and silently skip every video after the first ones.
+            try:
+                from yt_dlp.cookies import extract_cookies_from_browser
+                extract_cookies_from_browser(str(cb[0]))
+            except Exception:  # noqa: BLE001 - any failure: the browser login is not usable
+                _UNREADABLE_BROWSERS.add(str(cb[0]))
+                job.note = (job.note + "\n" if job.note else "") + (
+                    "The browser login could not be read (Chrome and Edge lock their cookies) - downloaded without it. "
+                    "For protected videos choose Firefox under Settings > Use browser login.")
+        if cb and str(cb[0]) in _UNREADABLE_BROWSERS:      # known to fail: skip it
+            opts.pop("cookiesfrombrowser", None)
+            fallbacks.add("cookies")
         try:
-            fallbacks: set = set()
             while True:
                 try:
                     with ydl_class(opts) as ydl:
@@ -429,6 +471,12 @@ class Engine:
                     notify(job)
             if info and not job.title:
                 job.title = info.get("title") or ""
+            if info and info.get("entries") is not None and job.options.playlist:
+                got = [e for e in info["entries"] if isinstance(e, dict) and final_path(e)]
+                total = len(list(info["entries"]))
+                if total and len(got) < total:      # ignoreerrors skipped some: say so instead of a silent "Done"
+                    job.note = (job.note + "\n" if job.note else "") + (
+                        f"{total - len(got)} of {total} videos could not be downloaded (unavailable, private or blocked).")
             job.filename = final_path(info) or job.filename
             if (job.options.save_description or job.options.save_transcript
                     or job.options.online_player or job.options.save_lyrics):
@@ -440,7 +488,7 @@ class Engine:
                     desc, trans = extras.write_extras(
                         item, path, job.options.save_description, job.options.save_transcript,
                         job.options.sub_langs, job.options.subtitles, job.options.mode,
-                        job.options.online_player, job.options.html_theme, found)
+                        job.options.online_player, job.options.html_theme, found, job.options.html_create)
                     job.saved_description = job.saved_description or desc
                     job.saved_transcript = job.saved_transcript or trans
             self._tag_mp3(job, info)     # after the lyrics step, which rewrites the tags with ffmpeg
@@ -481,6 +529,10 @@ class Engine:
             else:
                 job.state = JobState.ERROR
                 job.error = friendly_error(exc)
+                if "cookies" in fallbacks and not is_cookie_read_error(str(exc)):
+                    # the login was dropped because the browser blocked it: do not advise "same browser"
+                    job.error = (job.error.split("\n")[0] + "\nYour Chrome/Edge login cannot be read. "
+                                 "Sign in to YouTube in Firefox and select Firefox under Settings > Use browser login, then Retry.")
                 job.error_detail = clean_error(exc)
         finally:
             if stop_watch[0] is not None:

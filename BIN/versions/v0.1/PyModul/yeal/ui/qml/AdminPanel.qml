@@ -17,7 +17,9 @@ ColumnLayout {
     SettingsRow {
         visible: !backend.vaultUnlocked
         label: qsTr("Admin password")
-        hint: backend.vaultDefaultPassword ? qsTr("Still the initial password. Unlock and change it.") : qsTr("Unlock to see the stored logins.")
+        hint: backend.vaultDefaultPassword
+            ? qsTr("Initial password: %1. Unlock it, then choose a private password.").arg(backend.vaultDefaultHint)
+            : qsTr("Unlock to see the stored YouTube/browser logins.")
         stacked: true
         RowLayout {
             spacing: Theme.s2
@@ -43,9 +45,17 @@ ColumnLayout {
         Text { id: err; color: Theme.danger; font.pixelSize: Theme.footnote; Layout.fillWidth: true; wrapMode: Text.Wrap }
     }
 
+    SettingsRow {
+        visible: backend.vaultUnlocked && backend.vaultDefaultPassword
+        label: qsTr("Change the initial password now")
+        hint: qsTr("The public initial password cannot protect saved logins. Choose a private password below before adding or viewing YouTube/browser credentials.")
+        stacked: true
+        Badge { text: qsTr("Required"); kind: "warning" }
+    }
+
     // ---- unlocked: list ----
     Repeater {
-        model: root.entries
+        model: backend.vaultUnlocked && !backend.vaultDefaultPassword ? root.entries : []
         delegate: SettingsRow {
             required property var modelData
             label: modelData.service
@@ -63,22 +73,22 @@ ColumnLayout {
         }
     }
     SettingsRow {
-        visible: backend.vaultUnlocked && root.entries.length === 0
+        visible: backend.vaultUnlocked && !backend.vaultDefaultPassword && root.entries.length === 0
         label: qsTr("No logins stored yet")
-        hint: qsTr("Add one below. Sign-ins you do in the browser view stay in the browser profile; Yeal cannot read them.")
+        hint: qsTr("Add a YouTube or browser login below. These encrypted notes are separate from the cookies used for downloads.")
         stacked: true
     }
 
     // ---- unlocked: add / edit ----
     SettingsRow {
-        visible: backend.vaultUnlocked
-        label: root.editId ? qsTr("Edit login") : qsTr("Add login")
+        visible: backend.vaultUnlocked && !backend.vaultDefaultPassword
+        label: root.editId ? qsTr("Edit YouTube/browser login") : qsTr("Add YouTube/browser login")
         hint: root.editId ? qsTr("Leave the password empty to keep the stored one.") : ""
         stacked: true
         ColumnLayout {
             spacing: Theme.s2
             Layout.fillWidth: true
-            AppField { id: svc; Layout.fillWidth: true; placeholderText: qsTr("Service (e.g. YouTube)") }
+            AppField { id: svc; Layout.fillWidth: true; placeholderText: qsTr("Service (YouTube, Chrome, Edge, Firefox…)") }
             AppField { id: usr; Layout.fillWidth: true; placeholderText: qsTr("User / e-mail") }
             AppField { id: pass; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: qsTr("Password") }
             AppField { id: note; Layout.fillWidth: true; placeholderText: qsTr("Note (optional)") }
@@ -103,12 +113,15 @@ ColumnLayout {
     SettingsRow {
         visible: backend.vaultUnlocked
         label: qsTr("Change admin password")
-        hint: backend.vaultDefaultPassword ? qsTr("Recommended: the initial password is publicly known.") : qsTr("At least 8 characters.")
+        hint: backend.vaultDefaultPassword ? qsTr("Required before login entries are available. Use the initial password shown above as the current password.") : qsTr("At least 8 characters.")
         stacked: true
         ColumnLayout {
             spacing: Theme.s2
             Layout.fillWidth: true
-            AppField { id: oldPw; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: qsTr("Current password") }
+            AppField { id: oldPw; Layout.fillWidth: true; echoMode: TextInput.Password
+                       placeholderText: backend.vaultDefaultPassword
+                           ? qsTr("Current password (%1)").arg(backend.vaultDefaultHint)
+                           : qsTr("Current password") }
             AppField { id: newPw; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: qsTr("New password") }
             Text { id: pwMsg; font.pixelSize: Theme.footnote; visible: text !== ""; wrapMode: Text.Wrap; Layout.fillWidth: true
                    color: text === qsTr("Password changed.") ? Theme.textSecondary : Theme.danger }
