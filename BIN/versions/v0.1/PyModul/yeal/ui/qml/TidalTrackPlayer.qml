@@ -380,6 +380,7 @@ Item {
 
         // ---- the other text controls; they wrap into more lines instead of running out of the window
         Flow {
+            visible: !root.compact                 // as the sun these buttons are in the Settings planet
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: root.ovalW
             Layout.row: 3

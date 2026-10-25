@@ -6,6 +6,11 @@ import QtQuick.Layouts
 Flickable {
     id: root
     property var player
+    property bool local: true                          // false: TIDAL songs, which can be liked
+    property int favTick: 0
+    readonly property bool fav: favTick >= 0 && !local && !!player.current && !!player.current.id
+                                && tidal.isFavorite("track", player.current.id)
+    Connections { target: tidal; function onFavoritesChanged() { root.favTick++ } }
     contentHeight: col.implicitHeight
     clip: true
     boundsBehavior: Flickable.StopAtBounds
@@ -50,6 +55,9 @@ Flickable {
             Layout.fillWidth: true
             spacing: Theme.s2
             Chip { text: qsTr("Shuffle"); checked: root.player.shuffle; onToggled: root.player.toggleShuffle() }
+            Chip { visible: !root.local && !!root.player.current && !!root.player.current.id
+                   text: root.fav ? qsTr("Liked") : qsTr("Like this song"); checked: root.fav
+                   onToggled: tidal.toggleFavorite("track", root.player.current.id) }
             Chip { text: root.player.repeat === "one" ? qsTr("Repeat: single") : root.player.repeat === "all" ? qsTr("Repeat: all") : qsTr("Repeat: off")
                    checked: root.player.repeat !== "off"; onToggled: root.player.cycleRepeat() }
         }

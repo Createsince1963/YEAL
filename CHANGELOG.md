@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.14
+- **Sun view tidied up:** the text buttons under the oval (repeat, shuffle, VIS, COLOR) are gone from the sun; they live in the **Settings** planet (colour, band, shuffle, repeat, volume; for TIDAL songs also "Like this song"). Under the sun only the volume slider, the 10 s jumps and the time remain.
+- No EXE built.
+
 ## 0.9.1.13
 - **The user shapes the solar system.** A slider **Orbit** in the corner (and the mouse wheel on the empty sky) makes all orbits larger or smaller (0.5 to 3 times); the sun itself now grows with the window (up to 720 px) instead of staying small in a big window. Every planet can be **dragged**: around the sun to another place, in or out to **an orbit of its own**; close to an orbit that is already used (or the main orbit) it snaps onto it, the angle snaps to 15 degree steps. A ring is drawn for every orbit in use. The round arrow puts all planets back on the main orbit. Remembered in `sun_scale` and `sun_layout` (validated: angle wraps, orbit 0.4 to 3, junk dropped).
 - **Sun view for TIDAL DIY** (`TidalSunView.qml`, same engine as the one for downloads: new generic `SunView.qml` with zones and slots): the sun button next to the page tabs switches it on (`tidal_sun`). Planets: Playlists (left), Queue (right), Played and Settings (below, side by side), Search and Lyrics (above, side by side). Titles, albums and playlists dropped on the sun play at once. The house button in the corner leads back to the pages; in the sun view the docks and the bottom player bar are out of the way.

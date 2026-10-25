@@ -28,7 +28,7 @@ SunView {
     Component { id: playedCard
         TidalTrackPanel { ctl: view.ctl; tab: "played"; showTabs: false; showSearch: false; color: "transparent"; border.width: 0 } }
     Component { id: settingsCard
-        SunSettings { player: view.player } }
+        SunSettings { player: view.player; local: false } }
     Component { id: searchCard
         TidalTrackPanel { ctl: view.ctl; tab: "results"; showTabs: false; color: "transparent"; border.width: 0 } }
     Component { id: lyricsCard
