@@ -213,6 +213,7 @@ class TidalPlayer(QObject):
     lyricsChanged = Signal()
     levelChanged = Signal()       # level of the music (about 30 times a second while playing)
     profileChanged = Signal()     # the loudness profile of the song grew
+    historyChanged = Signal()     # the list of played songs
     error = Signal(str)
     _streamReady = Signal(str, object, str)     # (track id, stream info or None, error)
     _lyricsReady = Signal(str, object)
@@ -241,6 +242,7 @@ class TidalPlayer(QObject):
         self._level = 0.0
         self._last_buf = 0.0         # time of the last audio buffer (is the level real?)
         self._profile = SongProfile()
+        self._history: list = []     # songs played in this session, newest first
         self._tick_timer = QTimer(self)
         self._tick_timer.setInterval(33)
         self._tick_timer.timeout.connect(self._tick)
@@ -332,6 +334,25 @@ class TidalPlayer(QObject):
     @Property(int, notify=changed)
     def volume(self) -> int:  # type: ignore[override]
         return self._volume
+
+    @Property("QVariantList", notify=historyChanged)
+    def history(self):  # type: ignore[override]
+        return self._history
+
+    def _note_played(self, track: dict) -> None:
+        """A song starts: it goes to the top of the list of played songs (the same song twice in a row only once)."""
+        if not track:
+            return
+        if self._history and self._history[0].get("id") == track.get("id"):
+            return
+        self._history = [dict(track)] + [t for t in self._history if t.get("id") != track.get("id")][:49]
+        self.historyChanged.emit()
+
+    @Slot(int)
+    def playHistory(self, index: int) -> None:
+        """Play a song of the list again; it becomes the queue (the rest of the list follows)."""
+        if 0 <= index < len(self._history):
+            self.playItems(self._history, index, "Played")
 
     @Property("QVariantList", notify=profileChanged)
     def profile(self):  # type: ignore[override]
@@ -591,6 +612,7 @@ class TidalPlayer(QObject):
         self._levels.clear()
         self._profile.reset()
         self.profileChanged.emit()
+        self._note_played(track)
         self._loading = True
         self._badge, self._badge_tip = "", ""
         self._lyrics = {"text": "", "synced": []}

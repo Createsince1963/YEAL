@@ -99,6 +99,72 @@ class TidalGuiQmlTest(unittest.TestCase):
         b.setSetting("tidal_player_vis_mode", "spectrum")                        # not a mode: back to the default
         self.assertEqual(b.settings["tidal_player_vis_mode"], "song")
 
+    def test_player_colour_and_orbit_settings(self):
+        b = self.backend
+        self.assertEqual(b.settings["tidal_player_color"], "green")
+        for name in ("blue", "red", "yellow", "purple", "orange", "pink", "cyan", "white", "green"):
+            b.setSetting("tidal_player_color", name)
+            self.assertEqual(b.settings["tidal_player_color"], name)
+        b.setSetting("tidal_player_color", "#12AbEf")                       # any #rrggbb, kept in lower case
+        self.assertEqual(b.settings["tidal_player_color"], "#12abef")
+        b.setSetting("tidal_player_color", "turquoise")                     # unknown: back to green
+        self.assertEqual(b.settings["tidal_player_color"], "green")
+        b.setSetting("tidal_player_color", "#12345")
+        self.assertEqual(b.settings["tidal_player_color"], "green")
+        self.assertIs(b.settings["local_orbit"], True)
+        b.setSetting("local_orbit", False)
+        self.assertIs(b.settings["local_orbit"], False)
+        b.setSetting("local_orbit", True)
+
+    def test_theme_knows_the_player_colours(self):
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { objectName: 'r'; property string blue: Theme.playerColor('blue'); "
+                     b"property string hex: Theme.playerColor('#ABCDEF'); property string bad: Theme.playerColor('nope'); "
+                     b"property int count: Theme.playerColors.length }\n", QUrl.fromLocalFile(str(QML_DIR / "_test_theme.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        self.assertEqual(root.property("blue"), "#3d9bff")
+        self.assertEqual(root.property("hex"), "#abcdef")
+        self.assertEqual(root.property("bad"), "#1fcf8f")                   # unknown: the green
+        self.assertEqual(root.property("count"), 9)
+        root.deleteLater()
+
+    def test_sun_view_makes_room_for_opened_planets(self):
+        """Opening a planet moves the sun and its orbits so that the card does not cover it; folding brings it back."""
+        import time
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { width: 1000; height: 800\nLocalPlayerView { objectName: 'v'; anchors.fill: parent }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_sun.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        view = root.findChild(QObject, "v")
+
+        def settle():
+            end = time.time() + 0.6
+            while time.time() < end:
+                self.app.processEvents()
+                time.sleep(0.01)
+        settle()
+        centre = view.property("cx")
+        self.assertAlmostEqual(centre, 500, delta=1)
+        view.setProperty("opened", {"library": True})
+        settle()
+        self.assertGreater(view.property("cx"), 500 + 100)                  # the sun moved right of the library card
+        view.setProperty("opened", {"library": True, "queue": True})
+        settle()
+        self.assertAlmostEqual(view.property("cx"), 500, delta=1)           # both sides: back in the middle, but narrower
+        self.assertLess(view.property("availW"), 1000 - 2 * 260)
+        view.setProperty("opened", {"played": True})
+        settle()
+        self.assertLess(view.property("cy"), 400 - 50)                       # the sun moved up for the played card
+        self.assertGreaterEqual(view.property("availX0"), 10)
+        self.backend.setSetting("local_orbit", False)                       # planets folded into the sun: cards are closed
+        settle()
+        self.assertAlmostEqual(view.property("cx"), 500, delta=1)
+        self.assertAlmostEqual(view.property("cy"), 400, delta=1)
+        self.backend.setSetting("local_orbit", True)
+        root.deleteLater()
+
     def test_layout_changes_are_saved_and_reset(self):
         """Docking, detaching, hiding and the player position end up validated in the tidal_layout setting."""
         comp = QQmlComponent(self.engine)

@@ -21,6 +21,17 @@ QtObject {
     readonly property color separator: dark ? "#38383C" : "#E5E5EA"
     readonly property color track: dark ? "#3A3A3E" : "#E1E1E6"
 
+    // colours of the track player (setting tidal_player_color: one of these names or #rrggbb)
+    readonly property var playerColors: [
+        { name: "green", value: "#1fcf8f" }, { name: "blue", value: "#3d9bff" }, { name: "red", value: "#ff5a5f" },
+        { name: "yellow", value: "#f2d024" }, { name: "purple", value: "#b07cff" }, { name: "orange", value: "#ff9f43" },
+        { name: "pink", value: "#ff6fb5" }, { name: "cyan", value: "#2fd4e8" }, { name: "white", value: "#e8e8ea" }]
+    function playerColor(name) {
+        var n = String(name || "green").toLowerCase()
+        for (var i = 0; i < playerColors.length; ++i) if (playerColors[i].name === n) return playerColors[i].value
+        return /^#[0-9a-f]{6}$/.test(n) ? n : playerColors[0].value
+    }
+
     // text
     readonly property color text: dark ? "#F5F5F7" : "#1D1D1F"
     readonly property color textSecondary: dark ? "#A1A1A6" : "#6E6E73"

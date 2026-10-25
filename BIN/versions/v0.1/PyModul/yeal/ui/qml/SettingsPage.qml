@@ -518,6 +518,24 @@ Flickable {
                     Chip { text: qsTr("Band: off"); checked: page.s.tidal_player_vis_mode === "off"
                            onToggled: backend.setSetting("tidal_player_vis_mode", "off") }
                 }
+                Text { text: qsTr("Player colour"); color: Theme.textSecondary; font.pixelSize: Theme.caption }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.s2
+                    Repeater {
+                        model: Theme.playerColors
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: 28; height: 28; radius: 14
+                            color: modelData.value
+                            border.width: String(page.s.tidal_player_color) === modelData.name ? 3 : 0
+                            border.color: Theme.text
+                            Accessible.role: Accessible.Button; Accessible.name: modelData.name
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: backend.setSetting("tidal_player_color", modelData.name) }
+                        }
+                    }
+                }
                 AppButton {
                     text: qsTr("Reset the layout of the TIDAL DIY view")
                     onClicked: backend.setSetting("tidal_layout", {})

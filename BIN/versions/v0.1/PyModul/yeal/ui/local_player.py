@@ -143,6 +143,7 @@ class LocalPlayer(TidalPlayer):
         self._levels.clear()
         self._profile.reset()
         self.profileChanged.emit()
+        self._note_played(track)
         self._loading = False
         self._badge = path.suffix.lstrip(".").upper()
         self._badge_tip = str(path)

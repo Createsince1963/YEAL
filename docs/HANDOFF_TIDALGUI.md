@@ -84,3 +84,7 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - Done: player for downloaded files (`ui/local_player.py`: `LocalPlayer(TidalPlayer)`, `LocalOwner`, `library_items`; `LocalPlayerView.qml`, panel library tab, Sidebar button "Player", row menu "Play in Yeal player", `Backend.playInYeal / streamFile`), drop on the TIDAL DIY player = play now (`TidalPlayer.playNow`).
 - Hand test: sound from a downloaded file, the loudness band appearing at once, STREAM to the KEF, library after new downloads (the list refreshes when the library tab / view opens).
 - Open: equalizer (own audio engine), lyrics for local files, a "refresh" when a download finishes while the view is open.
+
+## Update 0.9.1.12 (2026-10-25, local commit + tag v0.9.1.12, not pushed, NO EXE)
+- Done after the user's test of 0.9.1.11: visible volume slider and 10 s jumps under the oval, colour setting, played list, solar system view (`LocalPlayerView.qml`, `Planet.qml`, `PlanetCard.qml`).
+- Not done: the same solar-system layout for the TIDAL DIY player (only the player for downloads has it); equalizer; hand test of dragging, STREAM, colours and the planets with real window sizes.

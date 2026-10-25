@@ -8,7 +8,9 @@ import QtQuick.Layouts
 Rectangle {
     id: panel
     property var ctl                               // TidalHome
-    property string tab: "queue"                   // queue | playlists | results | lyrics
+    property string tab: "queue"                   // queue | playlists | results | lyrics | library | played
+    property bool showTabs: true                   // false: the panel is one card of the planet view and shows just its tab
+    property bool showSearch: true
     property string query: ""
     property var player: tidal.playerObject
     property bool local: false                     // downloaded files: tabs Library and Queue, the field filters the library
@@ -82,6 +84,7 @@ Rectangle {
 
         AppField {
             id: search
+            visible: panel.showSearch
             Layout.fillWidth: true
             implicitHeight: 36
             placeholderText: panel.local ? qsTr("Filter your downloads") : qsTr("What do you want to listen to?")
@@ -97,12 +100,14 @@ Rectangle {
                    name: "search"; size: 16; color: Theme.textTertiary }
         }
         Row {
+            visible: panel.showTabs
             spacing: Theme.s4
             Layout.leftMargin: Theme.s2
             Repeater {
-                model: panel.local ? [{ t: qsTr("Library"), v: "library" }, { t: qsTr("Queue"), v: "queue" }]
+                model: panel.local ? [{ t: qsTr("Library"), v: "library" }, { t: qsTr("Queue"), v: "queue" }, { t: qsTr("Played"), v: "played" }]
                                    : [{ t: qsTr("Queue"), v: "queue" }, { t: qsTr("Playlists"), v: "playlists" },
-                                      { t: qsTr("Search results"), v: "results" }, { t: qsTr("Lyrics"), v: "lyrics" }]
+                                      { t: qsTr("Search results"), v: "results" }, { t: qsTr("Lyrics"), v: "lyrics" },
+                                      { t: qsTr("Played"), v: "played" }]
                 delegate: Text {
                     required property var modelData
                     text: modelData.t
@@ -118,7 +123,7 @@ Rectangle {
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: ["queue", "playlists", "results", "library", "lyrics"].indexOf(panel.tab)
+            currentIndex: ["queue", "playlists", "results", "library", "lyrics", "played"].indexOf(panel.tab)
 
             // ---- queue
             ListView {
@@ -218,6 +223,33 @@ Rectangle {
                     width: parent.width - 2 * Theme.s4
                     horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
                     text: panel.filter !== "" ? qsTr("Nothing found.") : qsTr("Finished audio downloads appear here.")
+                    color: Theme.textTertiary; font.pixelSize: Theme.caption
+                }
+            }
+
+            // ---- played songs of this session, newest first
+            ListView {
+                id: playedList
+                clip: true
+                spacing: 2
+                model: panel.player.history
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                delegate: Row_ {
+                    required property var modelData
+                    required property int index
+                    cover: modelData.cover || ""
+                    title: modelData.title || ""
+                    sub: modelData.subtitle || ""
+                    current: index === 0
+                    onActivated: panel.player.playHistory(index)
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: playedList.count === 0
+                    width: parent.width - 2 * Theme.s4
+                    horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
+                    text: qsTr("The songs you listened to appear here.")
                     color: Theme.textTertiary; font.pixelSize: Theme.caption
                 }
             }

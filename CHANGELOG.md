@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.1.12
+- **Player for downloads as a solar system:** the oval player is the **sun** in the middle with a glow that breathes with the music; the **planets** on the orbits around it unfold into cards and fold away again: **Library** (left), **Queue** (right), **Played** (below), **Settings** and **Speaker** (above). Opening a planet moves the sun and its orbits over so that nothing is covered; several planets can be open at once. The sun button in the corner folds all planets into the sun (`local_orbit`).
+- **Volume and jumping always visible:** under the oval there is now a volume slider (click the speaker icon to mute, mouse wheel on the oval still works) and "10 s back / ahead" buttons; the text buttons are brighter and wrap into more lines instead of running out of the window.
+- **Player colour:** green, blue, red, yellow, purple, orange, pink, cyan or white for the band, the loop and the dot (`tidal_player_color`): colour dots in the Settings planet and in Settings > Tidal > TIDAL DIY layout, and the COLOR button under the oval cycles them. The volume highlight is yellow, or orange when the player itself is yellow.
+- **Played songs:** a list of the songs of this session, newest first (tab "Played" in the TIDAL DIY panel, planet "Played" in the player for downloads); a click plays it again.
+- **Speaker planet:** lists the speakers / TVs found in the network, searches again, plays the current song there, pause / continue / stop.
+- Tests: colours and orbit setting, theme colours, the sun making room for opened planets, played list.
+- No EXE built.
+
 ## 0.9.1.11
 - **Player for your downloads** (concept: the oval design as an own player for the downloaded songs; chosen with the user). New fourth button **Player** next to YouTube / TIDAL Web / TIDAL DIY, and **Play in Yeal player** in the menu of a download. It shows the oval track player with a library of all finished audio downloads (single files and the songs inside downloaded albums / playlists / folders, newest first; names like "NN - Artist - Title" become title and artist) and a filter field. Own volume (`local_volume`); starting it pauses the web players and the TIDAL DIY player and the other way round (Settings: single playback).
 - The loudness profile around the oval is there from the first second: the whole file is scanned in the background (`QAudioDecoder`), the played part glows. **STREAM** plays the current song on the speaker / TV chosen under "Stream to box" (`Backend.streamFile`, the song then pauses here).

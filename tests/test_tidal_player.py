@@ -271,6 +271,28 @@ class TidalPlayerLogicTests(unittest.TestCase):
         self.assertEqual(p.source, "Machine Head")
         self.assertEqual(p.played[-1], "100")
 
+    def test_played_songs_are_listed_newest_first_without_doubles(self):
+        p = self.make()
+        for i in (1, 2, 1, 1, 3):
+            p._note_played(track(i))
+        self.assertEqual([t["id"] for t in p.history], ["3", "1", "2"])      # 1 again moved up, 1 twice in a row counted once
+        for i in range(100, 160):
+            p._note_played(track(i))
+        self.assertEqual(len(p.history), 50)
+        self.assertEqual(p.history[0]["id"], "159")
+        p._note_played({})                                                     # nothing playing: nothing listed
+        self.assertEqual(len(p.history), 50)
+
+    def test_playing_a_song_of_the_history_again(self):
+        p = self.make()
+        p._history = [track(5), track(6), track(7)]
+        p.playHistory(1)
+        self.assertEqual(ids(p.queue), ["5", "6", "7"])
+        self.assertEqual(p.queue.item(p.queue.current)["id"], "6")
+        self.assertEqual(p.source, "Played")
+        p.playHistory(99)                                                      # no such row: nothing changes
+        self.assertEqual(p.queue.item(p.queue.current)["id"], "6")
+
     def test_drag_payload_keeps_only_real_items(self):
         from types import SimpleNamespace
         from yeal.ui.tidal_backend import TidalBackend

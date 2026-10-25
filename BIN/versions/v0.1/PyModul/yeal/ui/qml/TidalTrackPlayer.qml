@@ -23,14 +23,22 @@ Item {
     readonly property real ovalW: Math.max(260, Math.min(width - Theme.s4, 560))
     readonly property real ovalH: Math.round(ovalW * 0.3125)
     readonly property real u: ovalH / 150
-    readonly property color green: "#1fcf8f"
-    readonly property color yellow: "#d9c61f"
+    // the colour of the band, the loop and the dot (setting tidal_player_color); the volume colour is yellow, or orange
+    // when the player itself is yellow
+    readonly property color green: Theme.playerColor(backend.settings.tidal_player_color)
+    readonly property color yellow: Theme.playerColor(backend.settings.tidal_player_color) === Theme.playerColor("yellow")
+                                    ? Theme.playerColor("orange") : Theme.playerColor("yellow")
+    property bool compact: false                       // inside the sun view: no panel buttons (the planets do that)
+    function nextColor() {
+        var names = Theme.playerColors.map(function (c) { return c.name })
+        var i = names.indexOf(String(backend.settings.tidal_player_color))
+        backend.setSetting("tidal_player_color", names[(i + 1) % names.length])
+    }
 
     // ---- state
     readonly property string visMode: backend.settings.tidal_player_vis_mode || "song"     // song | flow | off
-    property bool volShown: false                      // the small slider next to VOL
     property bool wheelOn: false                       // the wheel was used a moment ago
-    readonly property bool volActive: volBtn.hovered || volSlider.hovered || volSlider.pressed || wheelOn
+    readonly property bool volActive: volSlider.hovered || volSlider.pressed || wheelOn
     property real seekP: -1                            // >= 0 while the loop is dragged
     readonly property real progress: seekP >= 0 ? seekP : (player.duration > 0 ? Math.min(1, player.position / player.duration) : 0)
     property var hist: []                              // recent levels, newest last; the band thickness along the loop
@@ -89,6 +97,7 @@ Item {
         function onChanged() { art.requestPaint() }
     }
     onVisModeChanged: art.requestPaint()
+    onGreenChanged: art.requestPaint()
     onVolActiveChanged: art.requestPaint()
     onWidthChanged: art.requestPaint()
     Connections { target: Theme; function onDarkChanged() { art.requestPaint() } }
@@ -104,12 +113,12 @@ Item {
         // ---- playlist panel (above the oval when the player is at the bottom, below it when on top)
         Loader {
             Layout.fillWidth: true
-            Layout.row: root.playerTop ? 3 : 0
+            Layout.row: root.playerTop ? 5 : 0
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: root.ovalW
             Layout.maximumWidth: root.ovalW
             Layout.preferredHeight: root.panelHeight
-            active: root.panelOpen
+            active: root.panelOpen && !root.compact
             visible: active
             sourceComponent: TidalTrackPanel { ctl: root.ctl; player: root.player; local: root.local; tab: root.panelTab; onTabChanged: root.panelTab = tab; height: root.panelHeight }
         }
@@ -313,7 +322,7 @@ Item {
             }
         }
 
-        // ---- text controls under the oval
+        // ---- volume and jumping in the song: always visible
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: root.ovalW - 36 * root.u
@@ -325,9 +334,9 @@ Item {
                 property bool active: false
                 property bool hovered: hover.hovered
                 signal clicked()
-                color: active ? Theme.text : (hovered ? Theme.textSecondary : Theme.textTertiary)
+                color: active ? Theme.text : (hovered ? Theme.text : Theme.textSecondary)
                 font.family: "Consolas"
-                font.pixelSize: 10
+                font.pixelSize: 11
                 font.letterSpacing: 1
                 font.weight: active ? Font.Bold : Font.Normal
                 Accessible.role: Accessible.Button
@@ -335,6 +344,47 @@ Item {
                 HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: tb.clicked() }
             }
+
+            TextBtn { text: "\u00AB 10 s"; Accessible.name: qsTr("10 seconds back")
+                      onClicked: player.seek(Math.max(0, player.position - 10000)) }
+            Icon { name: player.volume === 0 ? "mute" : "volume"; size: 16; color: root.volActive ? root.yellow : Theme.textSecondary
+                   TapHandler { onTapped: root.setVolume(player.volume > 0 ? 0 : 80) }
+                   HoverHandler { cursorShape: Qt.PointingHandCursor } }
+            Slider {
+                id: volSlider
+                Layout.fillWidth: true
+                Layout.maximumWidth: 220
+                implicitHeight: 18
+                from: 0; to: 100; stepSize: 1
+                value: player.volume
+                hoverEnabled: true
+                onMoved: root.setVolume(value)
+                Accessible.name: qsTr("Volume")
+                background: Rectangle {
+                    y: (volSlider.height - 3) / 2; height: 3; width: volSlider.width; radius: 1.5
+                    color: Qt.alpha(Theme.text, 0.2)
+                    Rectangle { width: volSlider.visualPosition * parent.width; height: 3; radius: 1.5
+                                color: root.volActive ? root.yellow : root.green }
+                }
+                handle: Rectangle {
+                    x: volSlider.visualPosition * (volSlider.width - width); y: (volSlider.height - height) / 2
+                    width: 12; height: 12; radius: 6; color: Theme.text
+                    border.width: 2; border.color: root.volActive ? root.yellow : root.green
+                }
+            }
+            Text { text: player.volume + "%"; color: Theme.textSecondary; font.family: "Consolas"; font.pixelSize: 11
+                   Layout.preferredWidth: 34; horizontalAlignment: Text.AlignRight }
+            TextBtn { text: "10 s \u00BB"; Accessible.name: qsTr("10 seconds ahead")
+                      onClicked: player.seek(Math.min(player.duration, player.position + 10000)) }
+        }
+
+        // ---- the other text controls; they wrap into more lines instead of running out of the window
+        Flow {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: root.ovalW
+            Layout.row: 3
+            spacing: Theme.s4
+            layoutDirection: Qt.LeftToRight
 
             TextBtn {
                 text: player.repeat === "one" ? qsTr("REPEAT SINGLE") : player.repeat === "all" ? qsTr("REPEAT ALL") : qsTr("REPEAT OFF")
@@ -347,28 +397,17 @@ Item {
                 readonly property bool fav: favTick >= 0 && !!root.cur.id && tidal.isFavorite("track", root.cur.id)
                 property int favTick: 0
                 Connections { target: tidal; function onFavoritesChanged() { likeBtn.favTick++ } }
-                text: fav ? qsTr("♥ LIKED") : qsTr("♡ LIKE")
+                text: fav ? qsTr("\u2665 LIKED") : qsTr("\u2661 LIKE")
                 active: fav
                 visible: !!root.cur.id && !root.local
                 onClicked: tidal.toggleFavorite("track", root.cur.id)
             }
-            Item { Layout.fillWidth: true }
-            Text {       // what plays and how far, small and quiet
-                visible: player.currentIndex >= 0
-                text: root.mmss(player.position) + " / " + root.mmss(player.duration) + (player.badge !== "" ? "  ·  " + player.badge : "")
-                color: Theme.textTertiary
-                font.family: "Consolas"
-                font.pixelSize: 10
-                ToolTip.visible: badgeHover.hovered && player.badge !== ""
-                ToolTip.text: player.badgeTip
-                HoverHandler { id: badgeHover }
-            }
-            Item { Layout.fillWidth: true }
-            TextBtn { text: root.local ? qsTr("LIBRARY") : qsTr("PLAYLIST"); active: root.panelOpen; onClicked: root.panelOpen = !root.panelOpen }
-            TextBtn { text: qsTr("STREAM"); visible: root.local && backend.streamAvailable && !!root.cur.file; active: backend.streamPlaying
+            TextBtn { visible: !root.compact; text: root.local ? qsTr("LIBRARY") : qsTr("PLAYLIST"); active: root.panelOpen
+                      onClicked: root.panelOpen = !root.panelOpen }
+            TextBtn { visible: !root.compact && root.local && backend.streamAvailable && !!root.cur.file; text: qsTr("STREAM"); active: backend.streamPlaying
                       onClicked: backend.streamFile(root.cur.file, root.cur.title)
                       ToolTip.visible: hovered; ToolTip.text: qsTr("Play this song on the speaker / TV (Stream to box)") }
-            TextBtn { visible: !root.local; text: qsTr("LYRICS"); active: root.panelOpen && root.panelTab === "lyrics"
+            TextBtn { visible: !root.local && !root.compact; text: qsTr("LYRICS"); active: root.panelOpen && root.panelTab === "lyrics"
                       onClicked: { if (root.panelOpen && root.panelTab === "lyrics") root.panelOpen = false
                                    else { root.panelTab = "lyrics"; root.panelOpen = true } } }
             TextBtn {
@@ -378,35 +417,27 @@ Item {
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Band around the oval: the loudness of the song / the running level / off")
             }
-            RowLayout {
-                spacing: Theme.s1
-                Slider {
-                    id: volSlider
-                    visible: root.volShown
-                    Layout.preferredWidth: 70
-                    implicitHeight: 14
-                    from: 0; to: 100; stepSize: 1
-                    value: player.volume
-                    hoverEnabled: true
-                    onMoved: root.setVolume(value)
-                    background: Rectangle {
-                        y: (volSlider.height - 2) / 2; height: 2; width: volSlider.width; radius: 1
-                        color: Qt.alpha(Theme.text, 0.2)
-                        Rectangle { width: volSlider.visualPosition * parent.width; height: 2; radius: 1; color: root.yellow }
-                    }
-                    handle: Rectangle {
-                        x: volSlider.visualPosition * (volSlider.width - width); y: (volSlider.height - height) / 2
-                        width: 7; height: 7; radius: 3.5; color: root.yellow
-                    }
-                }
-                TextBtn {
-                    id: volBtn
-                    text: qsTr("VOL ") + player.volume + "%"
-                    active: root.volActive || root.volShown
-                    onClicked: root.volShown = !root.volShown
-                    Accessible.name: qsTr("Volume") + " " + player.volume + "%"
-                }
+            TextBtn {
+                text: qsTr("COLOR")
+                color: root.green
+                onClicked: root.nextColor()
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Colour of the player: green, blue, red, yellow, purple, orange, pink, cyan, white")
             }
+        }
+
+        // ---- what plays and how far, small and quiet
+        Text {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.row: 4
+            visible: player.currentIndex >= 0
+            text: root.mmss(player.position) + " / " + root.mmss(player.duration) + (player.badge !== "" ? "  \u00B7  " + player.badge : "")
+            color: Theme.textTertiary
+            font.family: "Consolas"
+            font.pixelSize: 10
+            ToolTip.visible: badgeHover.hovered && player.badgeTip !== ""
+            ToolTip.text: player.badgeTip
+            HoverHandler { id: badgeHover }
         }
     }
 }
