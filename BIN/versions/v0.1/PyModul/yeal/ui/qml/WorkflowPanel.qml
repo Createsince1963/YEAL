@@ -265,14 +265,36 @@ Item {
                     options: panel.formatOptions
                     onActivated: (v) => backend.setFormatMode(v)
                 }
-                Text {      // which source the options below belong to
-                    text: panel.tidalMode ? qsTr("TIDAL options") : qsTr("YouTube options")
-                    color: Theme.textSecondary
-                    font.pixelSize: Theme.footnote
+                RowLayout {     // which source the options below belong to; the TIDAL block can be folded
+                    id: optionsHead
+                    readonly property bool folded: panel.tidalMode && !!backend.settings.tidal_opts_collapsed
                     Layout.fillWidth: true
+                    spacing: Theme.s1
+                    Icon { visible: panel.tidalMode; name: "chevronDown"; size: 14; color: Theme.textSecondary
+                           rotation: optionsHead.folded ? -90 : 0 }
+                    Text {
+                        text: panel.tidalMode ? qsTr("TIDAL options") : qsTr("YouTube options")
+                        color: Theme.textSecondary
+                        font.pixelSize: Theme.footnote
+                    }
+                    Text {      // folded: what is set, in one line
+                        visible: optionsHead.folded
+                        text: tidalOpts.overview
+                        color: Theme.text
+                        font.pixelSize: Theme.footnote
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                    Item { visible: !optionsHead.folded; Layout.fillWidth: true }
+                    IconButton { visible: panel.tidalMode; implicitWidth: 28; implicitHeight: 28; iconName: "sliders"
+                                 tip: qsTr("TIDAL settings (the values here are the defaults)"); onClicked: panel.tidalSettings() }
+                    TapHandler { enabled: panel.tidalMode
+                                 onTapped: backend.setSetting("tidal_opts_collapsed", !backend.settings.tidal_opts_collapsed) }
+                    HoverHandler { enabled: panel.tidalMode; cursorShape: Qt.PointingHandCursor }
                 }
                 TidalOptions {                    // Tidal: quality, videos, Atmos, singles and extras as chips
-                    visible: panel.tidalMode
+                    id: tidalOpts
+                    visible: panel.tidalMode && !optionsHead.folded
                     Layout.fillWidth: true
                 }
                 Flow {
@@ -354,6 +376,7 @@ Item {
                     Layout.fillWidth: true
                     AppButton {
                         id: profileButton
+                        visible: !panel.tidalMode           // TIDAL: the quality is the first tile of the TIDAL options
                         text: panel.tidalMode ? panel.tidalLabel : panel.profileName
                         iconName: "sliders"
                         Layout.fillWidth: panel.inSidebar

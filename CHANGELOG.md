@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1.07
+- **TIDAL options: smaller and without the double quality control.** The quality menu button below the options is gone for TIDAL; the quality is the first tile of the TIDAL options. The option groups are small tiles in **two columns** (caption + current value); the choices of the opened group appear below, across the full width, one group at a time.
+- **The whole TIDAL options block can be folded** with a click on its heading; folded it is one line with the current quality, videos and extras (remembered, setting `tidal_opts_collapsed`). A small settings button in the heading opens Settings > Tidal. The values are the defaults of every download (the same settings as in Settings > Tidal).
+- Tests: tiles, one open group at a time, overview line, folding (`tests/test_tidal_gui_qml.py`); manuals updated.
+
+
 ## 0.9.1.06
 - Tests for the TIDAL DIY play queue and player: moving, removing and inserting rows keeps following the playing track, shuffle only touches the upcoming titles and restores their order, repeat (off / all / one), what happens at the end of the queue, volume limits (`tests/test_tidal_player.py`, 22 tests, no audio device needed).
 - Tests for the HTML link list: text and links are escaped, only https TIDAL links appear, no media files are referred to, an existing page is never replaced, an unwritable folder gives no crash.

@@ -121,6 +121,38 @@ class TidalGuiQmlTest(unittest.TestCase):
         self.assertEqual(layout()["player"], "bottom")
         root.deleteLater()
 
+    def test_tidal_options_tiles_open_one_group_and_fold(self):
+        """Two-column tiles: one group open at a time, the overview line follows the settings, folding is remembered."""
+        js = lambda v: v.toVariant() if hasattr(v, 'toVariant') else v
+        b = self.backend
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { width: 420; height: 600\nTidalOptions { objectName: 'opts'; width: 400 }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_opts.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        opts = root.findChild(QObject, "opts")
+        b.setSetting("tidal_quality", "high")
+        b.setSetting("tidal_videos", "none")
+        for _ in range(5):
+            self.app.processEvents()
+        keys = [g["key"] for g in js(opts.property("shown"))]
+        self.assertEqual(keys, ["tidal_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "_extras"])  # no video quality without videos
+        b.setSetting("tidal_videos", "allow")
+        for _ in range(5):
+            self.app.processEvents()
+        self.assertIn("tidal_video_quality", [g["key"] for g in js(opts.property("shown"))])
+        self.assertIsNone(js(opts.property("openGroup")))
+        opts.setProperty("openKey", "_extras")
+        self.assertEqual(js(opts.property("openGroup"))["key"], "_extras")
+        opts.setProperty("openKey", "tidal_atmos")
+        self.assertEqual(js(opts.property("openGroup"))["key"], "tidal_atmos")
+        self.assertIn("High (FLAC)", opts.property("overview"))
+        b.setSetting("tidal_opts_collapsed", True)
+        self.assertIs(b.settings["tidal_opts_collapsed"], True)
+        b.setSetting("tidal_opts_collapsed", False)
+        self.assertIs(b.settings["tidal_opts_collapsed"], False)
+        root.deleteLater()
+
     def test_tidal_option_settings(self):
         """The chips write through backend.setSetting; bad values are refused, sizes clamped."""
         b = self.backend

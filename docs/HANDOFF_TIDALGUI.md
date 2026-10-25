@@ -64,3 +64,6 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - Done: step 8. `tests/test_tidal_player.py` (QueueModel, player logic, link list), manuals EN/DE chapter TIDAL, ARCHITECTURE.md / TIDAL_EVALUATION.md, `Yeal.spec` checked (no change needed), `dist\Yeal.exe` built (58.6 MB) and started once offscreen (ran 12 s).
 - NOT done: manual end-to-end test with the signed-in account (plan section 7), drag from the TIDAL Web view, EXE test with real playback.
 - New idea waiting for a decision: `docs/PLAN_PLAYER_TRACK.md` (track-shaped player from the concept video; the video itself stays untracked in `docs/optional/`).
+
+## Update 0.9.1.07 (2026-10-25, local commit + tag v0.9.1.07, not pushed)
+- Done: TIDAL options in the workflow panel are two-column tiles, quality merged in (the duplicate quality menu button is hidden for TIDAL), the whole block folds (`tidal_opts_collapsed`), `TidalOptions.qml` rewritten (data model `groups`, `overview`). EXE not rebuilt for this version.

@@ -113,6 +113,7 @@ class Settings:
     tidal_rewrite: bool = False       # rewrite the tags of files that already exist
     tidal_volume: int = 80            # TIDAL DIY player volume (0-100)
     tidal_tile_size: int = 140        # TIDAL DIY tile size in grids (px)
+    tidal_opts_collapsed: bool = False   # workflow panel: the TIDAL options block is folded to one line
     tidal_layout: dict = field(default_factory=dict)   # TIDAL DIY areas: dock side / own window, sizes (see _validate_tidal_layout)
     panel_width: int = 400            # width of the tools panel next to the YouTube view
     panel_right: bool = False         # tools panel on the right instead of the left
