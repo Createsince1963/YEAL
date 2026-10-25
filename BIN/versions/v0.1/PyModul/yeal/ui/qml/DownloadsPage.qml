@@ -23,6 +23,22 @@ Item {
         leftPlayer = player
     }
     property bool browserReady: false
+    // Tidal download login: tiddl prints a device-login link; it is shown in the embedded TIDAL view, where the
+    // user signs in / confirms. tiddl notices the confirmation by itself, Yeal never touches the Tidal session.
+    property string pendingLogin: ""
+    property bool tidalLoginOpen: false
+    function openTidalLogin(url) {
+        tidalLoginOpen = true
+        tidalWanted = true
+        if (tidalLoader.item) tidalLoader.item.navigate(url)
+        else pendingLogin = url              // view is created first, then opens the link (see onLoaded)
+    }
+    function closeTidalLogin() {
+        if (!tidalLoginOpen) return
+        tidalLoginOpen = false
+        pendingLogin = ""
+        if (tidalLoader.item) tidalLoader.item.navigate(tidalLoader.item.home)
+    }
     readonly property alias slot: inlineSlot
     signal videoLink(string url)
 
@@ -58,6 +74,7 @@ Item {
                 source: "TidalPane.qml"
                 onLoaded: {
                     item.suspended = Qt.binding(function () { return page.suspendWeb || page.player !== "tidal" })
+                    if (page.pendingLogin !== "") { item.navigate(page.pendingLogin); page.pendingLogin = "" }
                     item.videoLink.connect(function (url) { page.videoLink(url) })
                 }
             }

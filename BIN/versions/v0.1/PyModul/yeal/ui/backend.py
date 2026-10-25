@@ -590,9 +590,7 @@ class Backend(QObject):
         self._tidalLinkFound.emit(url)
 
     def _open_tidal_link(self, url: str) -> None:
-        self.tidalLoginLink.emit(url)
-        self.openLink(url)
-        self.toast.emit("Confirm the Tidal sign-in in the browser. If no window opened, use this link: " + url)
+        self.tidalLoginLink.emit(url)        # QML opens it inside the TIDAL view (or in the system browser as a fallback)
 
     def _on_tidal_login_done(self, ok: bool, message: str) -> None:
         self._tidal_flow = None

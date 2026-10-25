@@ -89,6 +89,18 @@ ApplicationWindow {
     Connections {
         target: backend
         function onToast(message) { toast.show(message) }
+        function onTidalLoginLink(url) {
+            if (win.browserMode) {                      // embedded TIDAL view: sign in right inside Yeal
+                win.requestPage(0)
+                win.player = "tidal"
+                downloads.openTidalLogin(url)
+                toast.show(qsTr("Confirm the Tidal sign-in in the TIDAL view."))
+            } else {
+                backend.openLink(url)
+                toast.show(qsTr("Confirm the Tidal sign-in in the browser. Link: ") + url)
+            }
+        }
+        function onTidalChanged() { if (backend.tidalLoggedIn) downloads.closeTidalLogin() }
     }
 
     // Windows with the YouTube view: our workflow lives in the (wider) sidebar, the page is the browser.
