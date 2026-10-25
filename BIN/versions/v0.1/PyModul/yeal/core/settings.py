@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from .models import AUDIO_FORMATS, COOKIE_BROWSERS, MODES, QUALITIES, DownloadOptions
+from .tidal import TIDAL_QUALITIES
 
 THEMES = ("system", "light", "dark")
 HTML_OPEN_MODES = ("file", "server")
@@ -15,6 +16,7 @@ HTML_CREATE_MODES = ("server", "file", "both")
 DL_BUTTON_STYLES = ("icon", "label", "off")   # header Download button: icon only / icon + text / hidden
 DL_BUTTON_POSITIONS = ("left", "right")      # header Download button: next to the title or at the end of the bar
 MAX_PROFILE_NAME = 40
+MAX_STREAM_HOSTS = 10
 
 
 def default_profiles() -> List[dict]:
@@ -66,6 +68,9 @@ class Settings:
     cookies_browser: str = ""         # reuse the YouTube login of firefox/edge/chrome for downloads
     ffmpeg_path: str = ""             # optional user-selected helper; empty = automatic lookup
     node_path: str = ""               # optional user-selected helper; empty = automatic lookup
+    tidal_path: str = ""              # optional user-selected tiddl executable (Tidal helper); empty = automatic lookup
+    tidal_quality: str = "high"       # Tidal: low | normal | high | max (needs a Tidal subscription)
+    tidal_threads: int = 2            # Tidal: parallel track downloads (kept low on purpose)
     panel_width: int = 400            # width of the tools panel next to the YouTube view
     panel_right: bool = False         # tools panel on the right instead of the left
     adblock_experimental: bool = False  # Windows browser view: block ad/tracker domains (experimental, needs restart)
@@ -76,6 +81,11 @@ class Settings:
     html_create: str = "both"         # which description pages are written: server | file | both (linked to each other)
     dl_button_style: str = "icon"     # direct Download button in the header button bar: icon | label | off
     dl_button_pos: str = "left"       # ... and where it sits in that bar: left | right
+    stream_device: dict = field(default_factory=dict)   # chosen UPnP/DLNA renderer (Renderer.to_dict()); {} = none yet
+    stream_hosts: List[str] = field(default_factory=list)  # manually added renderer addresses (IP, name or description URL)
+    stream_volume: int = -1           # volume (0-100) set on the renderer before playing; -1 = leave the device as it is
+    stream_scan_seconds: int = 4      # how long the network search waits for answers
+    stream_port: int = 0              # port of Yeal's media server for the renderer; 0 = automatic (or fixed for the firewall)
     download_dir: str = ""            # empty -> platform default
     rate_limit_kbps: int = 0          # 0 = unlimited
     proxy: str = ""
@@ -98,6 +108,13 @@ class Settings:
             self.cookies_browser = ""
         self.ffmpeg_path = str(self.ffmpeg_path or "")[:1000]
         self.node_path = str(self.node_path or "")[:1000]
+        self.tidal_path = str(self.tidal_path or "")[:1000]
+        if self.tidal_quality not in TIDAL_QUALITIES:
+            self.tidal_quality = "high"
+        try:
+            self.tidal_threads = max(1, min(4, int(self.tidal_threads)))
+        except (TypeError, ValueError):
+            self.tidal_threads = 2
         if self.html_open_mode not in HTML_OPEN_MODES:
             self.html_open_mode = "server"
         if self.html_create not in HTML_CREATE_MODES:
@@ -107,6 +124,7 @@ class Settings:
         if self.dl_button_pos not in DL_BUTTON_POSITIONS:
             self.dl_button_pos = "left"
         self.max_parallel = max(1, min(4, int(self.max_parallel or 1)))
+        self._validate_streaming()
         try:
             self.rate_limit_kbps = max(0, min(10_000_000, int(self.rate_limit_kbps)))
         except (TypeError, ValueError):
@@ -128,6 +146,22 @@ class Settings:
         if self.active_profile not in self.profile_names():
             self.active_profile = self.profiles[0]["name"]
         return self
+
+    def _validate_streaming(self) -> None:
+        dev = self.stream_device if isinstance(self.stream_device, dict) else {}
+        if not all(isinstance(dev.get(k), str) and dev.get(k) for k in ("id", "location", "control_url")):
+            dev = {}
+        self.stream_device = {k: str(v)[:500] for k, v in dev.items()} if dev else {}
+        hosts = self.stream_hosts if isinstance(self.stream_hosts, list) else []
+        self.stream_hosts = list(dict.fromkeys(str(h).strip()[:300] for h in hosts if str(h).strip()))[:MAX_STREAM_HOSTS]
+        for key, lo, hi, default in (("stream_volume", -1, 100, -1), ("stream_scan_seconds", 2, 15, 4),
+                                     ("stream_port", 0, 65535, 0)):
+            try:
+                setattr(self, key, max(lo, min(hi, int(getattr(self, key)))))
+            except (TypeError, ValueError):
+                setattr(self, key, default)
+        if 0 < self.stream_port < 1024:
+            self.stream_port = 0
 
     # ---- profiles -------------------------------------------------------
     def profile_names(self) -> List[str]:

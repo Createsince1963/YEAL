@@ -8,6 +8,7 @@ Rectangle {
     // Roles exposed by JobModel (`jobState`, not `state`: Item already has `state`).
     signal framesRequested(int jobId, string title)
     signal tagsRequested(int jobId, string title)
+    signal streamRequested(int jobId, string title)    // choose the speaker / TV for this download
     signal detailsRequested(var row)
 
     required property int jobId
@@ -42,6 +43,7 @@ Rectangle {
     readonly property bool failed: jobState === "error" || jobState === "canceled"
     readonly property bool done: jobState === "done"
     readonly property bool canFrames: done && mode === "video" && backend.ffmpegAvailable && !backend.isMobile
+    readonly property bool canStream: done && backend.streamAvailable
     readonly property bool canTags: done && mode === "audio" && backend.mp3TagsAvailable
                                     && filename.toLowerCase().endsWith(".mp3")
     readonly property bool indeterminate: false   // always a real percentage, every phase
@@ -87,6 +89,10 @@ Rectangle {
                       enabled: row.hasPage && !backend.isMobile; onTriggered: backend.openPage(row.jobId) }
         AppMenuItem { text: qsTr("Show in folder"); iconName: "folder"; enabled: row.done && !backend.isMobile
                       onTriggered: backend.showInFolder(row.jobId) }
+        AppMenuItem { text: qsTr("Stream to box (speaker / TV)"); iconName: "cast"
+                      enabled: row.canStream; onTriggered: backend.streamJob(row.jobId, "") }
+        AppMenuItem { text: qsTr("Stream to another device…"); iconName: "wifi"
+                      enabled: row.canStream; onTriggered: row.streamRequested(row.jobId, row.title) }
         AppMenuItem { text: qsTr("Split into images…"); iconName: "grid"
                       enabled: row.canFrames; onTriggered: row.framesRequested(row.jobId, row.title) }
         AppMenuItem { text: qsTr("Edit MP3 tags…"); iconName: "sliders"
@@ -218,9 +224,12 @@ Rectangle {
             }
         }
         // Wide layout: explicit actions. Compact layout: one button (cancel, or the menu).
-        RowLayout {
+        ColumnLayout {
+          spacing: Theme.s1
+          Layout.alignment: Qt.AlignVCenter
+          RowLayout {
             spacing: 0
-            Layout.alignment: Qt.AlignVCenter
+            Layout.alignment: Qt.AlignRight
             RingButton { visible: row.active || row.queued; tip: qsTr("Cancel")
                          progress: row.progress; indeterminate: row.indeterminate
                          onClicked: backend.cancel(row.jobId) }
@@ -238,6 +247,26 @@ Rectangle {
                          onClicked: backend.remove(row.jobId) }
             IconButton { visible: Theme.compact && !row.active && !row.queued; iconName: "more"; tip: qsTr("More")
                          onClicked: ctxMenu.popup() }
+          }
+          // Stream the finished file to a speaker / TV in the Wi-Fi (UPnP/DLNA). Click: saved device (or search);
+          // right-click: choose another device.
+          AppButton {
+            id: streamBtn
+            objectName: "streamButton"
+            visible: !Theme.compact && row.canStream
+            Layout.alignment: Qt.AlignRight
+            kind: "plain"
+            iconName: "cast"
+            text: qsTr("Stream to box")
+            ToolTip.visible: hovered
+            ToolTip.delay: 600
+            ToolTip.text: qsTr("Play this file on your speaker / TV in the Wi-Fi (right-click: choose another device)")
+            onClicked: backend.streamJob(row.jobId, "")
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onTapped: row.streamRequested(row.jobId, row.title)
+            }
+          }
         }
     }
 }

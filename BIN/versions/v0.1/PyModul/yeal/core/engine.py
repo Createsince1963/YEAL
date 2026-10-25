@@ -7,7 +7,7 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional
 
-from . import album, extras, lyrics, mp3tags
+from . import album, extras, lyrics, mp3tags, tidal
 from .models import DownloadJob, JobState
 from .presets import build_ydl_opts
 
@@ -236,6 +236,7 @@ class Engine:
     def __init__(self, ctx, ydl_class=None):
         self.ctx = ctx
         self._ydl_class = ydl_class
+        self.tidal_config: Optional[Callable[[], dict]] = None   # -> {"path", "quality", "threads"} (set by the UI backend)
 
     def _lyrics_for(self, job: DownloadJob, item: dict, path: str, notify: Callable[[DownloadJob], None]) -> Optional[dict]:
         """Find the song text (LRCLIB, else the captions), save .txt/.lrc/.srt and tag the audio file."""
@@ -311,8 +312,76 @@ class Engine:
                                        str(info.get("webpage_url") or job.url), items,
                                        job.options.mode, job.options.html_theme)
 
+    def _run_tidal(self, job: DownloadJob, cancel: threading.Event,
+                   notify: Callable[[DownloadJob], None]) -> None:
+        """Tidal link (track / album / playlist / artist / mix / video) via the tiddl command line tool.
+        Needs a Tidal subscription and a signed-in account (Settings > Tidal)."""
+        self.ctx.ensure_dirs()
+        cfg = (self.tidal_config() if self.tidal_config else None) or {}
+        job.state = JobState.FETCHING
+        job.phase = "Preparing Tidal"
+        job.progress = 0.01
+        job.title = job.title or tidal.resource_of(job.url)
+        notify(job)
+
+        def fail(text: str, detail: str = "") -> None:
+            job.state = JobState.ERROR
+            job.error = text
+            job.error_detail = detail[:400]
+            notify(job)
+
+        exe = tidal.find_tiddl(str(cfg.get("path") or ""))
+        if not exe:
+            fail("The Tidal helper tiddl was not found. " + tidal.INSTALL_HINT)
+            return
+        if not tidal.is_logged_in():
+            fail("Not signed in to Tidal. Open Settings > Tidal and sign in with your Tidal account "
+                 "(a Tidal subscription is required).")
+            return
+        base = Path(self.ctx.download_dir) / "Tidal"
+        base.mkdir(parents=True, exist_ok=True)
+        finished = [0]
+
+        def on_line(kind: str, text: str) -> None:
+            if cancel.is_set():
+                return
+            job.state = JobState.DOWNLOADING
+            if kind == "done":
+                finished[0] += 1
+                job.playlist_index = finished[0]
+            job.phase = text[:120]
+            # the number of items is not known in advance: the bar approaches 95 % with every finished item
+            job.progress = 0.05 + 0.90 * (1 - 1 / (1 + 0.35 * finished[0]))
+            job.dl_progress = job.progress
+            notify(job)
+
+        try:
+            code, lines = tidal.run_download(exe, job.url, str(cfg.get("quality") or "high"), str(base),
+                                             int(cfg.get("threads") or 2), cancel, on_line)
+        except OSError as exc:
+            fail(f"tiddl could not be started: {exc}")
+            return
+        if cancel.is_set():
+            job.state = JobState.CANCELED
+            job.phase = "Canceled"
+            notify(job)
+            return
+        if code != 0 and not finished[0]:
+            fail(tidal.friendly_error(lines, code), "\n".join(lines[-5:]))
+            return
+        if code != 0:
+            job.note = "Some Tidal items failed - see the log of tiddl (~/.tiddl/latest.log)."
+        job.filename = str(base)
+        job.progress = job.dl_progress = job.pp_progress = 1.0
+        job.state = JobState.DONE
+        job.phase = "Done"
+        notify(job)
+
     def run(self, job: DownloadJob, cancel: threading.Event,
             notify: Callable[[DownloadJob], None]) -> None:
+        if tidal.is_tidal_url(job.url):          # Tidal links go to the tiddl helper, not to yt-dlp
+            self._run_tidal(job, cancel, notify)
+            return
         self.ctx.ensure_dirs()
         updater.activate(self.ctx.data_dir)
         ydl_class = self._ydl_class or default_ydl_class()

@@ -21,6 +21,7 @@ AdminPanel 1.0 AdminPanel.qml
 DownloadDetails 1.0 DownloadDetails.qml
 DuplicateDialog 1.0 DuplicateDialog.qml
 TagsDialog 1.0 TagsDialog.qml
+StreamDialog 1.0 StreamDialog.qml
 ExternalDriveDialog 1.0 ExternalDriveDialog.qml
 SettingsRow 1.0 SettingsRow.qml
 SettingsItem 1.0 SettingsItem.qml

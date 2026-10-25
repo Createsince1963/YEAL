@@ -49,6 +49,19 @@ Flickable {
         }
     }
 
+    Loader {
+        id: tiddlLoader
+        active: !backend.isMobile
+        sourceComponent: FileDialog {
+            title: qsTr("Choose tiddl")
+            nameFilters: [qsTr("tiddl executable (tiddl.exe)"), qsTr("All files (*)")]
+            onAccepted: {
+                var err = backend.setTidalPath(selectedFile.toString())
+                page.toastRequest(err || qsTr("tiddl path saved"))
+            }
+        }
+    }
+
     ColumnLayout {
         id: column
         x: Theme.compact ? Theme.s4 : Theme.s6
@@ -262,6 +275,138 @@ Flickable {
         }
 
         SettingsGroup {
+            title: qsTr("Streaming")
+            icon: "cast"
+            collapsible: true
+            visible: backend.streamAvailable
+            Layout.fillWidth: true
+            footer: qsTr("Plays finished downloads on speakers and TVs in your Wi-Fi/LAN (UPnP/DLNA), e.g. KEF LS50 Wireless I and II. Yeal serves the file and the device fetches it. Windows may ask once to allow Yeal in the firewall: choose \"Private networks\".")
+            SettingsItem {
+                label: qsTr("Speaker / TV (box)")
+                icon: "speaker"
+                summary: page.s.stream_device && page.s.stream_device.name ? page.s.stream_device.name : qsTr("Not chosen")
+                hint: backend.streamStatus !== "" ? backend.streamStatus
+                    : qsTr("Search the network, then tap a device. It is used by the Stream button of every download.")
+                stacked: true
+                ColumnLayout {
+                    spacing: Theme.s2
+                    Layout.fillWidth: true
+                    RowLayout {
+                        spacing: Theme.s2
+                        AppButton { text: backend.streamScanning ? qsTr("Searching…") : qsTr("Search network"); iconName: "wifi"
+                                    enabled: !backend.streamScanning; onClicked: backend.scanStreamDevices() }
+                        AppButton { visible: !!(page.s.stream_device && page.s.stream_device.id); text: qsTr("Forget"); kind: "plain"
+                                    onClicked: backend.clearStreamDevice() }
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.s2
+                        Repeater {
+                            model: backend.streamDevices
+                            delegate: Chip {
+                                required property var modelData
+                                text: modelData.name + (modelData.online ? "" : qsTr(" (not seen)"))
+                                checked: modelData.selected
+                                onToggled: backend.selectStreamDevice(modelData.id)
+                            }
+                        }
+                    }
+                }
+            }
+            SettingsItem {
+                label: qsTr("Add device by address")
+                icon: "network"
+                summary: page.s.stream_hosts.length > 0 ? qsTr("%1 saved").arg(page.s.stream_hosts.length) : qsTr("None")
+                hint: streamHostError.text !== "" ? streamHostError.text
+                    : qsTr("Use this when the search does not find your device: its IP address (see your router or the KEF app), a device name, or the full description URL.")
+                stacked: true
+                ColumnLayout {
+                    spacing: Theme.s2
+                    Layout.fillWidth: true
+                    RowLayout {
+                        spacing: Theme.s2
+                        Layout.fillWidth: true
+                        AppField {
+                            id: streamHostField
+                            placeholderText: qsTr("e.g. 192.168.1.50")
+                            Layout.fillWidth: true
+                            onAccepted: streamHostAdd.clicked()
+                            Accessible.name: qsTr("Device address")
+                        }
+                        AppButton {
+                            id: streamHostAdd
+                            text: qsTr("Add")
+                            onClicked: {
+                                streamHostError.text = backend.addStreamHost(streamHostField.text)
+                                if (streamHostError.text === "") streamHostField.text = ""
+                            }
+                        }
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.s2
+                        Repeater {
+                            model: page.s.stream_hosts
+                            delegate: AppButton {
+                                required property var modelData
+                                text: modelData
+                                iconName: "x"
+                                kind: "plain"
+                                onClicked: backend.removeStreamHost(modelData)
+                                Accessible.name: qsTr("Remove %1").arg(modelData)
+                            }
+                        }
+                    }
+                    Text { id: streamHostError; visible: false; text: "" }
+                }
+            }
+            SettingsItem {
+                label: qsTr("Start volume")
+                icon: "gauge"
+                summary: page.s.stream_volume >= 0 ? page.s.stream_volume + "%" : qsTr("Device volume")
+                hint: qsTr("Volume (0-100) set on the speaker before a stream starts. Leave empty to keep the volume the device already has.")
+                AppField {
+                    text: page.s.stream_volume >= 0 ? String(page.s.stream_volume) : ""
+                    placeholderText: qsTr("Keep")
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 0; top: 100 }
+                    horizontalAlignment: TextInput.AlignRight
+                    Layout.preferredWidth: 120
+                    onEditingFinished: backend.setSetting("stream_volume", text === "" ? -1 : parseInt(text))
+                    Accessible.name: qsTr("Start volume in percent")
+                }
+            }
+            SettingsItem {
+                label: qsTr("Search time")
+                icon: "clock"
+                summary: qsTr("%1 s").arg(page.s.stream_scan_seconds)
+                hint: qsTr("How long Yeal waits for devices to answer when it searches the network. Increase it if a device is found only sometimes.")
+                Stepper {
+                    value: page.s.stream_scan_seconds
+                    from: 2
+                    to: 15
+                    suffix: qsTr(" s")
+                    onMoved: (v) => backend.setSetting("stream_scan_seconds", v)
+                }
+            }
+            SettingsItem {
+                label: qsTr("Media server port")
+                icon: "network"
+                summary: page.s.stream_port > 0 ? String(page.s.stream_port) : qsTr("Automatic")
+                hint: qsTr("Port that the speaker uses to fetch the file from this PC. 0 = automatic. If the Windows firewall blocks streaming, enter a fixed port (1024-65535) and allow it for private networks.")
+                AppField {
+                    text: String(page.s.stream_port)
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 0; top: 65535 }
+                    horizontalAlignment: TextInput.AlignRight
+                    Layout.preferredWidth: 120
+                    onEditingFinished: backend.setSetting("stream_port", text === "" ? 0 : parseInt(text))
+                    Accessible.name: qsTr("Media server port")
+                }
+            }
+        }
+
+        SettingsGroup {
             title: qsTr("Download engine")
             icon: "cpu"
             collapsible: true
@@ -382,6 +527,80 @@ Flickable {
         }
 
         SettingsGroup {
+            title: qsTr("Tidal")
+            icon: "music"
+            collapsible: true
+            visible: !backend.isMobile
+            Layout.fillWidth: true
+            SettingsItem {
+                label: qsTr("Tidal subscription required")
+                icon: "info"
+                summary: qsTr("Only with a Tidal subscription")
+                hint: backend.tidalNotice
+                stacked: true
+            }
+            SettingsItem {
+                label: qsTr("Tidal helper (tiddl)")
+                icon: "code"
+                summary: backend.tidalInstalled ? qsTr("Ready") : qsTr("Missing")
+                hint: backend.tidalInstalled ? backend.tidalExe : backend.tidalInstallHint
+                stacked: true
+                Badge { text: backend.tidalInstalled ? qsTr("Ready") : qsTr("Missing")
+                        kind: backend.tidalInstalled ? "success" : "warning" }
+                AppButton { text: qsTr("Choose…"); iconName: "folder"; onClicked: tiddlLoader.item.open() }
+                AppButton { text: qsTr("Automatic"); kind: "plain"
+                            onClicked: page.toastRequest(backend.setTidalPath("") || qsTr("tiddl is detected again")) }
+                AppButton { text: qsTr("Download…"); iconName: "open"; kind: "plain"
+                            onClicked: backend.openLink("https://github.com/oskvr37/tiddl") }
+            }
+            SettingsItem {
+                label: qsTr("Tidal account")
+                icon: "lock"
+                summary: backend.tidalLoggedIn ? qsTr("Signed in") : backend.tidalLoginRunning ? qsTr("Waiting for the browser…") : qsTr("Signed out")
+                hint: qsTr("Each user signs in with their own Tidal account in the browser. Yeal never sees the password.")
+                stacked: true
+                Badge { text: backend.tidalLoggedIn ? qsTr("Signed in") : qsTr("Signed out")
+                        kind: backend.tidalLoggedIn ? "success" : "neutral" }
+                AppButton { visible: !backend.tidalLoggedIn && !backend.tidalLoginRunning; text: qsTr("Sign in…"); iconName: "lock"
+                            enabled: backend.tidalInstalled
+                            onClicked: { var err = backend.tidalLogin(); if (err) page.toastRequest(err) } }
+                AppButton { visible: backend.tidalLoginRunning; text: qsTr("Cancel"); kind: "plain"
+                            onClicked: backend.tidalCancelLogin() }
+                AppButton { visible: backend.tidalLoggedIn; text: qsTr("Sign out"); kind: "plain"
+                            onClicked: backend.tidalLogout() }
+                AppButton { text: qsTr("Check"); kind: "plain"; onClicked: backend.tidalRefresh() }
+            }
+            SettingsItem {
+                label: qsTr("Quality")
+                icon: "music"
+                summary: page.s.tidal_quality === "max" ? qsTr("Max (FLAC, up to 24-bit)") : page.s.tidal_quality === "high" ? qsTr("High (FLAC 16-bit)")
+                         : page.s.tidal_quality === "normal" ? qsTr("Normal (AAC 320)") : qsTr("Low (AAC 96)")
+                hint: qsTr("What your subscription offers is used; Max needs a plan with HiFi Plus / Max.")
+                stacked: Theme.compact
+                Segmented {
+                    current: page.s.tidal_quality
+                    options: [{ text: qsTr("Low"), value: "low" }, { text: qsTr("Normal"), value: "normal" },
+                              { text: qsTr("High"), value: "high" }, { text: qsTr("Max"), value: "max" }]
+                    Layout.fillWidth: Theme.compact
+                    Layout.preferredWidth: 340
+                    onActivated: (v) => backend.setSetting("tidal_quality", v)
+                }
+            }
+            SettingsItem {
+                label: qsTr("Parallel Tidal tracks")
+                icon: "layers"
+                summary: String(page.s.tidal_threads)
+                hint: qsTr("Keep this low: many parallel requests can get a Tidal account blocked.")
+                Stepper {
+                    value: page.s.tidal_threads
+                    from: 1
+                    to: 4
+                    onMoved: (v) => backend.setSetting("tidal_threads", v)
+                }
+            }
+        }
+
+        SettingsGroup {
             title: qsTr("Info")
             icon: "info"
             collapsible: true
@@ -401,6 +620,14 @@ Flickable {
                 }
             }
             SettingsItem { label: qsTr("Yeal"); icon: "info"; summary: backend.appVersion }
+            SettingsItem {
+                label: qsTr("Tidal")
+                icon: "music"
+                visible: !backend.isMobile
+                summary: qsTr("Only with a Tidal subscription")
+                hint: backend.tidalNotice
+                stacked: true
+            }
             SettingsItem { label: qsTr("Platform"); icon: "window"; summary: backend.platformName }
             SettingsItem {
                 id: historyRow

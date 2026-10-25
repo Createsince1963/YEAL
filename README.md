@@ -157,3 +157,9 @@ ci/build-apk.yml                cloud APK build
 
 yt-dlp is public domain (Unlicense). Download only content you are allowed to download.
 If you ever copy code from Seal (GPL-3.0), Yeal becomes GPL-3.0 too and must not use the Seal name.
+
+## Tidal (optional, subscription required)
+
+Yeal can download from Tidal links when the helper `tiddl` is installed (`pip install tiddl`) and you are signed in under
+Settings > Tidal. **Tidal works only with an active Tidal subscription** (for example a Tidal family plan: each of the
+users signs in with their own account). Use the downloads for yourself and respect Tidal's terms of use.

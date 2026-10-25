@@ -20,7 +20,7 @@ Item {
         { text: qsTr("Video"), value: "video" },
         { text: qsTr("Audio (MP3)"), value: "audio" }
     ]
-    readonly property bool overlayOpen: framesDialog.opened || audioChoice.opened || liveDialog.opened || playlistDialog.opened || details.opened || duplicates.opened || driveDialog.opened || tagsDialog.opened
+    readonly property bool overlayOpen: framesDialog.opened || audioChoice.opened || liveDialog.opened || playlistDialog.opened || details.opened || duplicates.opened || driveDialog.opened || tagsDialog.opened || streamDialog.opened
 
     // Direct Download button in the header button bar. Right-click: look (icon / icon + text / hidden)
     // and position (next to the title / end of the bar), both remembered in the settings.
@@ -107,9 +107,11 @@ Item {
     DuplicateDialog { id: duplicates }
     ExternalDriveDialog { id: driveDialog }
     TagsDialog { id: tagsDialog }
+    StreamDialog { id: streamDialog }
     Connections {
         target: backend
         function onTagsPrompt(info) { tagsDialog.enqueue(info) }
+        function onStreamChoice(jobId) { streamDialog.openFor(jobId, "") }
         function onAudioChoice(info) { audioChoice.enqueue(info) }
         function onLiveChoice(info) { liveDialog.enqueue(info) }
         function onPlaylistChoice(info) { playlistDialog.enqueue(info) }
@@ -417,6 +419,7 @@ Item {
                     width: ListView.view.width - (ListView.view.ScrollBar.vertical.visible ? 10 : 0)
                     onFramesRequested: (id, t) => framesDialog.openForJob(id)
                     onTagsRequested: (id, t) => tagsDialog.edit(id, t)
+                    onStreamRequested: (id, t) => streamDialog.openFor(id, t)
                     onDetailsRequested: (r) => details.openFor(r)
                 }
                 add: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.dur } }

@@ -22,7 +22,7 @@ from ..core.models import DownloadJob, JobState
 from ..core.presets import compress_items, is_playlist_url, media_dir, normalize_proxy, sanitize_custom_options
 from ..core.queue import DownloadQueue
 from ..core import frames as framelib
-from ..core import audioprobe, history, localserve, mp3tags, updater, vault as vaultlib
+from ..core import audioprobe, history, localserve, mp3tags, streaming, tidal, updater, vault as vaultlib
 from ..core.presets import build_ydl_opts
 from ..core.settings import DL_BUTTON_POSITIONS, DL_BUTTON_STYLES, HTML_CREATE_MODES, HTML_OPEN_MODES, THEMES, Settings
 
@@ -206,6 +206,9 @@ class Backend(QObject):
     settingsEditChanged = Signal()
     ytdlpChanged = Signal()
     helpersChanged = Signal()
+    tidalChanged = Signal()
+    tidalLoginLink = Signal(str)          # device-login link of Tidal (the browser is opened with it)
+    _tidalLoginDone = Signal(bool, str)   # (signed in, message) - emitted from the login thread
     infoChanged = Signal()
     statsChanged = Signal()
     framesChanged = Signal()
@@ -225,6 +228,10 @@ class Backend(QObject):
     liveChoice = Signal(dict)                 # {url, title, thumbnail}: the link is a live stream -> ask record/duration
     audioChoice = Signal(dict)                # {url, title, thumbnail, best, choices} -> dialog
     tagsPrompt = Signal(dict)                 # {jobId, title}: an MP3 was tagged automatically -> ask: edit the tags?
+    streamChanged = Signal()                  # devices / scan state / playback status of the streaming feature changed
+    streamChoice = Signal(int)                # jobId: no speaker chosen yet -> open the device dialog
+    _streamScanned = Signal(list, str)        # (renderer dicts, error) from the scan thread
+    _streamResult = Signal(str, str, str)     # (status text, toast text, kind 'ok' | 'warn' | 'error' | 'idle')
     toast = Signal(str)
 
     def __init__(self, ctx: platforms.PlatformInfo, engine: Engine | None = None,
@@ -267,6 +274,9 @@ class Backend(QObject):
         self._filmstrip_serial = 0
         self._updating = False
         self._engine = engine or Engine(ctx)
+        self._engine.tidal_config = self._tidal_config
+        self._tidal_flow = None
+        self._tidalLoginDone.connect(self._on_tidal_login_done)
         self._queue = DownloadQueue(
             self._engine.run, self._settings.max_parallel,
             on_change=self._jobChanged.emit, on_remove=self._jobRemoved.emit)
@@ -297,6 +307,14 @@ class Backend(QObject):
         self._filtered.setGroup(self._settings.list_group)
         self._filtered.set_collapsed(self._settings.ui_collapsed)
         self._queue.restore(history.load(self._history_path))     # finished downloads of earlier sessions
+        self._streamer = streaming.Streamer()
+        self._stream_found: list = []           # renderers found by the last network search (dicts)
+        self._stream_scanning = False
+        self._stream_status = ""                # e.g. "Playing on KEF LS50 Wireless II: <title>"
+        self._stream_busy = False
+        self._stream_playing = False
+        self._streamScanned.connect(self._on_stream_scanned)
+        self._streamResult.connect(self._on_stream_result)
         updater.activate(self._ctx.data_dir)
         if check_updates and self._settings.auto_update and updater.should_check(self._ctx.data_dir):
             self._start_update(silent=True)
@@ -432,6 +450,7 @@ class Backend(QObject):
             f"Python {sys.version.split()[0]} — Python Software Foundation License 2.0",
             f"FFmpeg {self.ffmpegVersion or '-'} — LGPL-2.1-or-later / GPL-2.0-or-later (depends on build)",
             f"Node.js {self.jsRuntimeVersion or '-'} — MIT License",
+            "tiddl (optional Tidal helper, started as a separate program, not included) — Apache-2.0",
             "Microsoft Edge WebView2 Runtime — Microsoft Software License Terms",
         ]
         return "\n".join(rows)
@@ -523,6 +542,90 @@ class Backend(QObject):
         self.helpersChanged.emit()
         return ""
 
+    # ---- Tidal (0.9.0.0) ------------------------------------------------
+    tidalNotice = Property(str, lambda self: tidal.NOTICE, constant=True)
+    tidalInstallHint = Property(str, lambda self: tidal.INSTALL_HINT, constant=True)
+
+    def _tidal_config(self) -> dict:
+        return {"path": self._settings.tidal_path, "quality": self._settings.tidal_quality,
+                "threads": self._settings.tidal_threads}
+
+    @Property(str, notify=tidalChanged)
+    def tidalExe(self) -> str:  # type: ignore[override]
+        return tidal.find_tiddl(self._settings.tidal_path)
+
+    @Property(bool, notify=tidalChanged)
+    def tidalInstalled(self) -> bool:  # type: ignore[override]
+        return bool(tidal.find_tiddl(self._settings.tidal_path))
+
+    @Property(bool, notify=tidalChanged)
+    def tidalLoggedIn(self) -> bool:  # type: ignore[override]
+        return tidal.is_logged_in()
+
+    @Property(bool, notify=tidalChanged)
+    def tidalLoginRunning(self) -> bool:  # type: ignore[override]
+        return self._tidal_flow is not None
+
+    @Slot(result=str)
+    def tidalLogin(self) -> str:
+        """Start the Tidal device login (opens the browser). Returns '' or an error text."""
+        if self._ctx.is_mobile:
+            return "Tidal is available in the Windows version."
+        exe = tidal.find_tiddl(self._settings.tidal_path)
+        if not exe:
+            return "The Tidal helper tiddl was not found. " + tidal.INSTALL_HINT
+        if self._tidal_flow is not None:
+            return "The sign-in is already running - finish it in the browser."
+        self._tidal_flow = tidal.LoginFlow(exe, self._on_tidal_link, self._tidalLoginDone.emit)
+        self._tidal_flow.start()
+        self.tidalChanged.emit()
+        return ""
+
+    def _on_tidal_link(self, url: str) -> None:        # login thread: hand the link to the GUI thread
+        QTimer.singleShot(0, lambda: self._open_tidal_link(url))
+
+    def _open_tidal_link(self, url: str) -> None:
+        self.tidalLoginLink.emit(url)
+        self.openLink(url)
+
+    def _on_tidal_login_done(self, ok: bool, message: str) -> None:
+        self._tidal_flow = None
+        self.tidalChanged.emit()
+        self.toast.emit(message)
+
+    @Slot()
+    def tidalCancelLogin(self) -> None:
+        if self._tidal_flow is not None:
+            self._tidal_flow.cancel()
+
+    @Slot()
+    def tidalLogout(self) -> None:
+        exe = tidal.find_tiddl(self._settings.tidal_path)
+        done = bool(exe) and tidal.logout(exe)
+        self.tidalChanged.emit()
+        self.toast.emit("Signed out of Tidal." if done else "Sign-out failed - is tiddl installed?")
+
+    @Slot(str, result=str)
+    def setTidalPath(self, value: str) -> str:
+        """Select the tiddl executable from a FileDialog, or '' for automatic detection."""
+        value = (value or "").strip()
+        if value:
+            path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
+            if not path.is_file():
+                return "The selected file does not exist."
+            if path.stem.lower() != "tiddl":
+                return "Please select tiddl (tiddl.exe)."
+            self._settings.tidal_path = str(path.resolve())
+        else:
+            self._settings.tidal_path = ""
+        self._save()
+        self.tidalChanged.emit()
+        return ""
+
+    @Slot()
+    def tidalRefresh(self) -> None:
+        self.tidalChanged.emit()
+
     @Slot(str, result=int)
     def addUrls(self, text: str) -> int:
         urls = list(dict.fromkeys(_URL.findall(text or "")))
@@ -540,7 +643,9 @@ class Backend(QObject):
         return len(urls)
 
     def _start(self, url: str, options, single: bool) -> None:
-        if options.playlist and options.playlist_dir and is_playlist_url(url):
+        if tidal.is_tidal_url(url):                    # Tidal: handled by the tiddl helper, no YouTube probing
+            self._queue.add(url, options)
+        elif options.playlist and options.playlist_dir and is_playlist_url(url):
             self._check_playlist(url, options)          # list the entries, the user picks
         elif single and not options.playlist:
             self._check_audio_quality(url, options)   # live stream? better audio target? ask first
@@ -1230,7 +1335,7 @@ class Backend(QObject):
 
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value: Any) -> None:
-        if key not in ("theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "dl_button_style", "dl_button_pos"):
+        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1238,6 +1343,8 @@ class Backend(QObject):
         except (TypeError, ValueError):
             return
         if key == "theme" and value not in THEMES:
+            return
+        if key == "tidal_quality" and value not in tidal.TIDAL_QUALITIES:
             return
         if key == "html_open_mode" and value not in HTML_OPEN_MODES:
             return
@@ -1395,6 +1502,208 @@ class Backend(QObject):
         self._save_history()
         self._queue.shutdown()
         localserve.shutdown_all()
+        self._streamer.shutdown()
+
+    # ---- streaming to speakers / TVs in the network (UPnP/DLNA) --------------------------------
+    streamAvailable = Property(bool, lambda self: not self._ctx.is_mobile, constant=True)
+
+    @Property(bool, notify=streamChanged)
+    def streamScanning(self) -> bool:  # type: ignore[override]
+        return self._stream_scanning
+
+    @Property(bool, notify=streamChanged)
+    def streamBusy(self) -> bool:  # type: ignore[override]
+        return self._stream_busy
+
+    @Property(bool, notify=streamChanged)
+    def streamPlaying(self) -> bool:  # type: ignore[override]
+        return self._stream_playing
+
+    @Property(str, notify=streamChanged)
+    def streamStatus(self) -> str:  # type: ignore[override]
+        return self._stream_status
+
+    @Property("QVariantList", notify=streamChanged)
+    def streamDevices(self) -> list:  # type: ignore[override]
+        """Found devices, the saved one included (marked 'selected'; 'online' = seen in the last search)."""
+        saved = self._settings.stream_device or {}
+        out, seen = [], set()
+        for dev in self._stream_found:
+            seen.add(dev["id"])
+            out.append(dict(dev, selected=dev["id"] == saved.get("id"), online=True))
+        if saved and saved.get("id") not in seen:
+            out.insert(0, dict(saved, selected=True, online=False))
+        return out
+
+    def _device_by_id(self, device_id: str) -> "streaming.Renderer | None":
+        saved = self._settings.stream_device or {}
+        for dev in self._stream_found + ([saved] if saved else []):
+            if dev.get("id") == device_id:
+                return streaming.Renderer.from_dict(dev)
+        return None
+
+    @Slot()
+    def scanStreamDevices(self) -> None:
+        """Search the Wi-Fi/LAN for speakers and TVs (UPnP/DLNA renderers), also at the manually added addresses."""
+        if self._stream_scanning or self._ctx.is_mobile:
+            return
+        self._stream_scanning = True
+        self._stream_status = "Searching the network…"
+        self.streamChanged.emit()
+        seconds, hosts = float(self._settings.stream_scan_seconds), list(self._settings.stream_hosts)
+
+        def work() -> None:
+            try:
+                found = [r.to_dict() for r in streaming.discover(seconds, hosts)]
+                self._streamScanned.emit(found, "")
+            except Exception as exc:  # noqa: BLE001 - a network problem must never kill the app
+                self._streamScanned.emit([], str(exc) or exc.__class__.__name__)
+        threading.Thread(target=work, name="yeal-ssdp", daemon=True).start()
+
+    @Slot(list, str)
+    def _on_stream_scanned(self, found: list, error: str) -> None:
+        self._stream_scanning = False
+        self._stream_found = found
+        saved = self._settings.stream_device or {}
+        if saved:                                  # keep the saved device's data fresh (its address may have changed)
+            fresh = next((d for d in found if d["id"] == saved.get("id")), None)
+            if fresh and fresh != saved:
+                self._settings.stream_device = dict(fresh)
+                self._settings.validate()
+                self._save()
+        if error:
+            self._stream_status = "Search failed: " + error
+        elif not found:
+            self._stream_status = ("No speaker or TV found. Check that the device is on and in the same Wi-Fi/LAN, "
+                                   "or add its address in Settings.")
+        else:
+            self._stream_status = "%d device%s found" % (len(found), "" if len(found) == 1 else "s")
+        self.streamChanged.emit()
+
+    @Slot(str)
+    def selectStreamDevice(self, device_id: str) -> None:
+        dev = self._device_by_id(device_id)
+        if dev is None:
+            return
+        self._settings.stream_device = dev.to_dict()
+        self._settings.validate()
+        self._save()
+        self.streamChanged.emit()
+
+    @Slot()
+    def clearStreamDevice(self) -> None:
+        self._settings.stream_device = {}
+        self._save()
+        self.streamChanged.emit()
+
+    @Slot(str, result=str)
+    def addStreamHost(self, text: str) -> str:
+        """Add an address by hand (IP, device name or description URL) and search again. Returns an error text or ''."""
+        err = streaming.check_host(text)
+        if err:
+            return err
+        text = text.strip()
+        if text not in self._settings.stream_hosts:
+            if len(self._settings.stream_hosts) >= 10:
+                return "At most 10 addresses."
+            self._settings.stream_hosts.append(text)
+            self._save()
+        self.scanStreamDevices()
+        return ""
+
+    @Slot(str)
+    def removeStreamHost(self, text: str) -> None:
+        if text in self._settings.stream_hosts:
+            self._settings.stream_hosts.remove(text)
+            self._save()
+
+    @Slot(int, str)
+    def streamJob(self, job_id: int, device_id: str = "") -> None:
+        """Play a finished download on a speaker/TV. device_id '' = the saved device; without one the dialog opens."""
+        if self._ctx.is_mobile or self._stream_busy:
+            return
+        target = self._job_file(job_id)
+        job = self._model.get(job_id)
+        if target is None or job is None or not target.is_file():
+            self.toast.emit("Only a finished single file can be streamed.")
+            return
+        if device_id:
+            self.selectStreamDevice(device_id)
+        saved = self._settings.stream_device or {}
+        renderer = streaming.Renderer.from_dict(saved) if saved else None
+        if renderer is None:
+            self.streamChoice.emit(job_id)
+            return
+        title = job.title or target.stem
+        volume, port = int(self._settings.stream_volume), int(self._settings.stream_port)
+        self._stream_busy = True
+        self._stream_status = "Connecting to %s…" % renderer.name
+        self.streamChanged.emit()
+
+        def work() -> None:
+            try:
+                self._streamer.set_port(port)
+                warning = self._streamer.stream(renderer, target, title, volume)
+                if warning:
+                    self._streamResult.emit(warning, warning, "warn")
+                else:
+                    msg = "Playing on %s: %s" % (renderer.name, title)
+                    self._streamResult.emit(msg, "Streaming to %s" % renderer.name, "ok")
+            except streaming.StreamError as exc:
+                self._streamResult.emit(str(exc), str(exc), "error")
+            except Exception as exc:  # noqa: BLE001
+                self._streamResult.emit("Streaming failed: %s" % exc, "Streaming failed: %s" % exc, "error")
+        threading.Thread(target=work, name="yeal-stream", daemon=True).start()
+
+    @Slot(str, str, str)
+    def _on_stream_result(self, status: str, message: str, kind: str) -> None:
+        self._stream_busy = False
+        self._stream_status = status
+        self._stream_playing = kind in ("ok", "warn")
+        self.streamChanged.emit()
+        if message:
+            self.toast.emit(message)
+
+    def _stream_action(self, fn, done_status: str, playing: bool) -> None:
+        renderer = self._streamer.renderer
+        if renderer is None or self._stream_busy:
+            return
+        self._stream_busy = True
+        self.streamChanged.emit()
+
+        def work() -> None:
+            try:
+                fn(renderer)
+                self._streamResult.emit(done_status.replace("%s", renderer.name), "", "ok" if playing else "idle")
+            except streaming.StreamError as exc:
+                self._streamResult.emit(str(exc), str(exc), "error")
+        threading.Thread(target=work, name="yeal-stream-ctl", daemon=True).start()
+
+    @Slot()
+    def stopStream(self) -> None:
+        self._stream_action(lambda _r: self._streamer.stop(), "Stopped", False)
+
+    @Slot()
+    def pauseStream(self) -> None:
+        self._stream_action(lambda r: r.pause(), "Paused on %s", False)
+
+    @Slot()
+    def resumeStream(self) -> None:
+        self._stream_action(lambda r: r.resume(), "Playing on %s", True)
+
+    @Slot(int)
+    def setStreamVolume(self, percent: int) -> None:
+        """Change the volume of the device that plays now (the saved start volume is a separate setting)."""
+        renderer = self._streamer.renderer
+        if renderer is None:
+            return
+
+        def work() -> None:
+            try:
+                renderer.set_volume(percent)
+            except streaming.StreamError as exc:
+                self._streamResult.emit(self._stream_status, str(exc), "ok" if self._stream_playing else "idle")
+        threading.Thread(target=work, name="yeal-stream-vol", daemon=True).start()
 
     # ---- MP3 tags ---------------------------------------------------------
     mp3TagsAvailable = Property(bool, lambda self: mp3tags.AVAILABLE, constant=True)
