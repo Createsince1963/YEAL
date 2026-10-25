@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1.02
+- TIDAL DIY data layer `core/tidal_api.py` (standard library only, no new dependency): start page, explore and genre pages, feed (new releases of followed artists, monthly history mixes), search, album (with credits), artist (top tracks, albums, singles/EPs, videos, similar artists), playlists, mixes, favorites, own and favorited playlists, lyrics (timed when Tidal has them) and the playable stream link for Yeal's own player. Writing: add/remove favorites, create/rename/delete playlists, add/remove playlist tracks (with Tidal's playlist version check, ETag). Uses the existing tiddl sign-in; an expired token is renewed once with `tiddl auth refresh`. Answers are cached for 5 minutes, at most 2 requests run at the same time.
+- Playback quality: with the tiddl sign-in Tidal streams at most FLAC 16-bit / 44.1 kHz for playing (also for MAX albums); the quality badge shows what is really played. Hi-res downloads through tiddl are not affected.
+- Tests: `tests/test_tidal_api.py` (fake Tidal server).
+
 ## 0.9.1.01
 - Start of the TIDAL DIY work (0.9.1): the player switch next to the workflow now has three buttons, **YouTube | TIDAL Web | TIDAL DIY**. TIDAL Web is the embedded TIDAL web player as before; TIDAL DIY is Yeal's own TIDAL view (being built step by step; for now it shows the sign-in with the subscription notice). In a narrow bar the buttons read "Web" / "DIY", the tooltip gives the full name. The Tidal download options apply to both Tidal views. After a Tidal sign-in Yeal returns to the view it came from.
 - Menus are as wide as their longest entry (at least 200 px, at most the window): the Tidal quality menu no longer cuts off "Tidal Normal (AAC 320 kbps)" and "Tidal Max (FLAC up to 24-bit / 192 kHz)". In Tidal mode the menu offers "Tidal settings…" (opens the Tidal group in Settings) instead of "Manage profiles…".
