@@ -15,6 +15,7 @@ from typing import Any, List
 from PySide6.QtCore import (Property, QAbstractListModel, QModelIndex, QObject,
                             QSortFilterProxyModel, Qt, QTimer, QUrl, Signal, Slot)
 from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QJSValue
 
 from .. import __version__, platforms
 from ..core.engine import Engine, fmt_size
@@ -1350,6 +1351,8 @@ class Backend(QObject):
 
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value: Any) -> None:
+        if isinstance(value, QJSValue):      # a JS object from QML (e.g. the TIDAL DIY layout)
+            value = value.toVariant()
         if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout"):
             return
         current = getattr(self._settings, key)

@@ -260,6 +260,85 @@ Item {
         }
     }
 
+    // ---- layout of the areas (setting tidal_layout, validated in core/settings.py)
+    // Playlists and queue can sit left or right, be detached into their own window or be hidden; the player bar sits
+    // on top or at the bottom. Dock changes are saved at once, window moves after a short pause.
+    readonly property var lay: backend.settings.tidal_layout || ({})
+    readonly property bool playerTop: lay.player === "top"
+    property var _pending: null          // layout waiting to be saved
+    property var _prevSide: ({})         // where a hidden area comes back
+    property string _order: ""
+    function pane(k) {
+        var d = (_pending || lay)[k] || {}
+        var def = k === "playlists" ? { dock: "left", w: 220 } : { dock: "right", w: 300 }
+        return { dock: d.dock || def.dock, w: d.w || def.w,
+                 x: d.x === undefined ? 100 : d.x, y: d.y === undefined ? 100 : d.y, h: d.h || 600 }
+    }
+    function _base() { return JSON.parse(JSON.stringify(_pending || lay)) }
+    function flushLayout() {
+        saveTimer.stop()
+        if (!_pending) return
+        var l = _pending
+        _pending = null
+        backend.setSetting("tidal_layout", l)
+    }
+    function setSide(k, s) {
+        var cur = pane(k)
+        if (s === "hidden" && cur.dock !== "hidden") _prevSide[k] = cur.dock
+        var l = _base()
+        l[k] = { dock: s, w: cur.w }
+        if (s === "float") { l[k].x = cur.x; l[k].y = cur.y; l[k].h = cur.h }
+        _pending = l
+        flushLayout()
+    }
+    function togglePane(k) {
+        if (pane(k).dock === "hidden")
+            setSide(k, _prevSide[k] && _prevSide[k] !== "hidden" ? _prevSide[k] : (k === "playlists" ? "left" : "right"))
+        else
+            setSide(k, "hidden")
+    }
+    function moveFloat(k, x, y, w, h) {
+        var l = _base()
+        if (!l[k] || l[k].dock !== "float") return
+        l[k].x = x; l[k].y = y; l[k].w = w; l[k].h = h
+        _pending = l
+        saveTimer.restart()
+    }
+    function setPlayerTop(top) {
+        var l = _base()
+        l.player = top ? "top" : "bottom"
+        _pending = l
+        flushLayout()
+    }
+    function saveWidths() {
+        var l = _base()
+        var docks = [playlistsDock, queueDock]
+        for (var i = 0; i < docks.length; ++i) {
+            if (!docks[i].docked) continue
+            l[docks[i].paneKey] = { dock: docks[i].side, w: Math.round(docks[i].width) }
+        }
+        _pending = l
+        flushLayout()
+    }
+    function resetLayout() {
+        saveTimer.stop()
+        _pending = null
+        _prevSide = ({})
+        backend.setSetting("tidal_layout", {})
+    }
+    // children of a SplitView stay in declaration order, so the areas are re-parented in the wanted order
+    function arrange() {
+        var left = [], right = []
+        var docks = [playlistsDock, queueDock]
+        for (var i = 0; i < docks.length; ++i) (docks[i].side === "right" ? right : left).push(docks[i])
+        var order = left.concat([center], right)
+        var key = order.map(function (o) { return o === center ? "c" : o.paneKey }).join(",")
+        if (key === _order) return
+        _order = key
+        for (var a = 0; a < order.length; ++a) order[a].parent = null
+        for (var b = 0; b < order.length; ++b) order[b].parent = split
+    }
+
     // ---- pages
     Component { id: shelfC;      TidalShelf { ctl: home; route: home.cur.route || "home"; arg: home.cur.arg || ""; title: home.cur.title || "" } }
     Component { id: feedC;       TidalFeed { ctl: home } }
@@ -290,34 +369,42 @@ Item {
         }
     }
 
-    // ---- signed in: playlists | navigation + page | search + queue, player bar below
-    ColumnLayout {
+    // ---- signed in: playlists | navigation + page | search + queue, player bar above or below
+    GridLayout {
+        id: shell
         anchors.fill: parent
         visible: backend.tidalLoggedIn
-        spacing: Theme.s2
+        columns: 1
+        rowSpacing: Theme.s2
 
         SplitView {
             id: split
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.row: home.playerTop ? 1 : 0
             orientation: Qt.Horizontal
             handle: Rectangle {
                 implicitWidth: 6
                 color: SplitHandle.pressed || SplitHandle.hovered ? Theme.accentSoft : "transparent"
             }
+            onResizingChanged: if (!resizing) home.saveWidths()
 
-            Rectangle {
-                SplitView.preferredWidth: 220
-                SplitView.minimumWidth: 140
-                SplitView.maximumWidth: 420
-                radius: Theme.radius
-                color: Theme.surface
-                border.width: 1
-                border.color: Theme.separator
-                TidalPlaylists { anchors.fill: parent; anchors.margins: Theme.s2; ctl: home }
+            TidalDock {
+                id: playlistsDock
+                paneKey: "playlists"
+                title: qsTr("All playlists")
+                defaultSide: "left"
+                side: home.pane("playlists").dock
+                paneWidth: home.pane("playlists").w
+                floatRect: home.pane("playlists")
+                maxW: 420
+                onSideRequested: (s) => home.setSide("playlists", s)
+                onFloatMoved: (x, y, w, h) => home.moveFloat("playlists", x, y, w, h)
+                TidalPlaylists { anchors.fill: parent; ctl: home }
             }
 
             Rectangle {
+                id: center
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 320
                 radius: Theme.radius
@@ -340,29 +427,45 @@ Item {
                             onActivated: (v) => home.goTab(v)
                         }
                         Item { Layout.fillWidth: true }
+                        IconButton { iconName: "library"; tip: qsTr("Show / hide the playlists")
+                                     tint: playlistsDock.side !== "hidden" ? Theme.accent : Theme.textSecondary
+                                     onClicked: home.togglePane("playlists") }
+                        IconButton { iconName: "queueList"; tip: qsTr("Show / hide search and queue")
+                                     tint: queueDock.side !== "hidden" ? Theme.accent : Theme.textSecondary
+                                     onClicked: home.togglePane("queue") }
+                        IconButton { iconName: "dock"; tip: qsTr("Layout: reset the arrangement"); onClicked: home.resetLayout() }
                     }
                     Loader { id: pageLoader; Layout.fillWidth: true; Layout.fillHeight: true; clip: true }
                 }
             }
 
-            Rectangle {
-                id: queuePane
-                SplitView.preferredWidth: 300
-                SplitView.minimumWidth: 200
-                SplitView.maximumWidth: 520
-                radius: Theme.radius
-                color: Theme.surface
-                border.width: 1
-                border.color: Theme.separator
-                TidalQueue { anchors.fill: parent; anchors.margins: Theme.s2; ctl: home }
+            TidalDock {
+                id: queueDock
+                paneKey: "queue"
+                title: qsTr("Search and queue")
+                defaultSide: "right"
+                side: home.pane("queue").dock
+                paneWidth: home.pane("queue").w
+                floatRect: home.pane("queue")
+                maxW: 520
+                onSideRequested: (s) => home.setSide("queue", s)
+                onFloatMoved: (x, y, w, h) => home.moveFloat("queue", x, y, w, h)
+                TidalQueue { anchors.fill: parent; ctl: home }
             }
         }
 
         TidalPlayerBar {
             Layout.fillWidth: true
+            Layout.row: home.playerTop ? 0 : 1
             ctl: home
-            onToggleQueue: queuePane.visible = !queuePane.visible
+            onToggleQueue: home.togglePane("queue")
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: playerMenu.popup() }
         }
+    }
+    AppMenu {
+        id: playerMenu
+        AppMenuItem { text: qsTr("Player bar on top"); enabled: !home.playerTop; onTriggered: home.setPlayerTop(true) }
+        AppMenuItem { text: qsTr("Player bar at the bottom"); enabled: home.playerTop; onTriggered: home.setPlayerTop(false) }
     }
 
     Connections {
@@ -373,7 +476,11 @@ Item {
             if (home.pos < 0) home.goTab("home")
         }
     }
+    Timer { id: saveTimer; interval: 500; onTriggered: home.flushLayout() }
+    onLayChanged: Qt.callLater(arrange)
     Component.onCompleted: {
+        arrange()
         if (backend.tidalLoggedIn) { tidal.refreshLibrary(); goTab("home") }
     }
+    Component.onDestruction: flushLayout()
 }

@@ -10,7 +10,7 @@ os.environ.setdefault("QT_QUICK_BACKEND", "software")
 import _path  # noqa: F401
 
 try:
-    from PySide6.QtCore import QUrl, qInstallMessageHandler
+    from PySide6.QtCore import Q_ARG, QMetaObject, QObject, Qt, QUrl, qInstallMessageHandler
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQml import QQmlComponent, QQmlEngine
     from PySide6.QtQuickControls2 import QQuickStyle
@@ -33,6 +33,8 @@ COMPONENTS = {
     "TidalPlaylists": "TidalPlaylists { width: 220; height: 400 }",
     "TidalQueue": "TidalQueue { width: 300; height: 400 }",
     "TidalPlayerBar": "TidalPlayerBar { width: 1000 }",
+    "TidalDock": "TidalDock { width: 300; height: 300; title: 'Test'; Text { text: 'content' } }",
+    "TidalDockFloating": "TidalDock { width: 300; height: 300; title: 'Test'; side: 'float'; Text { text: 'content' } }",
     "WorkflowPanel": "WorkflowPanel { anchors.fill: parent; inSidebar: true; tidalPlayer: true }",
     "SettingsPage": "SettingsPage { anchors.fill: parent; Component.onCompleted: showTidal() }",
 }
@@ -79,6 +81,45 @@ class TidalGuiQmlTest(unittest.TestCase):
                 bad = [m for m in self.messages[start:] if ".qml" in m and any(w in m for w in ERRORS)]
                 self.assertEqual(bad, [])
                 obj.deleteLater()
+
+    def test_layout_changes_are_saved_and_reset(self):
+        """Docking, detaching, hiding and the player position end up validated in the tidal_layout setting."""
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { width: 1200; height: 800\nTidalHome { objectName: 'home'; anchors.fill: parent }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_layout.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        home = root.findChild(QObject, "home")
+        self.assertIsNotNone(home)
+
+        def call(name, *args):
+            QMetaObject.invokeMethod(home, name, Qt.DirectConnection, *[Q_ARG("QVariant", a) for a in args])
+            for _ in range(10):
+                self.app.processEvents()
+
+        def layout():
+            return self.backend.settings["tidal_layout"]
+
+        call("resetLayout")
+        call("setSide", "queue", "left")
+        self.assertEqual(layout()["queue"]["dock"], "left")
+        self.assertEqual(home.property("_order"), "playlists,queue,c")     # both areas left of the page
+        call("setSide", "playlists", "right")
+        self.assertEqual(home.property("_order"), "queue,c,playlists")
+        call("setSide", "queue", "float")
+        self.assertEqual(layout()["queue"]["dock"], "float")
+        self.assertIn("x", layout()["queue"])
+        call("togglePane", "queue")                                          # hide ...
+        self.assertEqual(layout()["queue"]["dock"], "hidden")
+        call("togglePane", "queue")                                          # ... and back to where it was
+        self.assertEqual(layout()["queue"]["dock"], "float")
+        call("setPlayerTop", True)
+        self.assertEqual(layout()["player"], "top")
+        call("resetLayout")
+        self.assertEqual(layout()["queue"]["dock"], "right")
+        self.assertEqual(layout()["playlists"]["dock"], "left")
+        self.assertEqual(layout()["player"], "bottom")
+        root.deleteLater()
 
     def test_tidal_option_settings(self):
         """The chips write through backend.setSetting; bad values are refused, sizes clamped."""

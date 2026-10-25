@@ -499,6 +499,17 @@ Flickable {
                 TidalOptions { showQuality: false; Layout.fillWidth: true }
             }
             SettingsItem {
+                label: qsTr("TIDAL DIY layout")
+                icon: "dock"
+                summary: page.s.tidal_layout && page.s.tidal_layout.player === "top" ? qsTr("custom") : qsTr("default")
+                hint: qsTr("Playlists and queue can be moved to the other side, detached into their own window or hidden (menu of the area, or the buttons next to the page tabs); the player bar moves with a right-click. Yeal remembers the arrangement.")
+                stacked: true
+                AppButton {
+                    text: qsTr("Reset the layout of the TIDAL DIY view")
+                    onClicked: backend.setSetting("tidal_layout", {})
+                }
+            }
+            SettingsItem {
                 label: qsTr("Audio quality")
                 icon: "music"
                 summary: page.s.tidal_quality === "max" ? qsTr("Max (up to 24-bit, 192 kHz)")

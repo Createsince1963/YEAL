@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1.05
+- **TIDAL DIY: areas can be arranged.** The playlist column and "search and queue" can be docked on the left or the right, detached into their own window or hidden (menu button in the header of each area, or right-click on it). Two buttons next to the page tabs show / hide them again, a third resets the arrangement. A detached window can be moved and resized freely; closing it docks the area again. A window left on a screen that is gone comes back to the main screen. The player bar moves to the top or bottom with a right-click. Widths, sides, window positions and the player position are remembered (`tidal_layout`); Settings > Tidal > "TIDAL DIY layout" resets them.
+- The queue button (player bar and page tabs) uses the three-line icon of TIDAL.
+- Fixed: settings that are objects (the layout) sent from QML were silently ignored by `Backend.setSetting`; they are converted now.
+- Tests: layout changes are saved, validated and reset (`tests/test_tidal_gui_qml.py`). Not yet done: tests for the queue / player logic and the link-list writer, manuals, EXE build, hand test of the whole view.
+
+
 ## 0.9.1.04
 - **TIDAL DIY view** (`TidalHome.qml`): playlists column | navigation tabs (Start, Explore, Feed, My collection, back/forward) with the page | search and queue, player bar below. Albums, playlists, mixes, artists, genre pages, search results and "All" lists open as pages; titles play in Yeal's own player. Context menu on every tile, row and playlist: play, play next, add to queue, open, add to / remove from collection, add to playlist, download, save as HTML link list, copy link, open in TIDAL Web. Not signed in: sign-in prompt with the subscription notice.
 - **Drag and drop to download:** drag a title, album, playlist or mix from the TIDAL DIY view onto the workflow panel (a "Drop to download" frame shows the target). TIDAL links dropped there, also from the embedded web players or other programs, are added to the downloads at once; other links fill the link field as before. Several picked playlists are dragged together.

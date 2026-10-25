@@ -60,7 +60,7 @@ Rectangle {
 
         // ---- queue, volume, quality (moved to the left, next to the title)
         Rectangle { implicitWidth: 1; implicitHeight: 36; color: Theme.separator }
-        IconButton { iconName: "queue"; tip: qsTr("Show / hide the queue"); onClicked: bar.toggleQueue() }
+        IconButton { iconName: "queueList"; tip: qsTr("Show / hide the queue"); onClicked: bar.toggleQueue() }
         IconButton {
             iconName: bar.player.volume === 0 ? "mute" : "volume"
             tip: qsTr("Mute")

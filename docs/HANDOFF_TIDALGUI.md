@@ -54,3 +54,8 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - All new components load without QML warnings (`tests/test_tidal_gui_qml.py`). The signed-in view, playback, the drag from the TIDAL **Web** view (native WebView2 drag-out) and the real GUI were NOT tried by hand yet: do the manual test from the plan first.
 - Known: the full `unittest discover` run segfaults at `test_streaming...test_qml_button_menu_and_dialog_load` on clean HEAD too (several Qt engines in one process); the test passes alone. Run test files individually.
 - Still open: tests for QueueModel/TidalPlayer/`write_tidal_linklist`, step 7 (docks, own windows, `tidal_layout` saving, reset in Settings), step 8 (ARCHITECTURE.md, TIDAL_EVALUATION.md, manuals, EXE build, full manual test).
+
+## Update 0.9.1.05 (2026-10-25, local commit + tag v0.9.1.05, not pushed)
+- Done: step 7. `TidalDock.qml` (dock left/right, own window, hide), `TidalHome.qml` arranges the areas (re-parenting inside the SplitView, `arrange()`), saves `tidal_layout` (`setSide`, `togglePane`, `moveFloat`, `saveWidths`, `setPlayerTop`, `resetLayout`), reset button in Settings > Tidal. `Backend.setSetting` now converts `QJSValue` objects (before, object values from QML were dropped silently).
+- Hand test still needed: drag the dividers, detach a window, restart Yeal and check the arrangement returns; second monitor removed case.
+- Still open: tests for `QueueModel` / `TidalPlayer` / `write_tidal_linklist`, step 8 (ARCHITECTURE.md, TIDAL_EVALUATION.md, manuals, `Yeal.spec` check, EXE build, full manual test).
