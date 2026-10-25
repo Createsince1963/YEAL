@@ -1,6 +1,6 @@
 # Handoff: TIDAL DIY (Yeal 0.9.1) – Stand 2026-10-25
 
-Plan (freigegeben): `C:\Users\mail\.claude\plans\nur-gef-llt-mir-die-gentle-cocke.md` (Kopie der Kernpunkte unten).
+Plan (freigegeben): [docs/PLAN_TIDALGUI_0.9.1.md](PLAN_TIDALGUI_0.9.1.md) (vollständiger, vom Nutzer freigegebener Plan).
 Code: `BIN/versions/v0.1/PyModul/yeal/`, Tests: `tests/`, Python: `Tools_Central\Python\python\python.exe`
 (Tests: `Test_Yeal.bat` oder je Modul `python -m unittest test_xyz` in `tests/` mit `QT_QPA_PLATFORM=offscreen`).
 
