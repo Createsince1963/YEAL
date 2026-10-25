@@ -7,6 +7,7 @@ Item {
     property color color: Theme.text
     property real size: 20
     property real strokeWidth: 1.75
+    property bool filled: false          // fill the shape too (e.g. a set favorite heart, play button)
     implicitWidth: size
     implicitHeight: size
     Accessible.ignored: true
@@ -20,7 +21,7 @@ Item {
         ShapePath {
             strokeColor: root.color
             strokeWidth: root.strokeWidth
-            fillColor: "transparent"
+            fillColor: root.filled ? root.color : "transparent"
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin
             PathSvg { path: IconPaths.d[root.name] || "" }

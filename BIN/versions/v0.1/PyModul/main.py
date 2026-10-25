@@ -150,6 +150,7 @@ def main() -> int:
     context = engine.rootContext()
     context.setContextProperty("backend", backend)
     context.setContextProperty("jobModel", backend.model)
+    context.setContextProperty("tidal", backend.tidal)          # TIDAL DIY view (0.9.1)
     engine.load(QUrl.fromLocalFile(str(HERE / "yeal" / "ui" / "qml" / "Main.qml")))
     if not engine.rootObjects():
         print("QML load failed: no root object (see [qt] lines above)", flush=True)

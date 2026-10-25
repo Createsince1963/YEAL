@@ -44,6 +44,7 @@ class QmlSmokeTest(unittest.TestCase):
             engine = QQmlApplicationEngine()
             engine.rootContext().setContextProperty("backend", backend)
             engine.rootContext().setContextProperty("jobModel", backend.model)
+            engine.rootContext().setContextProperty("tidal", backend.tidal)
             engine.load(QUrl.fromLocalFile(str(QML)))
             self.assertTrue(engine.rootObjects(), "\n".join(messages))
             self.assertTrue(backend.setupRequired)

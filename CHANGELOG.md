@@ -3,7 +3,7 @@
 ## 0.9.1.03
 - New **TIDAL options** in the workflow (shown for TIDAL Web and TIDAL DIY, like the YouTube options) and in Settings > Tidal > Download options, all as chips:
   quality (Low / Normal / High FLAC / Max Hi-Res), videos (none / with / only) and video quality (SD / HD / Full HD), Dolby Atmos (off / with / only), artist singles (albums only / with singles / only singles; only used for artist links), lyrics in the file, lyrics as .lrc, cover in the file, cover image, M3U playlist, Yeal player page (HTML), overwrite existing files, rewrite tags.
-- Tidal downloads now run in Yeal's own tiddl folder (`<Yeal data>	iddl`, `TIDDL_PATH`): the extras go into a config.toml there, so your own tiddl setup is never changed. The sign-in stays the one of tiddl; a token renewed during a download is copied back (the newer one always wins).
+- Tidal downloads now run in Yeal's own tiddl folder (`<Yeal data>\tiddl`, `TIDDL_PATH`): the extras go into a config.toml there, so your own tiddl setup is never changed. The sign-in stays the one of tiddl; a token renewed during a download is copied back (the newer one always wins).
 - "Player page (HTML)": after an album or playlist download Yeal writes its player page into that folder (relative links, works from disk).
 - New defaults: lyrics and cover are embedded into Tidal files (both can be switched off).
 - Tests: Tidal engine tests now also run on Windows (a .cmd wrapper starts the fake tiddl).

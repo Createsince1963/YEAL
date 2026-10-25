@@ -234,6 +234,7 @@ class Backend(QObject):
     _streamScanned = Signal(list, str)        # (renderer dicts, error) from the scan thread
     _streamResult = Signal(str, str, str)     # (status text, toast text, kind 'ok' | 'warn' | 'error' | 'idle')
     toast = Signal(str)
+    tidalDiyPlaying = Signal()                # TIDAL DIY player starts -> QML pauses the web players (single playback)
 
     def __init__(self, ctx: platforms.PlatformInfo, engine: Engine | None = None,
                  parent: QObject | None = None, check_updates: bool = True):
@@ -279,6 +280,8 @@ class Backend(QObject):
         self._tidal_flow = None
         self._tidalLoginDone.connect(self._on_tidal_login_done)
         self._tidalLinkFound.connect(self._open_tidal_link)
+        from .tidal_backend import TidalBackend      # TIDAL DIY (0.9.1): pages, library, player
+        self.tidal = TidalBackend(self)
         self._queue = DownloadQueue(
             self._engine.run, self._settings.max_parallel,
             on_change=self._jobChanged.emit, on_remove=self._jobRemoved.emit)
@@ -1519,6 +1522,7 @@ class Backend(QObject):
             self.toast.emit(message)
 
     def shutdown(self) -> None:
+        self.tidal.shutdown()
         self._save_history()
         self._queue.shutdown()
         localserve.shutdown_all()

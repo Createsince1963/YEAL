@@ -381,3 +381,89 @@ def write_extras(info: dict, video_path: str, want_description: bool, want_trans
     except OSError:
         pass
     return saved_desc, saved_tr
+
+
+def _mmss(seconds) -> str:
+    try:
+        s = int(seconds or 0)
+    except (TypeError, ValueError):
+        return ""
+    return "%d:%02d:%02d" % (s // 3600, s % 3600 // 60, s % 60) if s >= 3600 else "%d:%02d" % (s // 60, s % 60)
+
+
+def tidal_linklist_html(info: dict) -> str:
+    """Standalone page with the tracks of a Tidal playlist / album / mix as links to Tidal (TIDAL DIY, 0.9.1).
+    Nothing is downloaded: every title opens on tidal.com (or in the TIDAL app). info: the dict of
+    core.tidal_api (title, subtitle, cover, url, duration, items=[track dicts])."""
+    esc = html.escape
+    items = [it for it in info.get("items") or [] if isinstance(it, dict)]
+    title = esc(str(info.get("title") or "TIDAL"))
+    by = esc(str(info.get("subtitle") or ""))
+    url = str(info.get("url") or "")
+    cover = str(info.get("coverLarge") or info.get("cover") or "")
+    total = sum(int(it.get("duration") or 0) for it in items) or int(info.get("duration") or 0)
+    rows = []
+    for n, it in enumerate(items, 1):
+        link = str(it.get("url") or "")
+        if not link.startswith("https://"):
+            continue
+        img = str(it.get("cover") or "")
+        pic = (f'<img src="{esc(img, quote=True)}" alt="" loading="lazy" referrerpolicy="no-referrer">'
+               if img.startswith("https://") else "")
+        ttl = esc(str(it.get("title") or ""))
+        art = esc(str(it.get("subtitle") or ""))
+        alb = esc(str(it.get("album") or ""))
+        rows.append(f'<li data-t="{esc((str(it.get("title") or "") + " " + str(it.get("subtitle") or "")).lower(), quote=True)}">'
+                    f'<span class="n">{n}</span><span class="c">{pic}</span>'
+                    f'<a class="t" href="{esc(link, quote=True)}" target="_blank" rel="noopener noreferrer">{ttl}'
+                    f'<small>{art}{" &middot; " + alb if alb else ""}</small></a>'
+                    f'<span class="d">{esc(_mmss(it.get("duration")))}</span></li>')
+    head_img = (f'<img class="cv" src="{esc(cover, quote=True)}" alt="" referrerpolicy="no-referrer">'
+                if cover.startswith("https://") else "")
+    open_btn = (f'<a class="btn" href="{esc(url, quote=True)}" target="_blank" rel="noopener noreferrer">Open in TIDAL</a>'
+                if url.startswith("https://") else "")
+    meta = " &middot; ".join(x for x in (by, f"{len(rows)} titles", esc(_mmss(total)) if total else "") if x)
+    return ("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+            "<meta name=\"color-scheme\" content=\"light dark\">\n"
+            f"<title>{title}</title>\n<style>\n"
+            "body{font:15px/1.45 system-ui,sans-serif;max-width:56rem;margin:1.5rem auto;padding:0 1rem;color:#1d1d1f;background:#fff}"
+            "h1{font-size:1.5rem;margin:.2rem 0}.meta,small,.d,.n{color:#6e6e73}.hd{display:flex;gap:1.25rem;align-items:flex-end;margin-bottom:1rem}"
+            ".cv{width:8rem;height:8rem;object-fit:cover;border-radius:12px}.bar{display:flex;gap:.5rem;flex-wrap:wrap;margin:.6rem 0 1rem}"
+            "input,button,.btn{border:0;border-radius:10px;padding:.5rem .8rem;font:inherit;background:#f2f2f7;color:#1d1d1f;text-decoration:none;cursor:pointer}"
+            "input{flex:1;min-width:10rem;cursor:text}ol{list-style:none;margin:0;padding:0}"
+            "li{display:flex;gap:.75rem;align-items:center;padding:.35rem .5rem;border-radius:10px}li:hover{background:#0000000d}"
+            ".n{min-width:2rem;text-align:right;font-variant-numeric:tabular-nums}.c{width:2.6rem;height:2.6rem;flex:none;border-radius:6px;overflow:hidden;background:#e5e5ea}"
+            ".c img{width:100%;height:100%;object-fit:cover}.t{flex:1;min-width:0;color:inherit;text-decoration:none;overflow-wrap:anywhere}"
+            ".t small{display:block;font-size:.85rem}.d{font-variant-numeric:tabular-nums}a.t:hover{color:#0071e3}"
+            "@media(prefers-color-scheme:dark){body{color:#f5f5f7;background:#121214}.meta,small,.d,.n{color:#a1a1a6}"
+            "input,button,.btn{background:#2c2c2e;color:#f5f5f7}li:hover{background:#ffffff14}.c{background:#2c2c2e}a.t:hover{color:#2997ff}}\n"
+            "</style>\n</head>\n<body>\n"
+            f"<div class=\"hd\">{head_img}<div><h1>{title}</h1><p class=\"meta\">{meta}</p></div></div>\n"
+            f"<div class=\"bar\">{open_btn}<button id=\"cp\" type=\"button\">Copy all links</button>"
+            "<input id=\"q\" type=\"search\" placeholder=\"Filter titles\" aria-label=\"Filter titles\"></div>\n"
+            "<ol id=\"l\">\n" + "\n".join(rows) + "\n</ol>\n"
+            "<script>(function(){var L=[].slice.call(document.querySelectorAll('#l li'));"
+            "document.getElementById('q').oninput=function(){var s=this.value.toLowerCase();"
+            "L.forEach(function(e){e.style.display=e.dataset.t.indexOf(s)<0?'none':''})};"
+            "document.getElementById('cp').onclick=function(){var t=L.filter(function(e){return e.style.display!=='none'})"
+            ".map(function(e){return e.querySelector('a').href}).join('\\n');"
+            "if(navigator.clipboard)navigator.clipboard.writeText(t);this.textContent='Copied'}})();</script>\n"
+            "<p class=\"meta\">Saved by Yeal. Playing needs a TIDAL account.</p>\n</body>\n</html>\n")
+
+
+def write_tidal_linklist(folder: Path, info: dict) -> Optional[Path]:
+    """Write `<folder>/<title>.html`; an existing file is never replaced (' (2)', ' (3)' ... is added)."""
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", str(info.get("title") or "TIDAL")).strip(" .")[:120] or "TIDAL"
+    folder = Path(folder)
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        page = folder / (name + ".html")
+        n = 2
+        while page.exists():
+            page = folder / ("%s (%d).html" % (name, n))
+            n += 1
+        page.write_text(tidal_linklist_html(info), encoding="utf-8")
+    except OSError:
+        return None
+    return page
