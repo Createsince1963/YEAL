@@ -259,9 +259,13 @@ class Settings:
                 data["profiles"] = [default_profiles()[0]] + profs
         data["profiles_version"] = 2
         try:
-            return cls(**data).validate()
+            st = cls(**data).validate()
         except (TypeError, ValueError, AttributeError):
-            return cls().validate()
+            st = cls().validate()
+        # Standing rule: Yeal always starts in the default view (workflow in the sidebar + YouTube browser).
+        # The header button / Settings switch only hides the browser for the running session.
+        st.show_browser = True
+        return st
 
     def save(self, path: Path) -> None:
         path = Path(path)
