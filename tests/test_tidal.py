@@ -197,6 +197,15 @@ class EngineTests(unittest.TestCase):
         self.assertIn("tiddl", job.error)
 
 
+class LoginLinkTests(unittest.TestCase):
+    def test_only_the_tidal_link_is_taken(self):
+        f = tidal.find_login_link
+        self.assertEqual(f("Go to 'https://link.tidal.com/ABCDE' and complete authentication!"), "https://link.tidal.com/ABCDE")
+        self.assertEqual(f("Go to 'link.tidal.com/ABCDE' and complete authentication!"), "https://link.tidal.com/ABCDE")
+        self.assertEqual(f("New version 3.5 available, see https://github.com/oskvr37/tiddl/blob/main/README.md"), "")
+        self.assertEqual(f("Authenticating..."), "")
+
+
 class JobQualityTests(unittest.TestCase):
     def test_job_quality_overrides_global_setting(self):
         """The quality picked in the download options is stored per job and wins over Settings > Tidal."""

@@ -67,6 +67,18 @@ def output_template(url: str) -> str:
     return OUTPUT_TEMPLATES.get(kind, "")
 
 
+def find_login_link(line: str) -> str:
+    """The Tidal device-login link in one line of `tiddl auth login` output, else ''.
+    Other links in the output (update notices with a GitHub address, docs) are ignored; the link may come without
+    a scheme ('link.tidal.com/ABCDE')."""
+    for m in re.finditer(r"(?:https?://)?([\w.-]*tidal\.com)(/[^\s'\"<>)]*)?", line or "", re.IGNORECASE):
+        text = m.group(0).strip("'\".,;")
+        host = m.group(1).lower()
+        if host.startswith(("link.", "login.")) or "device" in text.lower():
+            return text if text.lower().startswith("http") else "https://" + text
+    return ""
+
+
 def strip_ansi(text: str) -> str:
     return _ANSI.sub("", text or "")
 
@@ -235,11 +247,10 @@ class LoginFlow:
             return
         sent = False
         for line in iter_lines(self._proc.stdout):
-            m = re.search(r"https?://\S+", line) or re.search(r"'([^']*link\.tidal\.com[^']*)'", line)
-            if m and not sent:
+            link = find_login_link(line)
+            if link and not sent:
                 sent = True
-                link = m.group(0).strip("'\".,")
-                self._on_link(link if link.startswith("http") else "https://" + link)
+                self._on_link(link)
         self._proc.wait()
         ok = is_logged_in()
         self._on_done(ok, "Signed in to Tidal." if ok else "Tidal sign-in was not completed.")
