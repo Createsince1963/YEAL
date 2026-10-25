@@ -129,6 +129,99 @@ class TidalGuiQmlTest(unittest.TestCase):
         self.assertEqual(root.property("count"), 9)
         root.deleteLater()
 
+    def test_sun_settings_are_validated(self):
+        b = self.backend
+        b.setSetting("sun_scale", 9)
+        self.assertEqual(b.settings["sun_scale"], 3.0)
+        b.setSetting("sun_scale", 0.01)
+        self.assertEqual(b.settings["sun_scale"], 0.5)
+        b.setSetting("sun_scale", 1.234)
+        self.assertEqual(b.settings["sun_scale"], 1.23)
+        b.setSetting("sun_layout", {"local.queue": {"deg": 400, "r": 9}, "diy.search": {"deg": -30, "r": 0.1},
+                                    "bad": "x", "x" * 50: {"deg": 1, "r": 1}, "local.library": {"deg": "a", "r": 1},
+                                    "local.played": {"deg": 90.04, "r": 1.004}})
+        layout = b.settings["sun_layout"]
+        self.assertEqual(layout["local.queue"], {"deg": 40.0, "r": 3.0})           # the angle wraps round, the orbit is limited
+        self.assertEqual(layout["diy.search"], {"deg": 330.0, "r": 0.4})
+        self.assertEqual(layout["local.played"], {"deg": 90.0, "r": 1.0})
+        self.assertEqual(set(layout), {"local.queue", "diy.search", "local.played"})   # junk and long names are dropped
+        b.setSetting("sun_layout", {})
+        b.setSetting("sun_scale", 1.0)
+
+    def test_planets_can_be_moved_and_get_their_own_orbit(self):
+        import time
+        b = self.backend
+        b.setSetting("sun_layout", {})
+        b.setSetting("sun_scale", 1.0)
+        b.setSetting("local_orbit", True)
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { width: 1400; height: 900\nLocalPlayerView { objectName: 'v'; anchors.fill: parent }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_orbit.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        view = root.findChild(QObject, "v")
+
+        def settle():
+            end = time.time() + 0.5
+            while time.time() < end:
+                self.app.processEvents()
+                time.sleep(0.01)
+
+        def call(name, *args):
+            QMetaObject.invokeMethod(view, name, Qt.DirectConnection, *[Q_ARG("QVariant", a) for a in args])
+            self.app.processEvents()
+        settle()
+        cx, cy, rx, ry = (view.property(k) for k in ("cx", "cy", "rx", "ry"))
+        # the default: every planet on the main orbit, one ring
+        self.assertEqual(view.property("dragKey"), "")
+        # drag the library planet to the right of the sun, a little outside the main orbit
+        call("dragTo", "library", {"x": cx + rx * 1.5, "y": cy})
+        self.assertEqual(view.property("dragKey"), "library")
+        self.assertAlmostEqual(view.property("dragR"), 1.5, delta=0.01)
+        self.assertAlmostEqual(view.property("dragDeg"), 0.0, delta=0.5)
+        call("dropPlanet")
+        self.assertEqual(view.property("dragKey"), "")
+        self.assertEqual(b.settings["sun_layout"]["local.library"], {"deg": 0.0, "r": 1.5})
+        # dragged close to the main orbit it snaps onto it, and close to a ring that is in use it snaps onto that one
+        call("dragTo", "queue", {"x": cx - rx * 1.03, "y": cy})
+        self.assertEqual(view.property("dragR"), 1.0)
+        call("dragTo", "queue", {"x": cx - rx * 1.52, "y": cy})
+        self.assertEqual(view.property("dragR"), 1.5)
+        call("dropPlanet")
+        self.assertEqual(b.settings["sun_layout"]["local.queue"]["r"], 1.5)
+        # the orbit slider / wheel: larger and smaller, within the limits
+        call("setOrbitScale", 2.0)
+        self.assertEqual(b.settings["sun_scale"], 2.0)
+        call("setOrbitScale", 50)
+        self.assertEqual(b.settings["sun_scale"], 3.0)
+        call("setOrbitScale", -1)
+        self.assertEqual(b.settings["sun_scale"], 0.5)
+        # back to the start
+        call("resetOrbits")
+        self.assertEqual(b.settings["sun_layout"], {})
+        self.assertEqual(b.settings["sun_scale"], 1.0)
+        root.deleteLater()
+
+    def test_tidal_home_sun_mode_loads_the_sun_view(self):
+        b = self.backend
+        b.setSetting("tidal_sun", True)
+        try:
+            start = len(self.messages)
+            comp = QQmlComponent(self.engine)
+            comp.setData(b"import QtQuick\nItem { width: 1200; height: 800\nTidalHome { objectName: 'home'; anchors.fill: parent }\n}\n",
+                         QUrl.fromLocalFile(str(QML_DIR / "_test_sunmode.qml")))
+            root = comp.create()
+            self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+            for _ in range(40):
+                self.app.processEvents()
+            home = root.findChild(QObject, "home")
+            self.assertIs(home.property("sunMode"), True)
+            bad = [m for m in self.messages[start:] if ".qml" in m and any(w in m for w in ERRORS)]
+            self.assertEqual(bad, [])
+            root.deleteLater()
+        finally:
+            b.setSetting("tidal_sun", False)
+
     def test_sun_view_makes_room_for_opened_planets(self):
         """Opening a planet moves the sun and its orbits so that the card does not cover it; folding brings it back."""
         import time

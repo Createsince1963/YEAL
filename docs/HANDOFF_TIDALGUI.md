@@ -88,3 +88,8 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 ## Update 0.9.1.12 (2026-10-25, local commit + tag v0.9.1.12, not pushed, NO EXE)
 - Done after the user's test of 0.9.1.11: visible volume slider and 10 s jumps under the oval, colour setting, played list, solar system view (`LocalPlayerView.qml`, `Planet.qml`, `PlanetCard.qml`).
 - Not done: the same solar-system layout for the TIDAL DIY player (only the player for downloads has it); equalizer; hand test of dragging, STREAM, colours and the planets with real window sizes.
+
+## Update 0.9.1.13 (2026-10-25, local commit + tag v0.9.1.13, not pushed, NO EXE)
+- Done: generic `SunView.qml` (zones left / right / top / bottom, slots, planets with own orbits by dragging, orbit slider), `LocalPlayerView.qml` and new `TidalSunView.qml` are thin wrappers; `TidalHome` has the sun mode (`tidal_sun`, `forceHidden` on the docks).
+- Hand test: dragging planets with the mouse, the slider and wheel in a big window, the sun view of TIDAL DIY with a signed-in account, cards in a small window.
+- Open: equalizer; lyrics for local files; planets keep their zone for the cards even when dragged to the other side.

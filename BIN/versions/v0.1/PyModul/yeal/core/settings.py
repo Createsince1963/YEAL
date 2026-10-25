@@ -64,6 +64,27 @@ def normalize_profile(raw: dict) -> dict:
     }
 
 
+def _validate_sun_layout(raw) -> dict:
+    """Places of the planets in the sun view: {'<view>.<planet>': {'deg': 0..360, 'r': 0.4..3}} - the angle on the orbit
+    and the size of the orbit relative to the main orbit. Anything else is dropped; at most 40 planets are kept."""
+    out = {}
+    if not isinstance(raw, dict):
+        return out
+    for key, value in raw.items():
+        if not isinstance(key, str) or not (0 < len(key) <= 40) or not isinstance(value, dict):
+            continue
+        try:
+            deg, r = float(value.get("deg")), float(value.get("r"))
+        except (TypeError, ValueError):
+            continue
+        if deg != deg or r != r:                     # NaN
+            continue
+        out[key] = {"deg": round(deg % 360.0, 1), "r": round(max(0.4, min(3.0, r)), 2)}
+        if len(out) >= 40:
+            break
+    return out
+
+
 def _clamp(value, low: int, high: int, default: int) -> int:
     try:
         return max(low, min(high, int(value)))
@@ -118,6 +139,9 @@ class Settings:
     tidal_opts_collapsed: bool = False   # workflow panel: the TIDAL options block is folded to one line
     tidal_player_style: str = "bar"      # TIDAL DIY player: bar (classic) | track (oval track player)
     local_volume: int = 80             # volume of the player for downloaded files
+    sun_scale: float = 1.0             # sun views: size of the orbits (0.5 .. 3)
+    sun_layout: dict = field(default_factory=dict)   # sun views: where the planets were dragged to (see _validate_sun_layout)
+    tidal_sun: bool = False            # TIDAL DIY: the sun view (player as a sun with planets) instead of the pages
     local_orbit: bool = True           # player for downloaded files: the planets (library, queue, played ...) are shown around the sun
     tidal_player_color: str = "green"  # track player colour: a name of PLAYER_COLORS or #rrggbb
     tidal_player_vis_mode: str = "song"  # track player band around the oval: song (loudness of the whole song) | flow (running level) | off
@@ -182,7 +206,13 @@ class Settings:
         self.tidal_volume = _clamp(self.tidal_volume, 0, 100, 80)
         self.tidal_tile_size = _clamp(self.tidal_tile_size, 90, 260, 140)
         self.local_volume = _clamp(self.local_volume, 0, 100, 80)
+        try:
+            self.sun_scale = round(max(0.5, min(3.0, float(self.sun_scale))), 2)
+        except (TypeError, ValueError):
+            self.sun_scale = 1.0
+        self.sun_layout = _validate_sun_layout(self.sun_layout)
         self.local_orbit = bool(self.local_orbit)
+        self.tidal_sun = bool(self.tidal_sun)
         color = str(self.tidal_player_color or "").strip().lower()
         self.tidal_player_color = color if color in PLAYER_COLORS or re.fullmatch(r"#[0-9a-f]{6}", color) else "green"
         self.tidal_layout = _validate_tidal_layout(self.tidal_layout)

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1.13
+- **The user shapes the solar system.** A slider **Orbit** in the corner (and the mouse wheel on the empty sky) makes all orbits larger or smaller (0.5 to 3 times); the sun itself now grows with the window (up to 720 px) instead of staying small in a big window. Every planet can be **dragged**: around the sun to another place, in or out to **an orbit of its own**; close to an orbit that is already used (or the main orbit) it snaps onto it, the angle snaps to 15 degree steps. A ring is drawn for every orbit in use. The round arrow puts all planets back on the main orbit. Remembered in `sun_scale` and `sun_layout` (validated: angle wraps, orbit 0.4 to 3, junk dropped).
+- **Sun view for TIDAL DIY** (`TidalSunView.qml`, same engine as the one for downloads: new generic `SunView.qml` with zones and slots): the sun button next to the page tabs switches it on (`tidal_sun`). Planets: Playlists (left), Queue (right), Played and Settings (below, side by side), Search and Lyrics (above, side by side). Titles, albums and playlists dropped on the sun play at once. The house button in the corner leads back to the pages; in the sun view the docks and the bottom player bar are out of the way.
+- Tests: validation of the orbit settings, dragging / snapping / saving of planets, orbit size limits and reset, TIDAL DIY in sun mode loads without QML errors.
+- No EXE built.
+
 ## 0.9.1.12
 - **Player for downloads as a solar system:** the oval player is the **sun** in the middle with a glow that breathes with the music; the **planets** on the orbits around it unfold into cards and fold away again: **Library** (left), **Queue** (right), **Played** (below), **Settings** and **Speaker** (above). Opening a planet moves the sun and its orbits over so that nothing is covered; several planets can be open at once. The sun button in the corner folds all planets into the sun (`local_orbit`).
 - **Volume and jumping always visible:** under the oval there is now a volume slider (click the speaker icon to mute, mouse wheel on the oval still works) and "10 s back / ahead" buttons; the text buttons are brighter and wrap into more lines instead of running out of the window.

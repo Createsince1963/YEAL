@@ -20,7 +20,7 @@ Item {
     signal toggleQueue()
 
     // ---- geometry: everything is drawn in units of the oval height
-    readonly property real ovalW: Math.max(260, Math.min(width - Theme.s4, 560))
+    readonly property real ovalW: Math.max(260, Math.min(width - Theme.s4, compact ? 760 : 560))
     readonly property real ovalH: Math.round(ovalW * 0.3125)
     readonly property real u: ovalH / 150
     // the colour of the band, the loop and the dot (setting tidal_player_color); the volume colour is yellow, or orange

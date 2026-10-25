@@ -263,6 +263,7 @@ Item {
     // ---- layout of the areas (setting tidal_layout, validated in core/settings.py)
     // Playlists and queue can sit left or right, be detached into their own window or be hidden; the player bar sits
     // on top or at the bottom. Dock changes are saved at once, window moves after a short pause.
+    readonly property bool sunMode: !!backend.settings.tidal_sun          // the player as a sun with planets instead of the pages
     readonly property var lay: backend.settings.tidal_layout || ({})
     readonly property bool playerTop: lay.player === "top"
     property var _pending: null          // layout waiting to be saved
@@ -391,6 +392,7 @@ Item {
 
             TidalDock {
                 id: playlistsDock
+                forceHidden: home.sunMode
                 paneKey: "playlists"
                 title: qsTr("All playlists")
                 defaultSide: "left"
@@ -411,7 +413,15 @@ Item {
                 color: Theme.surface
                 border.width: 1
                 border.color: Theme.separator
+                Loader {          // the sun view: player in the middle, playlists / queue / search ... as planets
+                    anchors.fill: parent
+                    anchors.margins: 2
+                    active: home.sunMode
+                    visible: home.sunMode
+                    sourceComponent: TidalSunView { ctl: home; onExitRequested: backend.setSetting("tidal_sun", false) }
+                }
                 ColumnLayout {
+                    visible: !home.sunMode
                     anchors.fill: parent
                     anchors.margins: Theme.s3
                     spacing: Theme.s2
@@ -427,6 +437,8 @@ Item {
                             onActivated: (v) => home.goTab(v)
                         }
                         Item { Layout.fillWidth: true }
+                        IconButton { iconName: "sun"; tip: qsTr("Sun view: the player in the middle, everything else as planets around it")
+                                     onClicked: backend.setSetting("tidal_sun", true) }
                         IconButton { iconName: "library"; tip: qsTr("Show / hide the playlists")
                                      tint: playlistsDock.side !== "hidden" ? Theme.accent : Theme.textSecondary
                                      onClicked: home.togglePane("playlists") }
@@ -441,6 +453,7 @@ Item {
 
             TidalDock {
                 id: queueDock
+                forceHidden: home.sunMode
                 paneKey: "queue"
                 title: qsTr("Search and queue")
                 defaultSide: "right"
@@ -459,6 +472,7 @@ Item {
             Layout.fillWidth: true
             Layout.row: home.playerTop ? 0 : 1
             Layout.preferredHeight: item ? item.implicitHeight : 72
+            visible: !home.sunMode                    // in the sun view the player is the sun
             sourceComponent: backend.settings.tidal_player_style === "track" ? trackPlayerC : barPlayerC
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: playerMenu.popup() }
             DropArea {            // titles, albums, playlists dropped on the player play at once

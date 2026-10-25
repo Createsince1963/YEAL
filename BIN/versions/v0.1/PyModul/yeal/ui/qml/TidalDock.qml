@@ -17,11 +17,12 @@ Item {
     property int maxW: 520
     property var floatRect: ({ x: 100, y: 100, w: 360, h: 600 })
     default property alias content: body.data
+    property bool forceHidden: false         // the sun view shows everything as planets: the areas are out of the way
     readonly property bool docked: side === "left" || side === "right"
     signal sideRequested(string side)
     signal floatMoved(int x, int y, int w, int h)
 
-    visible: docked
+    visible: docked && !forceHidden
     SplitView.preferredWidth: paneWidth
     SplitView.minimumWidth: minW
     SplitView.maximumWidth: maxW
@@ -77,7 +78,7 @@ Item {
     Window {
         id: win
         property bool placing: false
-        visible: dock.side === "float"
+        visible: dock.side === "float" && !dock.forceHidden
         title: "TIDAL – " + dock.title
         color: Theme.surface
         transientParent: dock.Window.window
