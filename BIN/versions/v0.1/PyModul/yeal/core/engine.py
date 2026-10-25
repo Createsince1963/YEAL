@@ -4,6 +4,7 @@ from __future__ import annotations
 import glob
 import re
 import threading
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -236,7 +237,7 @@ class Engine:
     def __init__(self, ctx, ydl_class=None):
         self.ctx = ctx
         self._ydl_class = ydl_class
-        self.tidal_config: Optional[Callable[[], dict]] = None   # -> {"path", "quality", "threads", "video_quality", "videos"} (set by the UI backend)
+        self.tidal_config: Optional[Callable[[], dict]] = None   # -> {"path", "quality", "threads", "video_quality", "videos", "atmos", "singles", "no_skip", "rewrite", "html", "theme", "extras"} (set by the UI backend)
 
     def _lyrics_for(self, job: DownloadJob, item: dict, path: str, notify: Callable[[DownloadJob], None]) -> Optional[dict]:
         """Find the song text (LRCLIB, else the captions), save .txt/.lrc/.srt and tag the audio file."""
@@ -341,6 +342,12 @@ class Engine:
             return
         base = Path(self.ctx.download_dir) / "Tidal"
         base.mkdir(parents=True, exist_ok=True)
+        # Yeal's own tiddl folder: the extras chosen in Yeal never change the user's tiddl setup (see tidal.prepare_home)
+        try:
+            home = tidal.prepare_home(Path(self.ctx.data_dir) / "tiddl", cfg.get("extras") or {})
+        except OSError:
+            home = None
+        started = time.time()
         finished = [0]
 
         def on_line(kind: str, text: str) -> None:
@@ -359,10 +366,15 @@ class Engine:
         try:
             code, lines = tidal.run_download(exe, job.url, str(job.options.tidal_quality or cfg.get("quality") or "high"), str(base),
                                              int(cfg.get("threads") or 2), cancel, on_line,
-                                             str(cfg.get("video_quality") or "fhd"), str(cfg.get("videos") or "allow"))
+                                             str(cfg.get("video_quality") or "fhd"), str(cfg.get("videos") or "allow"),
+                                             str(cfg.get("atmos") or "none"), str(cfg.get("singles") or "none"),
+                                             bool(cfg.get("no_skip")), bool(cfg.get("rewrite")), home)
         except OSError as exc:
             fail(f"tiddl could not be started: {exc}")
             return
+        finally:
+            if home is not None:
+                tidal.sync_auth_back(home)
         if cancel.is_set():
             job.state = JobState.CANCELED
             job.phase = "Canceled"
@@ -372,7 +384,12 @@ class Engine:
             fail(tidal.friendly_error(lines, code), "\n".join(lines[-5:]))
             return
         if code != 0:
-            job.note = "Some Tidal items failed - see the log of tiddl (~/.tiddl/latest.log)."
+            job.note = "Some Tidal items failed - see the log of tiddl (%s)." % ((home or tidal.app_path()) / "latest.log")
+        if cfg.get("html"):
+            try:
+                tidal.write_html_pages(base, started, job.url, str(cfg.get("theme") or "auto"))
+            except OSError:
+                pass
         job.filename = str(base)
         job.progress = job.dl_progress = job.pp_progress = 1.0
         job.state = JobState.DONE

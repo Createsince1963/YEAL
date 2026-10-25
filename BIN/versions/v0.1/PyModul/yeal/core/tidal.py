@@ -26,6 +26,9 @@ TIDAL_QUALITY_LABELS = {   # shown in the download options (same steps as Tidal'
     "high": "Tidal High (FLAC 16-bit / 44.1 kHz)", "max": "Tidal Max (FLAC up to 24-bit / 192 kHz)"}
 TIDAL_VIDEO_QUALITIES = ("sd", "hd", "fhd")           # tiddl --video-quality
 TIDAL_VIDEOS = ("none", "allow", "only")              # tiddl --videos: skip / include / only videos inside albums, playlists, artists
+TIDAL_ATMOS = ("none", "allow", "only")               # tiddl --dolby-atmos: skip / include / only Dolby Atmos versions
+TIDAL_SINGLES = ("none", "include", "only")           # tiddl --singles: artist links without / with / only singles and EPs
+AUDIO_EXTS = (".flac", ".m4a", ".mp4", ".mp3", ".aac")
 TIDAL_HOSTS = ("tidal.com", "www.tidal.com", "listen.tidal.com", "embed.tidal.com")
 _RESOURCE = re.compile(r"/(?:browse/)?(track|album|playlist|artist|mix|video)/([0-9A-Za-z-]+)", re.IGNORECASE)
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07")
@@ -119,17 +122,28 @@ def find_tiddl(configured: str = "") -> str:
 
 
 def build_command(exe: str, url: str, quality: str = "high", base_dir: str = "", threads: int = 2,
-                  video_quality: str = "fhd", videos: str = "allow") -> List[str]:
-    """`tiddl download -q <quality> -t <n> -vq <sd|hd|fhd> --videos <mode> -p <dir> url <link>` (global options come before `url`).
+                  video_quality: str = "fhd", videos: str = "allow", atmos: str = "none", singles: str = "none",
+                  no_skip: bool = False, rewrite: bool = False) -> List[str]:
+    """`tiddl download -q <quality> -t <n> -vq <sd|hd|fhd> --videos <mode> --dolby-atmos <mode> [--singles <mode>]
+    [--no-skip] [--rewrite-metadata] -p <dir> url <link>` (global options come before `url`).
     tiddl skips videos by default (`--videos none`), even a direct video link: a link to a single video is therefore
-    always downloaded with `allow`; for albums/playlists/artists the user's choice applies."""
+    always downloaded with `allow`; for albums/playlists/artists the user's choice applies. `--singles` only matters
+    for artist links and is only passed there."""
     quality = quality if quality in TIDAL_QUALITIES else "high"
     video_quality = video_quality if video_quality in TIDAL_VIDEO_QUALITIES else "fhd"
     videos = videos if videos in TIDAL_VIDEOS else "allow"
+    atmos = atmos if atmos in TIDAL_ATMOS else "none"
+    singles = singles if singles in TIDAL_SINGLES else "none"
     if resource_of(url).startswith("video/") and videos == "none":
         videos = "allow"
     cmd = [exe, "download", "-q", quality, "-t", str(max(1, min(4, int(threads or 1)))),
-           "-vq", video_quality, "--videos", videos]
+           "-vq", video_quality, "--videos", videos, "--dolby-atmos", atmos]
+    if resource_of(url).startswith("artist/"):
+        cmd += ["--singles", singles]
+    if no_skip:
+        cmd.append("--no-skip")
+    if rewrite:
+        cmd.append("--rewrite-metadata")
     template = output_template(url)
     if template:
         cmd += ["-o", template]
@@ -138,16 +152,101 @@ def build_command(exe: str, url: str, quality: str = "high", base_dir: str = "",
     return cmd + ["url", url]
 
 
-def _env() -> dict:
+def _env(home: Optional[Path] = None) -> dict:
     env = dict(os.environ)
     env.update(NO_COLOR="1", TERM="dumb", COLUMNS="200", PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+    if home is not None:
+        env["TIDDL_PATH"] = str(home)
     return env
 
 
-def _popen(cmd: List[str]) -> subprocess.Popen:
+def _popen(cmd: List[str], home: Optional[Path] = None) -> subprocess.Popen:
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                            env=_env(), creationflags=flags)
+                            env=_env(home), creationflags=flags)
+
+
+# ---- Yeal's own tiddl folder (0.9.1) -----------------------------------------------------------------------
+# Downloads run with TIDDL_PATH=<Yeal data>/tiddl: the extras chosen in Yeal (lyrics, covers, M3U) go into a
+# config.toml there, so the user's own tiddl setup (~/.tiddl/config.toml) is never changed. The sign-in stays in
+# ~/.tiddl: its auth.json is copied in before a download and a token renewed by tiddl is copied back afterwards.
+
+def config_toml(lyrics: bool = False, lrc: bool = False, cover_embed: bool = False, cover_file: bool = False,
+                m3u: bool = False) -> str:
+    """config.toml for tiddl 3.x with the extras chosen in Yeal (only keys tiddl knows)."""
+    def b(v: bool) -> str:
+        return "true" if v else "false"
+    return ("# Written by Yeal for its Tidal downloads - changes are overwritten.\n"
+            f"[metadata]\nenable = true\nlyrics = {b(lyrics)}\ncover = {b(cover_embed)}\n\n"
+            f"[download]\nwrite_lrc_file = {b(lrc)}\n\n"
+            f"[cover]\nsave = {b(cover_file)}\nallowed = [\"album\", \"playlist\"]\n\n"
+            f"[m3u]\nsave = {b(m3u)}\nallowed = [\"album\", \"playlist\", \"mix\"]\n")
+
+
+def _expires(path: Path) -> float:
+    try:
+        return float(json.loads(path.read_text(encoding="utf-8-sig")).get("expires_at") or 0)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return -1.0
+
+
+def prepare_home(home: Path, extras: Optional[dict] = None, global_dir: Optional[Path] = None) -> Path:
+    """Create Yeal's tiddl folder: config.toml with the extras, auth.json copied from the user's tiddl folder
+    (only when that one is at least as new, so a token renewed in here is never replaced by an older one)."""
+    home = Path(home)
+    home.mkdir(parents=True, exist_ok=True)
+    e = extras or {}
+    (home / "config.toml").write_text(config_toml(bool(e.get("lyrics")), bool(e.get("lrc")), bool(e.get("cover_embed")),
+                                                  bool(e.get("cover_file")), bool(e.get("m3u"))), encoding="utf-8")
+    src = Path(global_dir or app_path()) / "auth.json"
+    dst = home / "auth.json"
+    if src.is_file() and _expires(src) >= _expires(dst):
+        shutil.copyfile(src, dst)
+    return home
+
+
+def sync_auth_back(home: Path, global_dir: Optional[Path] = None) -> bool:
+    """Copy a token that tiddl renewed inside Yeal's folder back to the user's tiddl folder (newer one wins)."""
+    src = Path(home) / "auth.json"
+    dst = Path(global_dir or app_path()) / "auth.json"
+    if src.is_file() and _expires(src) > _expires(dst):
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dst)
+            return True
+        except OSError:
+            return False
+    return False
+
+
+def new_audio_folders(base: Path, since: float) -> List[Path]:
+    """Folders below `base` with audio files written since `since` (the result of one tiddl run), deepest first."""
+    found = set()
+    for path in Path(base).rglob("*"):
+        try:
+            if path.suffix.lower() in AUDIO_EXTS and path.is_file() and path.stat().st_mtime >= since - 2:
+                found.add(path.parent)
+        except OSError:
+            continue
+    return sorted(found, key=lambda p: (-len(p.parts), str(p)))
+
+
+def write_html_pages(base: Path, since: float, source: str, theme: str = "auto", cover: str = "",
+                     uploader: str = "") -> List[Path]:
+    """Yeal's player page (extras.write_playlist_page) in every album / playlist folder this run wrote to.
+    Single songs (Singles / Videos folders) get none."""
+    from . import extras
+    pages = []
+    for folder in new_audio_folders(base, since):
+        if folder.name.lower() in ("singles", "videos") or folder == Path(base):
+            continue
+        files = sorted(p for p in folder.iterdir() if p.suffix.lower() in AUDIO_EXTS and p.is_file())
+        items = [{"index": i + 1, "title": re.sub(r"^\d+\s*-\s*", "", f.stem), "file": f.name, "thumb": cover}
+                 for i, f in enumerate(files)]
+        page = extras.write_playlist_page(folder, folder.name, uploader, source, items, "audio", theme)
+        if page:
+            pages.append(page)
+    return pages
 
 
 def iter_lines(stream) -> "iter":
@@ -201,10 +300,13 @@ def friendly_error(lines: List[str], code: int) -> str:
 
 def run_download(exe: str, url: str, quality: str, base_dir: str, threads: int,
                  cancel: threading.Event, on_line: Callable[[str, str], None],
-                 video_quality: str = "fhd", videos: str = "allow") -> tuple:
+                 video_quality: str = "fhd", videos: str = "allow", atmos: str = "none", singles: str = "none",
+                 no_skip: bool = False, rewrite: bool = False, home: Optional[Path] = None) -> tuple:
     """Run one tiddl download. `on_line(kind, text)` is called for every output line.
+    `home`: Yeal's tiddl folder (TIDDL_PATH, see prepare_home); None = the user's own tiddl setup.
     Returns (exit code, all lines). The process is terminated when `cancel` is set."""
-    proc = _popen(build_command(exe, url, quality, base_dir, threads, video_quality, videos))
+    proc = _popen(build_command(exe, url, quality, base_dir, threads, video_quality, videos, atmos, singles,
+                                no_skip, rewrite), home)
     lines: List[str] = []
 
     def watch() -> None:

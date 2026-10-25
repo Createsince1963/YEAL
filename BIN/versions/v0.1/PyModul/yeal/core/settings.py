@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from .models import AUDIO_FORMATS, COOKIE_BROWSERS, MODES, QUALITIES, DownloadOptions
-from .tidal import TIDAL_QUALITIES, TIDAL_VIDEOS, TIDAL_VIDEO_QUALITIES
+from .tidal import TIDAL_ATMOS, TIDAL_QUALITIES, TIDAL_SINGLES, TIDAL_VIDEOS, TIDAL_VIDEO_QUALITIES
 
 THEMES = ("system", "light", "dark")
 HTML_OPEN_MODES = ("file", "server")
@@ -17,6 +17,8 @@ DL_BUTTON_STYLES = ("icon", "label", "off")   # header Download button: icon onl
 DL_BUTTON_POSITIONS = ("left", "right")      # header Download button: next to the title or at the end of the bar
 MAX_PROFILE_NAME = 40
 MAX_STREAM_HOSTS = 10
+TIDAL_DOCKS = ("left", "right", "float", "hidden")   # TIDAL DIY side areas: docked left/right, own window, hidden
+TIDAL_PANES = ("playlists", "queue")
 
 
 def default_profiles() -> List[dict]:
@@ -60,6 +62,32 @@ def normalize_profile(raw: dict) -> dict:
     }
 
 
+def _clamp(value, low: int, high: int, default: int) -> int:
+    try:
+        return max(low, min(high, int(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _validate_tidal_layout(raw) -> dict:
+    """TIDAL DIY layout: {'player': top|bottom, 'playlists'/'queue': {'dock', 'w', and for an own window 'x','y','h'}}.
+    Unknown keys are dropped, sizes are clamped. Windows that ended up off-screen are moved back by the QML side,
+    which knows the screens."""
+    raw = raw if isinstance(raw, dict) else {}
+    out = {"player": raw.get("player") if raw.get("player") in ("top", "bottom") else "bottom"}
+    defaults = {"playlists": ("left", 220), "queue": ("right", 300)}
+    for pane in TIDAL_PANES:
+        src = raw.get(pane) if isinstance(raw.get(pane), dict) else {}
+        dock, width = defaults[pane]
+        pane_out = {"dock": src.get("dock") if src.get("dock") in TIDAL_DOCKS else dock,
+                    "w": _clamp(src.get("w", width), 160, 900, width)}
+        if pane_out["dock"] == "float":
+            pane_out.update(x=_clamp(src.get("x", 100), -20000, 20000, 100), y=_clamp(src.get("y", 100), -20000, 20000, 100),
+                            h=_clamp(src.get("h", 600), 200, 4000, 600))
+        out[pane] = pane_out
+    return out
+
+
 @dataclass
 class Settings:
     theme: str = "system"
@@ -73,6 +101,19 @@ class Settings:
     tidal_threads: int = 2            # Tidal: parallel track downloads (kept low on purpose)
     tidal_video_quality: str = "fhd"  # Tidal videos: sd | hd | fhd
     tidal_videos: str = "allow"       # videos inside albums/playlists/artists: none (skip) | allow (include) | only
+    tidal_atmos: str = "none"         # Dolby Atmos versions: none (skip) | allow (include) | only
+    tidal_singles: str = "none"       # artist links: none (albums only) | include (with singles/EPs) | only (singles/EPs)
+    tidal_lyrics: bool = True         # embed lyrics into the files (tiddl metadata.lyrics)
+    tidal_lrc: bool = False           # also write timed lyrics as .lrc files
+    tidal_cover_embed: bool = True    # embed the cover into the files
+    tidal_cover_file: bool = False    # save the album / playlist cover as an image file
+    tidal_m3u: bool = False           # write an M3U playlist file for albums, playlists and mixes
+    tidal_html: bool = False          # write Yeal's HTML player page into album / playlist folders
+    tidal_no_skip: bool = False       # download again even when the file exists
+    tidal_rewrite: bool = False       # rewrite the tags of files that already exist
+    tidal_volume: int = 80            # TIDAL DIY player volume (0-100)
+    tidal_tile_size: int = 140        # TIDAL DIY tile size in grids (px)
+    tidal_layout: dict = field(default_factory=dict)   # TIDAL DIY areas: dock side / own window, sizes (see _validate_tidal_layout)
     panel_width: int = 400            # width of the tools panel next to the YouTube view
     panel_right: bool = False         # tools panel on the right instead of the left
     adblock_experimental: bool = False  # Windows browser view: block ad/tracker domains (experimental, needs restart)
@@ -123,6 +164,16 @@ class Settings:
             self.tidal_threads = max(1, min(4, int(self.tidal_threads)))
         except (TypeError, ValueError):
             self.tidal_threads = 2
+        if self.tidal_atmos not in TIDAL_ATMOS:
+            self.tidal_atmos = "none"
+        if self.tidal_singles not in TIDAL_SINGLES:
+            self.tidal_singles = "none"
+        for name in ("tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html",
+                     "tidal_no_skip", "tidal_rewrite"):
+            setattr(self, name, bool(getattr(self, name)))
+        self.tidal_volume = _clamp(self.tidal_volume, 0, 100, 80)
+        self.tidal_tile_size = _clamp(self.tidal_tile_size, 90, 260, 140)
+        self.tidal_layout = _validate_tidal_layout(self.tidal_layout)
         if self.html_open_mode not in HTML_OPEN_MODES:
             self.html_open_mode = "server"
         if self.html_create not in HTML_CREATE_MODES:

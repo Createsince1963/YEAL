@@ -26,6 +26,9 @@ COMPONENTS = {
     "TidalHome": "TidalHome { anchors.fill: parent }",
     "Sidebar": "Sidebar { anchors.fill: parent; rowNav: true; player: 'tidaldiy' }",
     "AppMenu": "AppMenu { AppMenuItem { text: 'Tidal Max (FLAC up to 24-bit / 192 kHz)' } }",
+    "TidalOptions": "TidalOptions { width: 400 }",
+    "WorkflowPanel": "WorkflowPanel { anchors.fill: parent; inSidebar: true; tidalPlayer: true }",
+    "SettingsPage": "SettingsPage { anchors.fill: parent; Component.onCompleted: showTidal() }",
 }
 ERRORS = ("ReferenceError", "TypeError", "is not defined", "Unable to assign", "Cannot ", "Error")
 
@@ -69,6 +72,27 @@ class TidalGuiQmlTest(unittest.TestCase):
                 bad = [m for m in self.messages[start:] if ".qml" in m and any(w in m for w in ERRORS)]
                 self.assertEqual(bad, [])
                 obj.deleteLater()
+
+    def test_tidal_option_settings(self):
+        """The chips write through backend.setSetting; bad values are refused, sizes clamped."""
+        b = self.backend
+        for key, good, bad in (("tidal_atmos", "only", "maybe"), ("tidal_singles", "include", "all"),
+                               ("tidal_videos", "none", "some")):
+            b.setSetting(key, good)
+            self.assertEqual(b.settings[key], good)
+            b.setSetting(key, bad)
+            self.assertEqual(b.settings[key], good)
+        for key in ("tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html",
+                    "tidal_no_skip", "tidal_rewrite"):
+            b.setSetting(key, True)
+            self.assertIs(b.settings[key], True)
+            b.setSetting(key, False)
+            self.assertIs(b.settings[key], False)
+        b.setSetting("tidal_volume", 500)
+        self.assertEqual(b.settings["tidal_volume"], 100)
+        cfg = b._tidal_config()
+        self.assertEqual(cfg["atmos"], "only")
+        self.assertEqual(cfg["extras"]["m3u"], False)
 
     def test_menu_fits_widest_entry(self):
         comp = QQmlComponent(self.engine)

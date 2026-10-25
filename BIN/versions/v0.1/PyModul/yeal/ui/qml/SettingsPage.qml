@@ -488,6 +488,17 @@ Flickable {
                 AppButton { text: qsTr("Check"); kind: "plain"; onClicked: backend.tidalRefresh() }
             }
             SettingsItem {
+                label: qsTr("Download options")
+                icon: "sliders"
+                summary: [page.s.tidal_videos === "none" ? qsTr("no videos") : page.s.tidal_videos === "only" ? qsTr("only videos") : qsTr("with videos"),
+                          page.s.tidal_atmos === "none" ? "" : "Atmos",
+                          page.s.tidal_lyrics ? qsTr("lyrics") : "", page.s.tidal_cover_embed ? qsTr("cover") : "",
+                          page.s.tidal_m3u ? "M3U" : "", page.s.tidal_html ? "HTML" : ""].filter(function (x) { return x !== "" }).join(", ")
+                hint: qsTr("The same chips as under TIDAL options in the workflow. Lyrics, covers and M3U are written by tiddl with Yeal's own tiddl settings; your own tiddl setup is not changed.")
+                stacked: true
+                TidalOptions { showQuality: false; Layout.fillWidth: true }
+            }
+            SettingsItem {
                 label: qsTr("Audio quality")
                 icon: "music"
                 summary: page.s.tidal_quality === "max" ? qsTr("Max (up to 24-bit, 192 kHz)")

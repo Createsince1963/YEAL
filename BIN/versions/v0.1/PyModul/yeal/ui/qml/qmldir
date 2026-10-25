@@ -44,3 +44,5 @@ FilmStrip 1.0 FilmStrip.qml
 VideoPreview 1.0 VideoPreview.qml
 SettingsPage 1.0 SettingsPage.qml
 FirstRunDialog 1.0 FirstRunDialog.qml
+TidalHome 1.0 TidalHome.qml
+TidalOptions 1.0 TidalOptions.qml

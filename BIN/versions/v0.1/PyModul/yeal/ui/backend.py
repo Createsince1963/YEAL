@@ -550,9 +550,13 @@ class Backend(QObject):
     tidalInstallHint = Property(str, lambda self: tidal.INSTALL_HINT, constant=True)
 
     def _tidal_config(self) -> dict:
-        return {"path": self._settings.tidal_path, "quality": self._settings.tidal_quality,
-                "threads": self._settings.tidal_threads, "video_quality": self._settings.tidal_video_quality,
-                "videos": self._settings.tidal_videos}
+        s = self._settings
+        return {"path": s.tidal_path, "quality": s.tidal_quality, "threads": s.tidal_threads,
+                "video_quality": s.tidal_video_quality, "videos": s.tidal_videos, "atmos": s.tidal_atmos,
+                "singles": s.tidal_singles, "no_skip": s.tidal_no_skip, "rewrite": s.tidal_rewrite, "html": s.tidal_html,
+                "theme": self._effective_theme(),
+                "extras": {"lyrics": s.tidal_lyrics, "lrc": s.tidal_lrc, "cover_embed": s.tidal_cover_embed,
+                           "cover_file": s.tidal_cover_file, "m3u": s.tidal_m3u}}
 
     @Property(str, notify=tidalChanged)
     def tidalExe(self) -> str:  # type: ignore[override]
@@ -1343,7 +1347,7 @@ class Backend(QObject):
 
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value: Any) -> None:
-        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos"):
+        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1357,6 +1361,10 @@ class Backend(QObject):
         if key == "tidal_video_quality" and value not in tidal.TIDAL_VIDEO_QUALITIES:
             return
         if key == "tidal_videos" and value not in tidal.TIDAL_VIDEOS:
+            return
+        if key == "tidal_atmos" and value not in tidal.TIDAL_ATMOS:
+            return
+        if key == "tidal_singles" and value not in tidal.TIDAL_SINGLES:
             return
         if key == "html_open_mode" and value not in HTML_OPEN_MODES:
             return

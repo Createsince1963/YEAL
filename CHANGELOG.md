@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1.03
+- New **TIDAL options** in the workflow (shown for TIDAL Web and TIDAL DIY, like the YouTube options) and in Settings > Tidal > Download options, all as chips:
+  quality (Low / Normal / High FLAC / Max Hi-Res), videos (none / with / only) and video quality (SD / HD / Full HD), Dolby Atmos (off / with / only), artist singles (albums only / with singles / only singles; only used for artist links), lyrics in the file, lyrics as .lrc, cover in the file, cover image, M3U playlist, Yeal player page (HTML), overwrite existing files, rewrite tags.
+- Tidal downloads now run in Yeal's own tiddl folder (`<Yeal data>	iddl`, `TIDDL_PATH`): the extras go into a config.toml there, so your own tiddl setup is never changed. The sign-in stays the one of tiddl; a token renewed during a download is copied back (the newer one always wins).
+- "Player page (HTML)": after an album or playlist download Yeal writes its player page into that folder (relative links, works from disk).
+- New defaults: lyrics and cover are embedded into Tidal files (both can be switched off).
+- Tests: Tidal engine tests now also run on Windows (a .cmd wrapper starts the fake tiddl).
+
 ## 0.9.1.02
 - TIDAL DIY data layer `core/tidal_api.py` (standard library only, no new dependency): start page, explore and genre pages, feed (new releases of followed artists, monthly history mixes), search, album (with credits), artist (top tracks, albums, singles/EPs, videos, similar artists), playlists, mixes, favorites, own and favorited playlists, lyrics (timed when Tidal has them) and the playable stream link for Yeal's own player. Writing: add/remove favorites, create/rename/delete playlists, add/remove playlist tracks (with Tidal's playlist version check, ETag). Uses the existing tiddl sign-in; an expired token is renewed once with `tiddl auth refresh`. Answers are cached for 5 minutes, at most 2 requests run at the same time.
 - Playback quality: with the tiddl sign-in Tidal streams at most FLAC 16-bit / 44.1 kHz for playing (also for MAX albums); the quality badge shows what is really played. Hi-res downloads through tiddl are not affected.

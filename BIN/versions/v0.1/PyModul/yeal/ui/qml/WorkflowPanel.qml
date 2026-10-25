@@ -233,9 +233,13 @@ Item {
                     onActivated: (v) => backend.setFormatMode(v)
                 }
                 Text {      // which source the options below belong to
-                    text: panel.tidalMode ? qsTr("TIDAL options - audio quality") : qsTr("YouTube options")
+                    text: panel.tidalMode ? qsTr("TIDAL options") : qsTr("YouTube options")
                     color: Theme.textSecondary
                     font.pixelSize: Theme.footnote
+                    Layout.fillWidth: true
+                }
+                TidalOptions {                    // Tidal: quality, videos, Atmos, singles and extras as chips
+                    visible: panel.tidalMode
                     Layout.fillWidth: true
                 }
                 Flow {
