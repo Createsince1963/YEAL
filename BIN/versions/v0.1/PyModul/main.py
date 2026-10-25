@@ -44,6 +44,55 @@ def _setup_diagnostics(data_dir: Path) -> None:
     print("Yeal log started; frozen=%s python=%s" % (getattr(sys, "frozen", False), sys.version.split()[0]), flush=True)
 
 
+def _guard_window_size(engine) -> None:
+    """Windows: after maximizing / restoring the saved geometry the Qt scene could keep its old (smaller) size
+    while the native window was already larger: the GUI then filled only the top-left part of the window and the
+    rest stayed black. For the first seconds the native client area is compared with the size Qt renders; on a
+    mismatch the window state is re-applied (or the window nudged by 1 px), which makes Qt resize the scene."""
+    import ctypes
+    from ctypes import wintypes
+    from PySide6.QtCore import QTimer, Qt
+
+    roots = engine.rootObjects()
+    if not roots:
+        return
+    win = roots[0]
+    rect = wintypes.RECT()
+    state = {"ticks": 0}
+
+    def client_size():
+        if not ctypes.windll.user32.GetClientRect(wintypes.HWND(int(win.winId())), ctypes.byref(rect)):
+            return None
+        return rect.right - rect.left, rect.bottom - rect.top
+
+    def check():
+        state["ticks"] += 1
+        if state["ticks"] > 40:                      # watch ~10 s after start, then stop
+            timer.stop()
+            return
+        if not win.isVisible():
+            return
+        native = client_size()
+        if not native or native[0] <= 0 or native[1] <= 0:
+            return
+        dpr = win.devicePixelRatio()
+        want_w, want_h = round(win.width() * dpr), round(win.height() * dpr)
+        if abs(native[0] - want_w) <= 2 and abs(native[1] - want_h) <= 2:
+            return
+        print("window size mismatch: native %s, Qt %sx%s -> re-applying" % (native, want_w, want_h), flush=True)
+        if win.windowStates() & Qt.WindowMaximized:
+            win.showNormal()
+            win.showMaximized()
+        else:
+            win.resize(win.width() + 1, win.height())
+            win.resize(win.width() - 1, win.height())
+
+    timer = QTimer(win)
+    timer.setInterval(250)
+    timer.timeout.connect(check)
+    timer.start()
+
+
 def main() -> int:
     from PySide6.QtCore import QCoreApplication, QUrl
     from PySide6.QtGui import QGuiApplication, QIcon
@@ -105,6 +154,12 @@ def main() -> int:
     if not engine.rootObjects():
         print("QML load failed: no root object (see [qt] lines above)", flush=True)
         return 1
+
+    if ctx.name == "windows":
+        try:
+            _guard_window_size(engine)
+        except Exception as exc:  # noqa: BLE001 - never block the start because of this guard
+            print("window size guard failed:", exc, flush=True)
 
     code = app.exec()
     backend.shutdown()
