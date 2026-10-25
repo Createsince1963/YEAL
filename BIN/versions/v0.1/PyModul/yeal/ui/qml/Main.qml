@@ -101,6 +101,10 @@ ApplicationWindow {
                 toast.show(qsTr("Confirm the Tidal sign-in in the browser. Link: ") + url)
             }
         }
+        function onLocalPlayerRequested() {                // "Play in Yeal player" of a download
+            win.requestPage(0)
+            win.player = "local"
+        }
         function onTidalDiyPlaying() {                    // single playback: the web players stop
             downloads.pausePlayer("youtube")
             downloads.pausePlayer("tidal")
@@ -206,7 +210,7 @@ ApplicationWindow {
         id: panel
         objectName: "workflowPanel"
         inSidebar: win.browserMode
-        tidalPlayer: win.player !== "youtube"     // TIDAL Web and TIDAL DIY
+        tidalPlayer: win.player === "tidal" || win.player === "tidaldiy"     // TIDAL Web and TIDAL DIY
         parent: win.panelInSidebar && sidebarLoader.item ? sidebarLoader.item.slot : downloads.slot
         anchors.fill: parent
         visible: win.page === 0

@@ -461,6 +461,30 @@ Item {
             Layout.preferredHeight: item ? item.implicitHeight : 72
             sourceComponent: backend.settings.tidal_player_style === "track" ? trackPlayerC : barPlayerC
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: playerMenu.popup() }
+            DropArea {            // titles, albums, playlists dropped on the player play at once
+                id: playDrop
+                anchors.fill: parent
+                z: 20
+                keys: ["text/plain"]
+                onEntered: (drag) => drag.accepted = tidal.dragPayload.length > 0
+                onDropped: (drop) => {
+                    var items = tidal.dragPayload
+                    if (items.length === 0) return
+                    drop.accept(Qt.CopyAction)
+                    tidal.playerObject.playNow(items)
+                    tidal.setDragPayload([])
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    visible: playDrop.containsDrag
+                    radius: Theme.radius
+                    color: Theme.accentSoft
+                    border.width: 2
+                    border.color: Theme.accent
+                    Text { anchors.centerIn: parent; text: qsTr("Drop to play"); color: Theme.accent
+                           font.pixelSize: Theme.headline; font.weight: Font.DemiBold }
+                }
+            }
         }
     }
     Component { id: barPlayerC; TidalPlayerBar { ctl: home; onToggleQueue: home.togglePane("queue") } }

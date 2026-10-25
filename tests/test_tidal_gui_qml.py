@@ -24,7 +24,7 @@ QML_DIR = _path.PYMODUL / "yeal" / "ui" / "qml"
 # Each entry: QML snippet placed in a 1200x800 item. Components that need properties get them here.
 COMPONENTS = {
     "TidalHome": "TidalHome { anchors.fill: parent }",
-    "Sidebar": "Sidebar { anchors.fill: parent; rowNav: true; player: 'tidaldiy' }",
+    "Sidebar": "Sidebar { anchors.fill: parent; rowNav: true; player: 'local' }",
     "AppMenu": "AppMenu { AppMenuItem { text: 'Tidal Max (FLAC up to 24-bit / 192 kHz)' } }",
     "TidalOptions": "TidalOptions { width: 400 }",
     "TidalDragSource": "TidalDragSource { item: ({ url: 'https://tidal.com/browse/album/1' }) }",
@@ -36,6 +36,7 @@ COMPONENTS = {
     "TidalTrackPlayer": "TidalTrackPlayer { width: 700; height: 300 }",
     "TidalTrackPanel": "TidalTrackPanel { width: 480; height: 300 }",
     "TidalQueueDrop": "ListView { id: lv; width: 200; height: 200; TidalQueueDrop { anchors.fill: parent; list: lv } }",
+    "LocalPlayerView": "LocalPlayerView { anchors.fill: parent }",
     "TidalDock": "TidalDock { width: 300; height: 300; title: 'Test'; Text { text: 'content' } }",
     "TidalDockFloating": "TidalDock { width: 300; height: 300; title: 'Test'; side: 'float'; Text { text: 'content' } }",
     "WorkflowPanel": "WorkflowPanel { anchors.fill: parent; inSidebar: true; tidalPlayer: true }",

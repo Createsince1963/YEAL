@@ -83,6 +83,8 @@ Rectangle {
         id: ctxMenu
         AppMenuItem { text: qsTr("Open file"); iconName: "open"; enabled: row.done && !backend.isMobile
                       onTriggered: backend.openFile(row.jobId) }
+        AppMenuItem { text: qsTr("Play in Yeal player"); iconName: "volume"; enabled: row.done && !backend.isMobile
+                      onTriggered: backend.playInYeal(row.jobId) }
         AppMenuItem { text: qsTr("Play in VLC (fullscreen)"); iconName: "play"
                       enabled: row.done && backend.vlcAvailable; onTriggered: backend.openFileInVlc(row.jobId) }
         AppMenuItem { text: qsTr("Open page (with online player)"); iconName: "link"

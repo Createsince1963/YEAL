@@ -10,7 +10,18 @@ Rectangle {
     property var ctl                               // TidalHome
     property string tab: "queue"                   // queue | playlists | results | lyrics
     property string query: ""
-    readonly property var player: tidal.playerObject
+    property var player: tidal.playerObject
+    property bool local: false                     // downloaded files: tabs Library and Queue, the field filters the library
+    property string filter: ""
+    readonly property var libraryShown: {
+        var lib = player.library || [], f = filter.toLowerCase(), out = []
+        for (var i = 0; i < lib.length; ++i)
+            if (f === "" || ((lib[i].title || "") + " " + (lib[i].subtitle || "") + " " + (lib[i].source || "")).toLowerCase().indexOf(f) >= 0)
+                out.push({ item: lib[i], index: i })
+        return out
+    }
+    onTabChanged: if (local && tab === "library") player.refreshLibrary()
+    Component.onCompleted: if (local) player.refreshLibrary()
 
     radius: 26
     color: Theme.surface
@@ -73,11 +84,12 @@ Rectangle {
             id: search
             Layout.fillWidth: true
             implicitHeight: 36
-            placeholderText: qsTr("What do you want to listen to?")
+            placeholderText: panel.local ? qsTr("Filter your downloads") : qsTr("What do you want to listen to?")
+            onTextChanged: if (panel.local) panel.filter = text
             background: Rectangle { radius: height / 2; color: Qt.alpha(Theme.text, 0.07) }
             leftPadding: 38
             onAccepted: {
-                if (text.trim() === "") return
+                if (panel.local || text.trim() === "") return
                 panel.query = text.trim()
                 panel.tab = "results"
             }
@@ -88,8 +100,9 @@ Rectangle {
             spacing: Theme.s4
             Layout.leftMargin: Theme.s2
             Repeater {
-                model: [{ t: qsTr("Queue"), v: "queue" }, { t: qsTr("Playlists"), v: "playlists" },
-                        { t: qsTr("Search results"), v: "results" }, { t: qsTr("Lyrics"), v: "lyrics" }]
+                model: panel.local ? [{ t: qsTr("Library"), v: "library" }, { t: qsTr("Queue"), v: "queue" }]
+                                   : [{ t: qsTr("Queue"), v: "queue" }, { t: qsTr("Playlists"), v: "playlists" },
+                                      { t: qsTr("Search results"), v: "results" }, { t: qsTr("Lyrics"), v: "lyrics" }]
                 delegate: Text {
                     required property var modelData
                     text: modelData.t
@@ -105,7 +118,7 @@ Rectangle {
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: ["queue", "playlists", "results", "lyrics"].indexOf(panel.tab)
+            currentIndex: ["queue", "playlists", "results", "library", "lyrics"].indexOf(panel.tab)
 
             // ---- queue
             ListView {
@@ -179,6 +192,32 @@ Rectangle {
                     anchors.centerIn: parent
                     visible: panel.query === ""
                     text: qsTr("Type in the search field above and press Enter.")
+                    color: Theme.textTertiary; font.pixelSize: Theme.caption
+                }
+            }
+
+            // ---- library of finished downloads (player for downloaded files)
+            ListView {
+                id: libList
+                clip: true
+                spacing: 2
+                model: panel.libraryShown
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                delegate: Row_ {
+                    required property var modelData
+                    cover: modelData.item.cover || ""
+                    title: modelData.item.title || ""
+                    sub: (modelData.item.subtitle || "") + (modelData.item.source && modelData.item.source !== modelData.item.title ? "  ·  " + modelData.item.source : "")
+                    current: !!panel.player.current && panel.player.current.id === modelData.item.id
+                    onActivated: panel.player.playLibrary(modelData.index)
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: libList.count === 0
+                    width: parent.width - 2 * Theme.s4
+                    horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
+                    text: panel.filter !== "" ? qsTr("Nothing found.") : qsTr("Finished audio downloads appear here.")
                     color: Theme.textTertiary; font.pixelSize: Theme.caption
                 }
             }

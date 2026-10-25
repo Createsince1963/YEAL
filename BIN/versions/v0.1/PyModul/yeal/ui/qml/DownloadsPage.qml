@@ -11,6 +11,7 @@ Item {
     property string player: "youtube"    // "youtube" | "tidal" (TIDAL Web) | "tidaldiy" (own view); set by Main.qml
     property bool tidalWanted: false     // TIDAL Web view is created on first use, then kept alive
     property bool tidalDiyWanted: false  // same for the own TIDAL view
+    property bool localWanted: false     // and for the player of downloaded files
     property string leftPlayer: "youtube"
     // Switching players: the one that is left is paused (not reloaded), so two never play together.
     function pausePlayer(which) {
@@ -19,12 +20,17 @@ Item {
             if (tidalDiyLoader.item) tidalDiyLoader.item.pausePlayback()
             return
         }
+        if (which === "local") {
+            backend.localPlayerObject.pause()
+            return
+        }
         var l = which === "tidal" ? tidalLoader : webLoader
         if (l.item) l.item.run("document.querySelectorAll('audio,video').forEach(function(m){m.pause()})")
     }
     onPlayerChanged: {
         if (player === "tidal") tidalWanted = true
         if (player === "tidaldiy") tidalDiyWanted = true
+        if (player === "local") localWanted = true
         pausePlayer(leftPlayer)
         leftPlayer = player
     }
@@ -103,6 +109,14 @@ Item {
                     item.videoLink.connect(function (url) { page.videoLink(url) })
                     item.webRequested.connect(function (url) { page.openTidalWeb(url) })
                 }
+            }
+            Loader {
+                id: localLoader
+                anchors.fill: parent
+                anchors.margins: Theme.s3
+                visible: page.player === "local"
+                active: page.browserMode && page.browserReady && page.localWanted
+                source: "LocalPlayerView.qml"
             }
             Text {
                 visible: page.browserMode && webLoader.status === Loader.Error

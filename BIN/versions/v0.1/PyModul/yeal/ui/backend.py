@@ -235,6 +235,7 @@ class Backend(QObject):
     _streamScanned = Signal(list, str)        # (renderer dicts, error) from the scan thread
     _streamResult = Signal(str, str, str)     # (status text, toast text, kind 'ok' | 'warn' | 'error' | 'idle')
     toast = Signal(str)
+    localPlayerRequested = Signal()          # a download should play in Yeal's own player -> QML shows that view
     tidalDiyPlaying = Signal()                # TIDAL DIY player starts -> QML pauses the web players (single playback)
 
     def __init__(self, ctx: platforms.PlatformInfo, engine: Engine | None = None,
@@ -284,6 +285,8 @@ class Backend(QObject):
         self._tidalLinkFound.connect(self._open_tidal_link)
         from .tidal_backend import TidalBackend      # TIDAL DIY (0.9.1): pages, library, player
         self.tidal = TidalBackend(self)
+        from .local_player import LocalPlayer        # player for downloaded files (oval design)
+        self.localPlayer = LocalPlayer(self)
         self._queue = DownloadQueue(
             self._engine.run, self._settings.max_parallel,
             on_change=self._jobChanged.emit, on_remove=self._jobRemoved.emit)
@@ -1354,7 +1357,7 @@ class Backend(QObject):
     def setSetting(self, key: str, value: Any) -> None:
         if isinstance(value, QJSValue):      # a JS object from QML (e.g. the TIDAL DIY layout)
             value = value.toVariant()
-        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout", "tidal_opts_collapsed", "tidal_player_style", "tidal_player_vis_mode"):
+        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout", "tidal_opts_collapsed", "tidal_player_style", "tidal_player_vis_mode", "local_volume"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1525,7 +1528,18 @@ class Backend(QObject):
         if message:
             self.toast.emit(message)
 
+    @Property(QObject, constant=True)
+    def localPlayerObject(self):  # type: ignore[override]
+        return self.localPlayer
+
+    @Slot(int)
+    def playInYeal(self, job_id: int) -> None:
+        """Play a finished download in Yeal's own player (shows that view)."""
+        self.localPlayer.playJob(job_id)
+        self.localPlayerRequested.emit()
+
     def shutdown(self) -> None:
+        self.localPlayer.stop()
         self.tidal.shutdown()
         self._save_history()
         self._queue.shutdown()
@@ -1662,7 +1676,26 @@ class Backend(QObject):
         if renderer is None:
             self.streamChoice.emit(job_id)
             return
-        title = job.title or target.stem
+        self._stream_run(renderer, target, job.title or target.stem)
+
+    @Slot(str, str)
+    def streamFile(self, path: str, title: str = "") -> None:
+        """Play one audio file (e.g. a song of the player for downloads) on the saved speaker / TV."""
+        target = Path(path)
+        if self._ctx.is_mobile or self._stream_busy:
+            return
+        if not target.is_file():
+            self.toast.emit("The file is not there any more.")
+            return
+        saved = self._settings.stream_device or {}
+        renderer = streaming.Renderer.from_dict(saved) if saved else None
+        if renderer is None:
+            self.toast.emit("Choose a speaker first: right-click a download > Stream to another device…")
+            return
+        self.localPlayer.pause()                      # the song plays on the speaker now, not here
+        self._stream_run(renderer, target, title or target.stem)
+
+    def _stream_run(self, renderer, target: Path, title: str) -> None:
         volume, port = int(self._settings.stream_volume), int(self._settings.stream_port)
         self._stream_busy = True
         self._stream_status = "Connecting to %s…" % renderer.name

@@ -248,6 +248,29 @@ class TidalPlayerLogicTests(unittest.TestCase):
         p.enqueue([{"kind": "album", "id": "7"}, track(5), {"kind": "playlist", "id": "p"}], -1)
         self.assertEqual(ids(p.queue), ["0", "100", "101", "5", "200"])      # videos are left out
 
+    def test_play_now_replaces_the_queue_and_starts_the_first_title(self):
+        p = self.make()
+        p.playItems([track(i) for i in range(3)], 0)
+        p.playNow([track(10), track(11)])
+        self.assertEqual(ids(p.queue), ["10", "11"])
+        self.assertEqual(p.played[-1], "10")
+        p.playNow([{"kind": "artist", "id": "1"}])                  # nothing to play: the queue stays
+        self.assertEqual(ids(p.queue), ["10", "11"])
+
+    def test_play_now_with_an_album_plays_its_titles_from_the_start(self):
+        p = self.make()
+
+        class Api:
+            def album(self, item_id):
+                return {"items": [track(100), track(101)]}
+        p._owner.api = Api()
+        p._owner.submit = lambda fn: fn()
+        p.playItems([track(0)], 0)
+        p.playNow([{"kind": "album", "id": "7", "title": "Machine Head"}])
+        self.assertEqual(ids(p.queue), ["100", "101"])
+        self.assertEqual(p.source, "Machine Head")
+        self.assertEqual(p.played[-1], "100")
+
     def test_drag_payload_keeps_only_real_items(self):
         from types import SimpleNamespace
         from yeal.ui.tidal_backend import TidalBackend

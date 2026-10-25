@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1.11
+- **Player for your downloads** (concept: the oval design as an own player for the downloaded songs; chosen with the user). New fourth button **Player** next to YouTube / TIDAL Web / TIDAL DIY, and **Play in Yeal player** in the menu of a download. It shows the oval track player with a library of all finished audio downloads (single files and the songs inside downloaded albums / playlists / folders, newest first; names like "NN - Artist - Title" become title and artist) and a filter field. Own volume (`local_volume`); starting it pauses the web players and the TIDAL DIY player and the other way round (Settings: single playback).
+- The loudness profile around the oval is there from the first second: the whole file is scanned in the background (`QAudioDecoder`), the played part glows. **STREAM** plays the current song on the speaker / TV chosen under "Stream to box" (`Backend.streamFile`, the song then pauses here).
+- **Drop to play:** titles, albums and playlists dragged onto the TIDAL DIY player (bar or oval) replace the queue and play at once; dragging into the queue keeps adding them.
+- Fixed: the playlist panel of the track player showed the wrong tab content once the library tab was added (tab order).
+- Tests: `tests/test_local_player.py` (file names, library, playing a generated sine file, loudness profile of the whole file, "Play in Yeal player", single playback between the three players), play-now tests.
+- No EXE built.
+
 ## 0.9.1.10
 - **Track player, band around the oval: the song itself.** After the first test the band was only a running level. New default **VIS SONG**: the loudness of the whole song is laid around the oval (start at the bottom centre, the dot is the playhead); the part already played glows, the part to come is quieter, and a loud passage of the song is a thick place in the band. For a song that plays from the start the profile grows while it plays (a jump ahead leaves a gap until that part was heard). **VIS FLOW** is the running level of 0.9.1.09, **VIS OFF** hides the band; the VIS text button cycles the three, and Settings > Tidal > TIDAL DIY layout has chips for them (`tidal_player_vis_mode`, replaces `tidal_player_vis`).
 - Tests: loudness profile (position in the song, gaps, reset per song), mode setting.

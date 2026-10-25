@@ -54,7 +54,7 @@ Rectangle {
                 spacing: Theme.s2
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.s2
-                readonly property bool narrow: width < 330     // short labels "Web" / "DIY" in a narrow bar
+                readonly property bool narrow: width < 430     // short labels "Web" / "DIY" in a narrow bar
                 PlayerButton {
                     iconName: "play"; text: "YouTube"
                     selected: root.player === "youtube"
@@ -74,6 +74,13 @@ Rectangle {
                     selected: root.player === "tidaldiy"
                     Layout.fillWidth: true; Layout.preferredWidth: 1
                     onClicked: root.playerSelected("tidaldiy")
+                }
+                PlayerButton {
+                    iconName: "volume"; text: qsTr("Player")
+                    tip: qsTr("Player - Yeal's own player for your downloaded songs (also plays on a speaker)")
+                    selected: root.player === "local"
+                    Layout.fillWidth: true; Layout.preferredWidth: 1
+                    onClicked: root.playerSelected("local")
                 }
             }
         }

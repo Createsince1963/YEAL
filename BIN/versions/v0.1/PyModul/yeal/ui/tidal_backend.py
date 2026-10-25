@@ -44,8 +44,9 @@ def buffer_levels(samples, channels: int, rate: int, start_us: int, scale: float
 PROFILE_BINS = 240            # the loudness of a whole song in 240 steps (the band around the oval of the track player)
 
 
-def pairs_of(buf) -> list:
-    """[(bucket, level)] of a QAudioBuffer (see buffer_levels); [] for formats or buffers that cannot be read."""
+def pairs_of(buf, start_us=None) -> list:
+    """[(bucket, level)] of a QAudioBuffer (see buffer_levels); [] for formats or buffers that cannot be read.
+    start_us: where the buffer starts in the song when the buffer does not know it itself (a decoder)."""
     try:
         raw = buf.data()
         fmt = buf.format()
@@ -54,7 +55,7 @@ def pairs_of(buf) -> list:
         if raw is None or code is None:
             return []
         return buffer_levels(memoryview(raw).cast("B").cast(code), fmt.channelCount(), fmt.sampleRate(),
-                             int(buf.startTime()), scale)
+                             int(buf.startTime()) if start_us is None else int(start_us), scale)
     except (TypeError, ValueError, AttributeError):
         return []
 
@@ -234,6 +235,7 @@ class TidalPlayer(QObject):
         self._lyrics: dict = {"text": "", "synced": []}
         self._volume = int(owner.settings_value("tidal_volume", 80))
         self._want = ""              # track id whose stream is being fetched (late answers are ignored)
+        self._now_source = ""        # "Played from" of titles dropped on the player
         self._abuf = None            # QAudioBufferOutput: decoded audio for the level
         self._levels: dict = {}      # 20 ms bucket -> level 0..1
         self._level = 0.0
@@ -244,7 +246,7 @@ class TidalPlayer(QObject):
         self._tick_timer.timeout.connect(self._tick)
         self._streamReady.connect(self._on_stream)
         self._lyricsReady.connect(self._on_lyrics)
-        self._groupReady.connect(lambda tracks, row: self._insert_tracks(tracks, row))
+        self._groupReady.connect(self._on_group_ready)
         self.queue.currentChanged.connect(self.changed)
 
     # -- media objects
@@ -393,14 +395,17 @@ class TidalPlayer(QObject):
         if empty:
             self.playIndex(0)
 
-    @Slot("QVariantList", int)
-    def enqueue(self, items, row: int = -1) -> None:
-        """Put titles into the queue at `row` (-1 = at the end), e.g. dragged there. Albums, playlists and mixes bring
-        their titles (fetched in the background); on an empty queue the first title starts."""
-        items = [i for i in (items or []) if isinstance(i, dict)]
-        if not any(i.get("kind") in ("album", "playlist", "mix") for i in items):
-            self._insert_tracks(items, row)
-            return
+    PLAY_NOW = -2                    # "row" of _groupReady: play the titles at once instead of queueing them
+
+    def _on_group_ready(self, tracks, row: int) -> None:
+        if row == self.PLAY_NOW:
+            if tracks:
+                self.playItems(tracks, 0, self._now_source)
+        else:
+            self._insert_tracks(tracks, row)
+
+    def _titles_of(self, items, row: int) -> None:
+        """Albums, playlists and mixes bring their titles (fetched in the background); `row` is handed on."""
         api = self._owner.api
 
         def work():
@@ -416,6 +421,29 @@ class TidalPlayer(QObject):
                     continue
             self._groupReady.emit(tracks, row)
         self._owner.submit(work)
+
+    @Slot("QVariantList", int)
+    def enqueue(self, items, row: int = -1) -> None:
+        """Put titles into the queue at `row` (-1 = at the end), e.g. dragged there. Albums, playlists and mixes bring
+        their titles (fetched in the background); on an empty queue the first title starts."""
+        items = [i for i in (items or []) if isinstance(i, dict)]
+        if not any(i.get("kind") in ("album", "playlist", "mix") for i in items):
+            self._insert_tracks(items, row)
+            return
+        self._titles_of(items, row)
+
+    @Slot("QVariantList")
+    def playNow(self, items) -> None:
+        """Play dragged titles at once (dropped on the player): they replace the queue, the first one starts."""
+        items = [i for i in (items or []) if isinstance(i, dict)]
+        group = next((i for i in items if i.get("kind") in ("album", "playlist", "mix")), None)
+        self._now_source = str((group or {}).get("title") or "")
+        if group is None:
+            tracks = [i for i in items if i.get("kind") == "track"]
+            if tracks:
+                self.playItems(tracks, 0, "")
+            return
+        self._titles_of(items, self.PLAY_NOW)
 
     @Slot("QVariantList")
     def queueNext(self, items) -> None:
@@ -682,6 +710,9 @@ class TidalBackend(QObject):
     def request_single_playback(self) -> None:
         """The own player starts: the embedded web players are paused (Settings: single playback)."""
         self._backend.tidalDiyPlaying.emit()
+        local = getattr(self._backend, "localPlayer", None)      # ... and the player for downloaded files
+        if local is not None:
+            local.pause()
 
     def toast(self, message: str) -> None:
         if message:

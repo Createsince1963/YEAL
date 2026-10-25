@@ -79,3 +79,8 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 ## Update 0.9.1.10 (2026-10-25, local commit + tag v0.9.1.10, not pushed, no EXE)
 - Test feedback 0.9.1.09: the band was only a running level, not the song. Now `SongProfile` (240 bins) in `tidal_backend.py` + band modes song / flow / off (`tidal_player_vis_mode`). Local files (next step) can be scanned completely with `QAudioDecoder` so their profile is there from the start.
 - Next (decided with the user): an own player for DOWNLOADED files in the oval design (also for streaming to the box over WLAN): `LocalPlayer(TidalPlayer)`, library of finished audio downloads, fourth player button, "Play in Yeal player" in the row menu.
+
+## Update 0.9.1.11 (2026-10-25, local commit + tag v0.9.1.11, not pushed, NO EXE - the user reviews first)
+- Done: player for downloaded files (`ui/local_player.py`: `LocalPlayer(TidalPlayer)`, `LocalOwner`, `library_items`; `LocalPlayerView.qml`, panel library tab, Sidebar button "Player", row menu "Play in Yeal player", `Backend.playInYeal / streamFile`), drop on the TIDAL DIY player = play now (`TidalPlayer.playNow`).
+- Hand test: sound from a downloaded file, the loudness band appearing at once, STREAM to the KEF, library after new downloads (the list refreshes when the library tab / view opens).
+- Open: equalizer (own audio engine), lyrics for local files, a "refresh" when a download finishes while the view is open.

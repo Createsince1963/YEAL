@@ -10,7 +10,9 @@ import QtQuick.Layouts
 Item {
     id: root
     property var ctl                                  // TidalHome
-    readonly property var player: tidal.playerObject
+    property var player: tidal.playerObject          // the TIDAL DIY player, or the player for downloaded files
+    property bool local: false                        // downloaded files: no like, lyrics or TIDAL pages; STREAM plays on a speaker
+    property int panelHeight: 300
     readonly property var cur: player.current || ({})
     readonly property bool playerTop: ctl ? ctl.playerTop : false
     property bool panelOpen: false
@@ -106,9 +108,10 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: root.ovalW
             Layout.maximumWidth: root.ovalW
+            Layout.preferredHeight: root.panelHeight
             active: root.panelOpen
             visible: active
-            sourceComponent: TidalTrackPanel { ctl: root.ctl; tab: root.panelTab; onTabChanged: root.panelTab = tab; height: 300 }
+            sourceComponent: TidalTrackPanel { ctl: root.ctl; player: root.player; local: root.local; tab: root.panelTab; onTabChanged: root.panelTab = tab; height: root.panelHeight }
         }
 
         // ---- the oval
@@ -346,7 +349,7 @@ Item {
                 Connections { target: tidal; function onFavoritesChanged() { likeBtn.favTick++ } }
                 text: fav ? qsTr("♥ LIKED") : qsTr("♡ LIKE")
                 active: fav
-                visible: !!root.cur.id
+                visible: !!root.cur.id && !root.local
                 onClicked: tidal.toggleFavorite("track", root.cur.id)
             }
             Item { Layout.fillWidth: true }
@@ -361,8 +364,11 @@ Item {
                 HoverHandler { id: badgeHover }
             }
             Item { Layout.fillWidth: true }
-            TextBtn { text: qsTr("PLAYLIST"); active: root.panelOpen; onClicked: root.panelOpen = !root.panelOpen }
-            TextBtn { text: qsTr("LYRICS"); active: root.panelOpen && root.panelTab === "lyrics"
+            TextBtn { text: root.local ? qsTr("LIBRARY") : qsTr("PLAYLIST"); active: root.panelOpen; onClicked: root.panelOpen = !root.panelOpen }
+            TextBtn { text: qsTr("STREAM"); visible: root.local && backend.streamAvailable && !!root.cur.file; active: backend.streamPlaying
+                      onClicked: backend.streamFile(root.cur.file, root.cur.title)
+                      ToolTip.visible: hovered; ToolTip.text: qsTr("Play this song on the speaker / TV (Stream to box)") }
+            TextBtn { visible: !root.local; text: qsTr("LYRICS"); active: root.panelOpen && root.panelTab === "lyrics"
                       onClicked: { if (root.panelOpen && root.panelTab === "lyrics") root.panelOpen = false
                                    else { root.panelTab = "lyrics"; root.panelOpen = true } } }
             TextBtn {

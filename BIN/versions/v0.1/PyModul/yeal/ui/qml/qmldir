@@ -65,3 +65,4 @@ TidalDock 1.0 TidalDock.qml
 TidalQueueDrop 1.0 TidalQueueDrop.qml
 TidalTrackPlayer 1.0 TidalTrackPlayer.qml
 TidalTrackPanel 1.0 TidalTrackPanel.qml
+LocalPlayerView 1.0 LocalPlayerView.qml
