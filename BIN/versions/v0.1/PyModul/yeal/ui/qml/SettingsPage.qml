@@ -511,8 +511,12 @@ Flickable {
                            onToggled: backend.setSetting("tidal_player_style", "bar") }
                     Chip { text: qsTr("Track player (oval)"); checked: page.s.tidal_player_style === "track"
                            onToggled: backend.setSetting("tidal_player_style", "track") }
-                    Chip { text: qsTr("Level band (VIS)"); checked: !!page.s.tidal_player_vis
-                           onToggled: (c) => backend.setSetting("tidal_player_vis", c) }
+                    Chip { text: qsTr("Band: song"); checked: page.s.tidal_player_vis_mode === "song"
+                           onToggled: backend.setSetting("tidal_player_vis_mode", "song") }
+                    Chip { text: qsTr("Band: running level"); checked: page.s.tidal_player_vis_mode === "flow"
+                           onToggled: backend.setSetting("tidal_player_vis_mode", "flow") }
+                    Chip { text: qsTr("Band: off"); checked: page.s.tidal_player_vis_mode === "off"
+                           onToggled: backend.setSetting("tidal_player_vis_mode", "off") }
                 }
                 AppButton {
                     text: qsTr("Reset the layout of the TIDAL DIY view")

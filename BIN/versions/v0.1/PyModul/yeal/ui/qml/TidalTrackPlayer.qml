@@ -25,7 +25,7 @@ Item {
     readonly property color yellow: "#d9c61f"
 
     // ---- state
-    readonly property bool visOn: !!backend.settings.tidal_player_vis
+    readonly property string visMode: backend.settings.tidal_player_vis_mode || "song"     // song | flow | off
     property bool volShown: false                      // the small slider next to VOL
     property bool wheelOn: false                       // the wheel was used a moment ago
     readonly property bool volActive: volBtn.hovered || volSlider.hovered || volSlider.pressed || wheelOn
@@ -83,9 +83,10 @@ Item {
             art.requestPaint()
         }
         function onPositionChanged() { art.requestPaint() }
+        function onProfileChanged() { art.requestPaint() }
         function onChanged() { art.requestPaint() }
     }
-    onVisOnChanged: art.requestPaint()
+    onVisModeChanged: art.requestPaint()
     onVolActiveChanged: art.requestPaint()
     onWidthChanged: art.requestPaint()
     Connections { target: Theme; function onDarkChanged() { art.requestPaint() } }
@@ -140,34 +141,47 @@ Item {
                     var accent = root.volActive ? root.yellow : root.green
                     // level band around the inner oval; it lies under the oval, so only the outside is seen
                     var px = 34 * u, py = 34 * u, pw = W - 68 * u, ph = H - 68 * u
-                    var bandOn = root.volActive || root.visOn
-                    if (bandOn) {
-                        var n = 160, outer = [], inner = []
-                        var hist = root.hist, hn = hist.length
+                    var mode = root.visMode
+                    if (root.volActive || mode !== "off") {
+                        var n = 160, base = [], norm = [], th = []
                         var vol = player.volume / 100
+                        var prof = player.profile, pn = prof ? prof.length : 0
+                        var hist = root.hist, hn = hist.length
                         for (var i = 0; i <= n; ++i) {
                             var s = i / n
-                            var t
-                            if (root.volActive) t = (1.5 + 8 * vol) * u
-                            else {
-                                // mirrored left / right, so the band is continuous where the loop closes at the bottom
+                            var t = 1.5
+                            if (root.volActive) t = 1.5 + 8 * vol
+                            else if (mode === "song") {
+                                // the loudness of the whole song, laid around the oval from the start (bottom centre) on
+                                var pv = pn ? prof[Math.min(pn - 1, Math.floor(s * pn))] : -1
+                                t = 1.5 + (pv > 0 ? 9 * Math.pow(pv, 1.5) : 0)
+                            } else {
+                                // the running level: mirrored left / right, so the band is continuous where the loop closes
                                 var lv = hn ? hist[Math.min(hn - 1, Math.floor(Math.abs(2 * s - 1) * hn))] : 0
-                                t = (1.5 + 8 * lv) * u
+                                t = 1.5 + 8 * lv
                             }
                             var b = root.pt(s, px, py, pw, ph)
-                            inner.push([b[0], b[1]])
-                            outer.push([b[0] + b[2] * t, b[1] + b[3] * t])
+                            base.push([b[0], b[1]])
+                            norm.push([b[2], b[3]])
+                            th.push(t * u)
                         }
-                        ctx.beginPath()
-                        ctx.moveTo(outer[0][0], outer[0][1])
-                        for (var a = 1; a < outer.length; ++a) ctx.lineTo(outer[a][0], outer[a][1])
-                        for (var c = inner.length - 1; c >= 0; --c) ctx.lineTo(inner[c][0], inner[c][1])
-                        ctx.closePath()
+                        var bandSong = !root.volActive && mode === "song"
+                        var cut = bandSong ? Math.max(0, Math.min(n, Math.round(root.progress * n))) : n
+                        var drawBand = function (from, to, alpha) {
+                            if (to <= from) return
+                            ctx.beginPath()
+                            ctx.moveTo(base[from][0] + norm[from][0] * th[from], base[from][1] + norm[from][1] * th[from])
+                            for (var a = from + 1; a <= to; ++a) ctx.lineTo(base[a][0] + norm[a][0] * th[a], base[a][1] + norm[a][1] * th[a])
+                            for (var c = to; c >= from; --c) ctx.lineTo(base[c][0], base[c][1])
+                            ctx.closePath()
+                            ctx.fillStyle = Qt.alpha(accent, alpha)
+                            ctx.fill()
+                        }
                         ctx.shadowColor = accent
                         ctx.shadowBlur = 12 * u
-                        ctx.fillStyle = Qt.alpha(accent, root.volActive ? 0.55 : 0.85)
-                        ctx.fill()
+                        drawBand(0, cut, root.volActive ? 0.55 : 0.85)        // song: the part that was played
                         ctx.shadowBlur = 0
+                        if (bandSong) drawBand(cut, n, 0.30)                  // song: what is still to come, quieter
                     }
                     // progress loop: the played part and the dot
                     var lx = 20 * u, ly = 20 * u, lw = W - 40 * u, lh = H - 40 * u
@@ -351,7 +365,13 @@ Item {
             TextBtn { text: qsTr("LYRICS"); active: root.panelOpen && root.panelTab === "lyrics"
                       onClicked: { if (root.panelOpen && root.panelTab === "lyrics") root.panelOpen = false
                                    else { root.panelTab = "lyrics"; root.panelOpen = true } } }
-            TextBtn { text: qsTr("VIS"); active: root.visOn; onClicked: backend.setSetting("tidal_player_vis", !root.visOn) }
+            TextBtn {
+                text: root.visMode === "song" ? qsTr("VIS SONG") : root.visMode === "flow" ? qsTr("VIS FLOW") : qsTr("VIS OFF")
+                active: root.visMode !== "off"
+                onClicked: backend.setSetting("tidal_player_vis_mode", root.visMode === "song" ? "flow" : root.visMode === "flow" ? "off" : "song")
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Band around the oval: the loudness of the song / the running level / off")
+            }
             RowLayout {
                 spacing: Theme.s1
                 Slider {

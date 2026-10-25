@@ -41,6 +41,54 @@ def buffer_levels(samples, channels: int, rate: int, start_us: int, scale: float
     return out
 
 
+PROFILE_BINS = 240            # the loudness of a whole song in 240 steps (the band around the oval of the track player)
+
+
+def pairs_of(buf) -> list:
+    """[(bucket, level)] of a QAudioBuffer (see buffer_levels); [] for formats or buffers that cannot be read."""
+    try:
+        raw = buf.data()
+        fmt = buf.format()
+        code, scale = {"Int16": ("h", 32768.0), "Int32": ("i", 2147483648.0), "Float": ("f", 1.0)}.get(
+            fmt.sampleFormat().name, (None, 1.0))
+        if raw is None or code is None:
+            return []
+        return buffer_levels(memoryview(raw).cast("B").cast(code), fmt.channelCount(), fmt.sampleRate(),
+                             int(buf.startTime()), scale)
+    except (TypeError, ValueError, AttributeError):
+        return []
+
+
+class SongProfile:
+    """Loudness over the length of one song: PROFILE_BINS values 0..1, -1 where nothing was heard yet. It is filled
+    while the song plays (or at once for a local file that is scanned) and drawn around the oval of the track player."""
+    def __init__(self, bins: int = PROFILE_BINS):
+        self.bins = bins
+        self.reset()
+
+    def reset(self) -> None:
+        self._sum = [0.0] * self.bins
+        self._count = [0] * self.bins
+        self.dirty = False
+
+    def add(self, pairs, duration_ms: float) -> bool:
+        """Add (bucket, level) pairs of the 20 ms steps; duration_ms is the length of the song. True if something changed."""
+        if not duration_ms or duration_ms <= 0:
+            return False
+        changed = False
+        for bucket, level in pairs:
+            i = int(bucket * LEVEL_BUCKET_US / 1000.0 / duration_ms * self.bins)
+            if 0 <= i < self.bins:
+                self._sum[i] += level
+                self._count[i] += 1
+                changed = True
+        self.dirty = self.dirty or changed
+        return changed
+
+    def values(self) -> list:
+        return [(s / c) if c else -1.0 for s, c in zip(self._sum, self._count)]
+
+
 ROUTES = ("home", "explore", "feed", "mixes", "page", "more", "search", "album", "artist", "playlist", "mix",
           "favorites", "lyrics", "credits")
 
@@ -163,6 +211,7 @@ class TidalPlayer(QObject):
     positionChanged = Signal()
     lyricsChanged = Signal()
     levelChanged = Signal()       # level of the music (about 30 times a second while playing)
+    profileChanged = Signal()     # the loudness profile of the song grew
     error = Signal(str)
     _streamReady = Signal(str, object, str)     # (track id, stream info or None, error)
     _lyricsReady = Signal(str, object)
@@ -189,6 +238,7 @@ class TidalPlayer(QObject):
         self._levels: dict = {}      # 20 ms bucket -> level 0..1
         self._level = 0.0
         self._last_buf = 0.0         # time of the last audio buffer (is the level real?)
+        self._profile = SongProfile()
         self._tick_timer = QTimer(self)
         self._tick_timer.setInterval(33)
         self._tick_timer.timeout.connect(self._tick)
@@ -280,6 +330,10 @@ class TidalPlayer(QObject):
     @Property(int, notify=changed)
     def volume(self) -> int:  # type: ignore[override]
         return self._volume
+
+    @Property("QVariantList", notify=profileChanged)
+    def profile(self):  # type: ignore[override]
+        return self._profile.values()
 
     @Property(float, notify=levelChanged)
     def level(self) -> float:  # type: ignore[override]
@@ -507,6 +561,8 @@ class TidalPlayer(QObject):
         self._owner.request_single_playback()
         self._want = str(track.get("id", ""))
         self._levels.clear()
+        self._profile.reset()
+        self.profileChanged.emit()
         self._loading = True
         self._badge, self._badge_tip = "", ""
         self._lyrics = {"text": "", "synced": []}
@@ -528,19 +584,12 @@ class TidalPlayer(QObject):
         self._owner.submit(work)
 
     def _on_audio_buffer(self, buf) -> None:
-        try:
-            raw = buf.data()
-            fmt = buf.format()
-            code, scale = {"Int16": ("h", 32768.0), "Int32": ("i", 2147483648.0), "Float": ("f", 1.0)}.get(
-                fmt.sampleFormat().name, (None, 1.0))
-            if raw is None or code is None:
-                return
-            pairs = buffer_levels(memoryview(raw).cast("B").cast(code), fmt.channelCount(), fmt.sampleRate(),
-                                  int(buf.startTime()), scale)
-        except (TypeError, ValueError, AttributeError):
+        pairs = pairs_of(buf)
+        if not pairs:
             return
         for bucket, level in pairs:
             self._levels[bucket] = level
+        self._profile.add(pairs, self.duration)
         if len(self._levels) > 240:
             for key in sorted(self._levels)[:-150]:
                 del self._levels[key]
@@ -553,6 +602,9 @@ class TidalPlayer(QObject):
             bucket = int(self._player.position()) * 1000 // LEVEL_BUCKET_US
             known = [self._levels[k] for k in (bucket - 1, bucket, bucket + 1) if k in self._levels]
             target = max(known) if known else 0.0
+        if self._profile.dirty:
+            self._profile.dirty = False
+            self.profileChanged.emit()
         new = max(target, self._level * 0.85)
         if new < 0.01:
             new = 0.0

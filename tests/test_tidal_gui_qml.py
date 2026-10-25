@@ -91,10 +91,12 @@ class TidalGuiQmlTest(unittest.TestCase):
         self.assertEqual(b.settings["tidal_player_style"], "track")
         b.setSetting("tidal_player_style", "wide")                      # not a style: falls back to the classic bar
         self.assertEqual(b.settings["tidal_player_style"], "bar")
-        b.setSetting("tidal_player_vis", False)
-        self.assertIs(b.settings["tidal_player_vis"], False)
-        b.setSetting("tidal_player_vis", True)
-        self.assertIs(b.settings["tidal_player_vis"], True)
+        self.assertEqual(b.settings["tidal_player_vis_mode"], "song")           # the default: loudness of the whole song
+        for mode in ("flow", "off", "song"):
+            b.setSetting("tidal_player_vis_mode", mode)
+            self.assertEqual(b.settings["tidal_player_vis_mode"], mode)
+        b.setSetting("tidal_player_vis_mode", "spectrum")                        # not a mode: back to the default
+        self.assertEqual(b.settings["tidal_player_vis_mode"], "song")
 
     def test_layout_changes_are_saved_and_reset(self):
         """Docking, detaching, hiding and the player position end up validated in the tidal_layout setting."""

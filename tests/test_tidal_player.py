@@ -381,6 +381,39 @@ class LevelTests(unittest.TestCase):
         pairs = buffer_levels(self.samples(0.5, code="f"), 2, 44100, 0, 1.0)
         self.assertTrue(all(0.0 < lv < 1.0 for _, lv in pairs))
 
+    def test_song_profile_follows_the_position_in_the_song(self):
+        from yeal.ui.tidal_backend import LEVEL_BUCKET_US, SongProfile
+        prof = SongProfile(bins=10)
+        step = 1_000_000 // LEVEL_BUCKET_US                    # buckets per second
+        # a 10 s song: quiet in the first half, loud in the second
+        pairs = [(i, 0.2 if i < 5 * step else 0.9) for i in range(10 * step)]
+        self.assertTrue(prof.add(pairs, 10_000))
+        values = prof.values()
+        self.assertEqual(len(values), 10)
+        self.assertTrue(all(abs(v - 0.2) < 1e-9 for v in values[:5]))
+        self.assertTrue(all(abs(v - 0.9) < 1e-9 for v in values[5:]))
+        self.assertTrue(prof.dirty)
+
+    def test_song_profile_has_gaps_until_heard_and_ignores_unknown_length(self):
+        from yeal.ui.tidal_backend import SongProfile
+        prof = SongProfile(bins=4)
+        self.assertEqual(prof.values(), [-1.0] * 4)
+        self.assertFalse(prof.add([(0, 0.5)], 0))              # length unknown: nothing to place it on
+        self.assertFalse(prof.add([(10_000_000, 0.5)], 1000))  # beyond the end
+        prof.add([(0, 0.5)], 4000)
+        self.assertEqual(prof.values(), [0.5, -1.0, -1.0, -1.0])
+        prof.reset()
+        self.assertEqual(prof.values(), [-1.0] * 4)
+
+    def test_player_fills_its_profile_from_buffers_and_resets_per_song(self):
+        p = self.make_player()
+        p._owner.api = None
+        p.queue.reset([dict(track(1), duration=2)], 0)         # a 2 s song
+        p._on_audio_buffer(self.FakeBuffer(self.samples(0.8, frames=44100), 0))
+        values = p.profile
+        self.assertTrue(any(v > 0.5 for v in values))
+        self.assertTrue(any(v < 0 for v in values))            # the second half was not heard yet
+
     def make_player(self):
         from yeal.ui.tidal_backend import TidalPlayer
         p = TidalPlayer(FakeOwner())

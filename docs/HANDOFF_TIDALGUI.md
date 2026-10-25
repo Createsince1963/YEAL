@@ -75,3 +75,7 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 ## Update 0.9.1.09 (2026-10-25, local commit + tag v0.9.1.09, not pushed, NO EXE built - rule: the user reviews first)
 - Done: track player (oval) + panel, real levels, queue drag and drop (`TidalDragSource` / `TidalQueueDrop` / `tidal.dragPayload` / `TidalPlayer.enqueue`), folder button target for Tidal tiles, table column alignment.
 - Hand test needed: sound + level band moving with the music (the level path was only tested with generated buffers and a sine file), drag from the table into the queue dock and into the panel, folder button for song / album / video, resizing table columns.
+
+## Update 0.9.1.10 (2026-10-25, local commit + tag v0.9.1.10, not pushed, no EXE)
+- Test feedback 0.9.1.09: the band was only a running level, not the song. Now `SongProfile` (240 bins) in `tidal_backend.py` + band modes song / flow / off (`tidal_player_vis_mode`). Local files (next step) can be scanned completely with `QAudioDecoder` so their profile is there from the start.
+- Next (decided with the user): an own player for DOWNLOADED files in the oval design (also for streaming to the box over WLAN): `LocalPlayer(TidalPlayer)`, library of finished audio downloads, fourth player button, "Play in Yeal player" in the row menu.

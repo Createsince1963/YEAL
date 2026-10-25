@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1.10
+- **Track player, band around the oval: the song itself.** After the first test the band was only a running level. New default **VIS SONG**: the loudness of the whole song is laid around the oval (start at the bottom centre, the dot is the playhead); the part already played glows, the part to come is quieter, and a loud passage of the song is a thick place in the band. For a song that plays from the start the profile grows while it plays (a jump ahead leaves a gap until that part was heard). **VIS FLOW** is the running level of 0.9.1.09, **VIS OFF** hides the band; the VIS text button cycles the three, and Settings > Tidal > TIDAL DIY layout has chips for them (`tidal_player_vis_mode`, replaces `tidal_player_vis`).
+- Tests: loudness profile (position in the song, gaps, reset per song), mode setting.
+
+
 ## 0.9.1.09
 - **Track player for TIDAL DIY** (design after the concept video): the player as a running track. Switch it by right-click on the player bar or in Settings > Tidal > TIDAL DIY layout (the classic bar stays the default). The dot is the playhead and runs once around the oval while the song plays; click or drag on the loop to jump. The **green band around the inner oval is the real level of the music** (taken from the decoded audio, Qt `QAudioBufferOutput`): the louder, the thicker; VIS switches it off. **VOL** turns the band yellow and shows the volume as a big number, the mouse wheel over the oval changes it too. Text controls under the oval: repeat off / all / single, shuffle, like, time and quality, PLAYLIST (queue with jump and remove, playlists, search results), LYRICS (timed, click a line to jump), VIS, VOL. No equalizer: Qt's player has none, it would need an own audio engine.
 - **Drag titles into the queue:** titles, albums, playlists and mixes dragged from the pages (or a whole selection) land in the queue where the line shows; albums and playlists bring all their titles; an empty queue starts with the first one. The same drag still downloads when dropped on the workflow panel.
