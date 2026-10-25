@@ -229,6 +229,14 @@ class EngineTests(unittest.TestCase):
         page = self.root / "dl" / "Tidal" / "Albums" / "Deep Purple" / "Machine Head" / "Machine Head.html"
         self.assertTrue(page.is_file())
 
+    def test_job_points_at_the_album_folder(self):
+        os.environ["FAKE_WRITE"] = "1"
+        try:
+            job, _ = self.run_job()
+        finally:
+            os.environ.pop("FAKE_WRITE")
+        self.assertTrue(job.filename.replace("\\", "/").endswith("Albums/Deep Purple/Machine Head"), job.filename)
+
     def test_helper_missing(self):
         self.engine.tidal_config = lambda: {"path": str(self.root / "nope"), "quality": "high", "threads": 2}
         old_path = os.environ["PATH"]
@@ -426,3 +434,55 @@ class JobDescriptionTests(unittest.TestCase):
         odd = [Path("01 - Something else.flac"), Path("02 - Another.flac")]
         self.assertEqual([t["id"] for t in tidal.match_tracks(odd, self.TRACKS)], ["111", "222"])   # same count: order
         self.assertEqual(tidal.match_tracks([Path("x.flac")], self.TRACKS), [None])                 # nothing to go by
+
+
+class DownloadTargetTests(unittest.TestCase):
+    """The folder button of a finished Tidal tile opens the song / album / playlist / video, not just the Tidal folder."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name) / "Tidal"
+        self.base.mkdir()
+        self.since = __import__("time").time()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def write(self, *parts):
+        p = self.base.joinpath(*parts)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"x")
+        return p
+
+    def test_one_song_is_the_file_itself(self):
+        song = self.write("Singles", "Deep Purple - Highway Star.flac")
+        self.assertEqual(tidal.downloaded_target(self.base, self.since), song)
+
+    def test_a_video_is_the_file_itself(self):
+        video = self.write("Videos", "Artist - Clip.mp4")
+        self.assertEqual(tidal.downloaded_target(self.base, self.since), video)
+
+    def test_album_and_playlist_open_their_folder(self):
+        self.write("Albums", "Deep Purple", "Machine Head", "01 - A.flac")
+        self.write("Albums", "Deep Purple", "Machine Head", "02 - B.flac")
+        self.assertEqual(tidal.downloaded_target(self.base, self.since), self.base / "Albums" / "Deep Purple" / "Machine Head")
+
+    def test_artist_with_several_albums_opens_the_artist_folder(self):
+        self.write("Albums", "Deep Purple", "A", "01 - x.flac")
+        self.write("Albums", "Deep Purple", "B", "01 - y.flac")
+        self.assertEqual(tidal.downloaded_target(self.base, self.since), self.base / "Albums" / "Deep Purple")
+
+    def test_old_files_do_not_count(self):
+        old = self.write("Singles", "old.flac")
+        os.utime(old, (self.since - 3600, self.since - 3600))
+        self.assertEqual(tidal.downloaded_target(self.base, self.since), self.base)
+
+    def test_nothing_new_guesses_the_folder_from_the_name(self):
+        folder = self.base / "Playlists" / "Cabrio 350SL"
+        folder.mkdir(parents=True)
+        old = folder / "01 - a.flac"
+        old.write_bytes(b"x")
+        os.utime(old, (self.since - 3600, self.since - 3600))
+        meta = {"kind": "playlist", "title": "Cabrio 350SL", "artist": "me"}
+        self.assertEqual(tidal.downloaded_target(self.base, self.since, meta), folder)
+        self.assertEqual(tidal.downloaded_target(self.base, self.since, {"kind": "album", "title": "Nope", "artist": "x"}), self.base)
+

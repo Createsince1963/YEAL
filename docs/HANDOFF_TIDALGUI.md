@@ -71,3 +71,7 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 ## Update 0.9.1.08 (2026-10-25, local commit + tag v0.9.1.08, not pushed)
 - Done: download tile fixes (YouTube cookie hint hidden on success; TIDAL tile with song / artist / cover via `TidalApi.describe` and `Engine.tidal_meta`), HTML page per-title cover + `#id` link + time-synced header cover, cut shift 0.5 s earlier for chapter splitting (`album.shift_cuts`, `album.install_cut_shift`), album page cover. EXE not rebuilt for 0.9.1.07 / 0.9.1.08.
 - Still open: hand test with a signed-in account; real check of the HTML page in a browser; the manuals do not yet mention the 0.5 s cut shift.
+
+## Update 0.9.1.09 (2026-10-25, local commit + tag v0.9.1.09, not pushed, NO EXE built - rule: the user reviews first)
+- Done: track player (oval) + panel, real levels, queue drag and drop (`TidalDragSource` / `TidalQueueDrop` / `tidal.dragPayload` / `TidalPlayer.enqueue`), folder button target for Tidal tiles, table column alignment.
+- Hand test needed: sound + level band moving with the music (the level path was only tested with generated buffers and a sine file), drag from the table into the queue dock and into the panel, folder button for song / album / video, resizing table columns.

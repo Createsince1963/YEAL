@@ -14,6 +14,7 @@ Rectangle {
     property bool showAlbum: true
     property bool showCover: true
     property bool selectable: true
+    property var dragItems: null         // function returning the selected titles; a selected row drags all of them
     property real artistW: 180
     property real albumW: 200
     signal toggleSelect(bool shift)
@@ -25,7 +26,7 @@ Rectangle {
     readonly property bool fav: favTick >= 0 && !!row.ctl && tidal.isFavorite("track", row.item.id || "")
     property int favTick: 0
     Connections { target: tidal; function onFavoritesChanged() { row.favTick++ } }
-    TidalDragSource { item: row.item }
+    TidalDragSource { item: row.item; provider: row.selected && row.dragItems ? row.dragItems : null }
 
     RowLayout {
         anchors.fill: parent
@@ -98,6 +99,7 @@ Rectangle {
             Item { Layout.fillWidth: true }
         }
         Text {          // artist (click opens the artist)
+            objectName: "artistText"
             Layout.preferredWidth: row.artistW
             text: row.item.subtitle || ""
             color: artistHover.hovered ? Theme.accent : Theme.textSecondary
@@ -107,6 +109,7 @@ Rectangle {
             TapHandler { enabled: !!row.item.artistId; onTapped: row.ctl.open({ kind: "artist", id: row.item.artistId, title: row.item.subtitle }) }
         }
         Text {          // album (click opens the album)
+            objectName: "albumText"
             visible: row.showAlbum
             Layout.preferredWidth: row.albumW
             text: row.item.album || ""
@@ -133,7 +136,10 @@ Rectangle {
             font.features: { "tnum": 1 }
             horizontalAlignment: Text.AlignRight
         }
-        Row {           // actions (always room reserved, shown on hover)
+        Item {          // actions: the room is always reserved (5 buttons), so the columns never move; shown on hover
+            implicitWidth: 5 * 28; implicitHeight: 28
+        Row {
+            anchors.right: parent.right
             spacing: 0
             opacity: hover.hovered || row.fav ? 1 : 0
             IconButton { implicitWidth: 28; implicitHeight: 28; iconName: "heart"; tip: row.fav ? qsTr("Remove from collection") : qsTr("Add to collection")
@@ -147,6 +153,7 @@ Rectangle {
                          onClicked: row.ctl.download([row.item]) }
             IconButton { implicitWidth: 28; implicitHeight: 28; iconName: "more"; tip: qsTr("More"); visible: hover.hovered
                          onClicked: row.ctl.itemMenu(row.item, []) }
+        }
         }
     }
     HoverHandler { id: hover }

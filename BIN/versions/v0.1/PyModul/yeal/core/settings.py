@@ -114,6 +114,8 @@ class Settings:
     tidal_volume: int = 80            # TIDAL DIY player volume (0-100)
     tidal_tile_size: int = 140        # TIDAL DIY tile size in grids (px)
     tidal_opts_collapsed: bool = False   # workflow panel: the TIDAL options block is folded to one line
+    tidal_player_style: str = "bar"      # TIDAL DIY player: bar (classic) | track (oval track player)
+    tidal_player_vis: bool = True        # track player: the green level band around the oval
     tidal_layout: dict = field(default_factory=dict)   # TIDAL DIY areas: dock side / own window, sizes (see _validate_tidal_layout)
     panel_width: int = 400            # width of the tools panel next to the YouTube view
     panel_right: bool = False         # tools panel on the right instead of the left
@@ -175,6 +177,9 @@ class Settings:
         self.tidal_volume = _clamp(self.tidal_volume, 0, 100, 80)
         self.tidal_tile_size = _clamp(self.tidal_tile_size, 90, 260, 140)
         self.tidal_layout = _validate_tidal_layout(self.tidal_layout)
+        if self.tidal_player_style not in ("bar", "track"):
+            self.tidal_player_style = "bar"
+        self.tidal_player_vis = bool(self.tidal_player_vis)
         if self.html_open_mode not in HTML_OPEN_MODES:
             self.html_open_mode = "server"
         if self.html_create not in HTML_CREATE_MODES:

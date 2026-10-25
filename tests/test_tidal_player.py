@@ -206,6 +206,57 @@ class TidalPlayerLogicTests(unittest.TestCase):
         self.assertEqual(sorted(ids(p.queue), key=int), [str(i) for i in range(20)])
         self.assertEqual(p.queue.current, 0)
 
+    def test_enqueue_puts_titles_at_the_row_or_the_end(self):
+        p = self.make()
+        p.playItems([track(i) for i in range(3)], 0)
+        p.enqueue([track(10), track(11)], 1)
+        self.assertEqual(ids(p.queue), ["0", "10", "11", "1", "2"])
+        p.enqueue([track(12)], -1)
+        p.enqueue([track(13)], 99)
+        self.assertEqual(ids(p.queue)[-2:], ["12", "13"])
+        self.assertEqual(p.queue.item(p.queue.current)["id"], "0")      # what plays does not change
+
+    def test_enqueue_before_the_playing_title_keeps_following_it(self):
+        p = self.make()
+        p.playItems([track(i) for i in range(3)], 1)
+        p.enqueue([track(10)], 0)
+        self.assertEqual(p.queue.item(p.queue.current)["id"], "1")
+
+    def test_enqueue_on_an_empty_queue_starts_the_first_title(self):
+        p = self.make()
+        p.enqueue([track(7), track(8)], -1)
+        self.assertEqual(p.played, ["7"])
+        self.assertEqual(ids(p.queue), ["7", "8"])
+
+    def test_enqueue_ignores_things_that_are_no_titles(self):
+        p = self.make()
+        p.enqueue([{"kind": "artist", "id": "1"}, "junk", {"kind": "video", "id": "2"}], -1)
+        self.assertEqual(p.queue.rowCount(), 0)
+
+    def test_enqueue_albums_and_playlists_bring_their_titles_in_order(self):
+        p = self.make()
+
+        class Api:
+            def album(self, item_id):
+                return {"items": [track(100), track(101), {"kind": "video", "id": "v"}]}
+
+            def playlist(self, item_id):
+                return {"items": [track(200)]}
+        p._owner.api = Api()
+        p._owner.submit = lambda fn: fn()                  # the background job runs at once
+        p.playItems([track(0)], 0)
+        p.enqueue([{"kind": "album", "id": "7"}, track(5), {"kind": "playlist", "id": "p"}], -1)
+        self.assertEqual(ids(p.queue), ["0", "100", "101", "5", "200"])      # videos are left out
+
+    def test_drag_payload_keeps_only_real_items(self):
+        from types import SimpleNamespace
+        from yeal.ui.tidal_backend import TidalBackend
+        fake = SimpleNamespace(_drag=[], dragPayloadChanged=SimpleNamespace(emit=lambda: None))
+        TidalBackend.setDragPayload(fake, [track(1), "junk", {"id": "x"}, {"kind": "album", "id": "2"}])
+        self.assertEqual([d["id"] for d in fake._drag], ["1", "2"])
+        TidalBackend.setDragPayload(fake, None)
+        self.assertEqual(fake._drag, [])
+
     def test_repeat_cycles_off_all_one(self):
         p = self.make()
         self.assertEqual(p.repeat, "off")
@@ -291,3 +342,102 @@ class LinklistTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
+class LevelTests(unittest.TestCase):
+    """The level of the music (green band of the track player) from decoded audio buffers."""
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QCoreApplication.instance() or QCoreApplication(sys.argv)
+
+    @staticmethod
+    def samples(amplitude, frames=1764, channels=2, code="h"):
+        import array
+        import math
+        scale = 32767 if code == "h" else 1.0
+        data = array.array(code, [int(scale * amplitude * math.sin(i / 7.0)) if code == "h" else amplitude * math.sin(i / 7.0)
+                                  for i in range(frames * channels)])
+        return memoryview(data)
+
+    def test_loud_is_higher_than_quiet_and_silence_is_zero(self):
+        from yeal.ui.tidal_backend import buffer_levels
+        loud = buffer_levels(self.samples(0.8), 2, 44100, 0, 32768.0)[0][1]
+        quiet = buffer_levels(self.samples(0.05), 2, 44100, 0, 32768.0)[0][1]
+        silent = buffer_levels(self.samples(0.0), 2, 44100, 0, 32768.0)[0][1]
+        self.assertGreater(loud, quiet)
+        self.assertGreater(quiet, 0.0)
+        self.assertEqual(silent, 0.0)
+        self.assertLessEqual(loud, 1.0)
+
+    def test_buckets_are_20_ms_and_follow_the_start_time(self):
+        from yeal.ui.tidal_backend import LEVEL_BUCKET_US, buffer_levels
+        pairs = buffer_levels(self.samples(0.5, frames=44100 // 5), 2, 44100, 1_000_000, 32768.0)   # 200 ms
+        self.assertEqual(len(pairs), 10)
+        self.assertEqual([b for b, _ in pairs], list(range(1_000_000 // LEVEL_BUCKET_US, 1_000_000 // LEVEL_BUCKET_US + 10)))
+
+    def test_float_samples(self):
+        from yeal.ui.tidal_backend import buffer_levels
+        pairs = buffer_levels(self.samples(0.5, code="f"), 2, 44100, 0, 1.0)
+        self.assertTrue(all(0.0 < lv < 1.0 for _, lv in pairs))
+
+    def make_player(self):
+        from yeal.ui.tidal_backend import TidalPlayer
+        p = TidalPlayer(FakeOwner())
+        return p
+
+    class FakeFormat:
+        def __init__(self, name="Int16"):
+            self.name = name
+
+        def sampleFormat(self):
+            return self
+
+        def channelCount(self):
+            return 2
+
+        def sampleRate(self):
+            return 44100
+
+    class FakeBuffer:
+        def __init__(self, view, start_us):
+            self.view, self.start = view, start_us
+
+        def data(self):
+            return memoryview(bytes(self.view))
+
+        def format(self):
+            return LevelTests.FakeFormat()
+
+        def startTime(self):
+            return self.start
+
+    def test_player_keeps_levels_and_follows_the_position(self):
+        p = self.make_player()
+        p._on_audio_buffer(self.FakeBuffer(self.samples(0.8, frames=4096), 0))
+        self.assertTrue(p._levels)
+        self.assertGreater(max(p._levels.values()), 0.5)
+
+        class Media:
+            def position(self):
+                return 30                                # ms: inside the loud buffer
+        p._player = Media()
+        p._playing = True
+        p._tick()
+        self.assertGreater(p.level, 0.5)
+        p._player = Media()
+        p._playing = False
+        for _ in range(60):                              # paused: the level falls back to zero
+            p._tick()
+        self.assertEqual(p.level, 0.0)
+
+    def test_bad_buffers_are_ignored(self):
+        p = self.make_player()
+
+        class Broken:
+            def data(self):
+                raise ValueError("no data")
+        p._on_audio_buffer(Broken())
+        p._on_audio_buffer(self.FakeBuffer(memoryview(b""), 0))
+        self.assertEqual(p._levels, {})
+

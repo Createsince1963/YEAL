@@ -6,8 +6,10 @@ normal Tidal job path of the main backend (Backend.addUrls -> tiddl).
 """
 from __future__ import annotations
 
+import math
 import random
 import threading
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -18,6 +20,26 @@ from PySide6.QtCore import (Property, QAbstractListModel, QModelIndex, QObject, 
 from PySide6.QtGui import QGuiApplication
 
 from ..core import extras, tidal, tidal_api
+
+LEVEL_BUCKET_US = 20000      # the level of the music is kept in 20 ms steps (matches the 30 Hz picture of the track player)
+
+
+def buffer_levels(samples, channels: int, rate: int, start_us: int, scale: float) -> list:
+    """[(bucket, level)] of one decoded audio buffer: 20 ms slices, level 0..1 from the RMS in dBFS (-48 dB = 0, 0 dB = 1).
+    `samples` is a memoryview of the interleaved samples, `scale` the full-scale value of its type."""
+    channels, rate = max(1, int(channels)), max(1, int(rate))
+    per = max(1, int(rate * LEVEL_BUCKET_US / 1_000_000)) * channels
+    out = []
+    for a in range(0, len(samples), per):
+        part = samples[a:a + per:7]               # every 7th sample is plenty for a level and keeps Python fast
+        if not len(part):
+            continue
+        rms = math.sqrt(sum(float(x) * x for x in part) / len(part)) / scale
+        db = 20.0 * math.log10(rms) if rms > 1e-5 else -100.0
+        t = int(start_us) + int(a / channels / rate * 1_000_000)
+        out.append((t // LEVEL_BUCKET_US, max(0.0, min(1.0, (db + 48.0) / 48.0))))
+    return out
+
 
 ROUTES = ("home", "explore", "feed", "mixes", "page", "more", "search", "album", "artist", "playlist", "mix",
           "favorites", "lyrics", "credits")
@@ -140,9 +162,11 @@ class TidalPlayer(QObject):
     changed = Signal()            # state, current track, badge, shuffle/repeat
     positionChanged = Signal()
     lyricsChanged = Signal()
+    levelChanged = Signal()       # level of the music (about 30 times a second while playing)
     error = Signal(str)
     _streamReady = Signal(str, object, str)     # (track id, stream info or None, error)
     _lyricsReady = Signal(str, object)
+    _groupReady = Signal(object, int)           # (tracks of dropped albums / playlists, row to insert at)
 
     def __init__(self, owner: "TidalBackend"):
         super().__init__(owner)
@@ -161,8 +185,16 @@ class TidalPlayer(QObject):
         self._lyrics: dict = {"text": "", "synced": []}
         self._volume = int(owner.settings_value("tidal_volume", 80))
         self._want = ""              # track id whose stream is being fetched (late answers are ignored)
+        self._abuf = None            # QAudioBufferOutput: decoded audio for the level
+        self._levels: dict = {}      # 20 ms bucket -> level 0..1
+        self._level = 0.0
+        self._last_buf = 0.0         # time of the last audio buffer (is the level real?)
+        self._tick_timer = QTimer(self)
+        self._tick_timer.setInterval(33)
+        self._tick_timer.timeout.connect(self._tick)
         self._streamReady.connect(self._on_stream)
         self._lyricsReady.connect(self._on_lyrics)
+        self._groupReady.connect(lambda tracks, row: self._insert_tracks(tracks, row))
         self.queue.currentChanged.connect(self.changed)
 
     # -- media objects
@@ -183,11 +215,20 @@ class TidalPlayer(QObject):
         self._player.playbackStateChanged.connect(self._on_state)
         self._player.mediaStatusChanged.connect(self._on_status)
         self._player.errorOccurred.connect(lambda _e, text: self.error.emit("Playback failed: " + text) if text else None)
+        try:                          # the level of the music for the track player (Qt 6.8+); without it the level stays 0
+            from PySide6.QtMultimedia import QAudioBufferOutput
+            self._abuf = QAudioBufferOutput(self)
+            self._player.setAudioBufferOutput(self._abuf)
+            self._abuf.audioBufferReceived.connect(self._on_audio_buffer)
+        except (ImportError, AttributeError):
+            self._abuf = None
         return True
 
     def _on_state(self, state) -> None:
         from PySide6.QtMultimedia import QMediaPlayer
         self._playing = state == QMediaPlayer.PlaybackState.PlayingState
+        if self._playing:
+            self._tick_timer.start()
         self.changed.emit()
 
     def _on_status(self, status) -> None:
@@ -240,6 +281,15 @@ class TidalPlayer(QObject):
     def volume(self) -> int:  # type: ignore[override]
         return self._volume
 
+    @Property(float, notify=levelChanged)
+    def level(self) -> float:  # type: ignore[override]
+        return self._level
+
+    @Property(bool, notify=levelChanged)
+    def levelLive(self) -> bool:  # type: ignore[override]
+        """True while real audio data arrives (False: no level is known, the picture must not pretend one)."""
+        return self._playing and time.monotonic() - self._last_buf < 1.5
+
     @Property(int, notify=positionChanged)
     def position(self) -> int:  # type: ignore[override]
         return int(self._player.position()) if self._player else 0
@@ -278,6 +328,40 @@ class TidalPlayer(QObject):
         self._shuffle = True
         random.shuffle(tracks)
         self.playItems(tracks, 0, source)
+
+    def _insert_tracks(self, tracks, row: int) -> None:
+        tracks = [t for t in tracks or [] if isinstance(t, dict) and t.get("kind") == "track"]
+        if not tracks:
+            return
+        empty = self.queue.rowCount() == 0
+        at = self.queue.rowCount() if row < 0 or row > self.queue.rowCount() else row
+        self.queue.insert(at, tracks)
+        if empty:
+            self.playIndex(0)
+
+    @Slot("QVariantList", int)
+    def enqueue(self, items, row: int = -1) -> None:
+        """Put titles into the queue at `row` (-1 = at the end), e.g. dragged there. Albums, playlists and mixes bring
+        their titles (fetched in the background); on an empty queue the first title starts."""
+        items = [i for i in (items or []) if isinstance(i, dict)]
+        if not any(i.get("kind") in ("album", "playlist", "mix") for i in items):
+            self._insert_tracks(items, row)
+            return
+        api = self._owner.api
+
+        def work():
+            tracks = []
+            for it in items:
+                kind, item_id = it.get("kind"), str(it.get("id", ""))
+                try:
+                    if kind == "track":
+                        tracks.append(it)
+                    elif kind in ("album", "playlist", "mix"):
+                        tracks += [t for t in getattr(api, kind)(item_id).get("items", []) if t.get("kind") == "track"]
+                except tidal_api.TidalError:
+                    continue
+            self._groupReady.emit(tracks, row)
+        self._owner.submit(work)
 
     @Slot("QVariantList")
     def queueNext(self, items) -> None:
@@ -422,6 +506,7 @@ class TidalPlayer(QObject):
             return
         self._owner.request_single_playback()
         self._want = str(track.get("id", ""))
+        self._levels.clear()
         self._loading = True
         self._badge, self._badge_tip = "", ""
         self._lyrics = {"text": "", "synced": []}
@@ -441,6 +526,41 @@ class TidalPlayer(QObject):
             except tidal_api.TidalError:
                 self._lyricsReady.emit(want, {"text": "", "synced": []})
         self._owner.submit(work)
+
+    def _on_audio_buffer(self, buf) -> None:
+        try:
+            raw = buf.data()
+            fmt = buf.format()
+            code, scale = {"Int16": ("h", 32768.0), "Int32": ("i", 2147483648.0), "Float": ("f", 1.0)}.get(
+                fmt.sampleFormat().name, (None, 1.0))
+            if raw is None or code is None:
+                return
+            pairs = buffer_levels(memoryview(raw).cast("B").cast(code), fmt.channelCount(), fmt.sampleRate(),
+                                  int(buf.startTime()), scale)
+        except (TypeError, ValueError, AttributeError):
+            return
+        for bucket, level in pairs:
+            self._levels[bucket] = level
+        if len(self._levels) > 240:
+            for key in sorted(self._levels)[:-150]:
+                del self._levels[key]
+        self._last_buf = time.monotonic()
+
+    def _tick(self) -> None:
+        """The level at the playing position, with a quick rise and a soft fall."""
+        target = 0.0
+        if self._playing and self._player:
+            bucket = int(self._player.position()) * 1000 // LEVEL_BUCKET_US
+            known = [self._levels[k] for k in (bucket - 1, bucket, bucket + 1) if k in self._levels]
+            target = max(known) if known else 0.0
+        new = max(target, self._level * 0.85)
+        if new < 0.01:
+            new = 0.0
+        if new != self._level:
+            self._level = new
+            self.levelChanged.emit()
+        if not self._playing and new == 0.0:
+            self._tick_timer.stop()
 
     def _on_stream(self, track_id: str, info, err: str) -> None:
         if track_id != self._want:
@@ -468,6 +588,7 @@ class TidalBackend(QObject):
     pageLoaded = Signal(str, str, "QVariant")     # (request id, route, data)
     pageFailed = Signal(str, str, str)            # (request id, route, message)
     playlistsChanged = Signal()
+    dragPayloadChanged = Signal()
     favoritesChanged = Signal()
     signedInChanged = Signal()
     _done = Signal(str, str, object, str)         # worker -> GUI thread: (request id, route, data, error)
@@ -482,6 +603,7 @@ class TidalBackend(QObject):
         self._fav: dict = {}
         self._done.connect(self._on_done)
         self._sideDone.connect(self._on_side)
+        self._drag: list = []
         self.player = TidalPlayer(self)
         self.player.error.connect(self.toast)
         backend.tidalChanged.connect(self._on_login_changed)
@@ -735,6 +857,16 @@ class TidalBackend(QObject):
         for it in items or []:
             if isinstance(it, dict) and it.get("kind") in ("playlist", "album", "mix"):
                 self.saveLinklist(it["kind"], str(it.get("id", "")))
+
+    # -- drag and drop inside the view: what is being dragged (the drop target on the queue needs the real titles)
+    @Property("QVariantList", notify=dragPayloadChanged)
+    def dragPayload(self):  # type: ignore[override]
+        return self._drag
+
+    @Slot("QVariantList")
+    def setDragPayload(self, items) -> None:
+        self._drag = [dict(i) for i in (items or []) if isinstance(i, dict) and i.get("kind")]
+        self.dragPayloadChanged.emit()
 
     @Property(QObject, constant=True)
     def playerObject(self):  # type: ignore[override]

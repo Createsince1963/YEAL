@@ -61,3 +61,7 @@ TidalArtist 1.0 TidalArtist.qml
 TidalPlaylists 1.0 TidalPlaylists.qml
 TidalQueue 1.0 TidalQueue.qml
 TidalPlayerBar 1.0 TidalPlayerBar.qml
+TidalDock 1.0 TidalDock.qml
+TidalQueueDrop 1.0 TidalQueueDrop.qml
+TidalTrackPlayer 1.0 TidalTrackPlayer.qml
+TidalTrackPanel 1.0 TidalTrackPanel.qml

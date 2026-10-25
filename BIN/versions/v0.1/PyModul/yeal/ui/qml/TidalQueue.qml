@@ -68,6 +68,7 @@ Item {
                     height: 50
                     DropArea {
                         anchors.fill: parent
+                        keys: ["yeal-queue-row"]          // only the reordering of the queue itself, not titles dragged in
                         onEntered: (drag) => { if (drag.source && drag.source.row !== slot.index) area.player.move(drag.source.row, slot.index) }
                     }
                     Rectangle {
@@ -80,6 +81,7 @@ Item {
                         border.width: grab.drag.active ? 1 : 0
                         border.color: Theme.accent
                         Drag.active: grab.drag.active
+                        Drag.keys: ["yeal-queue-row"]
                         Drag.source: card
                         Drag.hotSpot.y: height / 2
                         states: State {
@@ -120,11 +122,12 @@ Item {
                         }
                     }
                 }
+                TidalQueueDrop { anchors.fill: parent; list: q; z: 5 }
                 Text {
                     anchors.centerIn: parent
                     visible: q.count === 0
                     width: q.width - 2 * Theme.s4
-                    text: qsTr("Nothing queued. Play an album or a playlist, or use \"Play next\" on a title.")
+                    text: qsTr("Nothing queued. Play an album or a playlist, or drag titles here, or use \"Play next\" on a title.")
                     color: Theme.textTertiary; font.pixelSize: Theme.caption
                     wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter
                 }

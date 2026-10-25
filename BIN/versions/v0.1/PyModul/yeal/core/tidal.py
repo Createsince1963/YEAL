@@ -231,6 +231,33 @@ def new_audio_folders(base: Path, since: float) -> List[Path]:
     return sorted(found, key=lambda p: (-len(p.parts), str(p)))
 
 
+def downloaded_target(base: Path, since: float, meta: Optional[dict] = None) -> Path:
+    """What the folder button of a finished Tidal job opens: the song or video itself (one new file), else the folder of
+    the album / playlist (the deepest folder that holds all new files). When nothing new was written (all files were
+    there already) the folder is guessed from the album / playlist name; the last fallback is the Tidal folder."""
+    base = Path(base)
+    files = []
+    try:
+        for path in base.rglob("*"):
+            if path.suffix.lower() in AUDIO_EXTS and path.is_file() and path.stat().st_mtime >= since - 2:
+                files.append(path)
+    except OSError:
+        pass
+    if len(files) == 1:
+        return files[0]
+    if files:
+        try:
+            return Path(os.path.commonpath([str(f.parent) for f in files]))
+        except ValueError:
+            return base
+    meta = meta or {}
+    bad = r'<>:"/\|?*'
+    clean = lambda text: "".join("_" if c in bad else c for c in str(text or "")).strip(" .")
+    kind, title, artist = meta.get("kind"), clean(meta.get("title")), clean(meta.get("artist"))
+    guess = {"album": base / "Albums" / artist / title, "playlist": base / "Playlists" / title}.get(kind or "")
+    return guess if guess is not None and title and guess.is_dir() else base
+
+
 def _norm(text: str) -> str:
     return re.sub(r"[^0-9a-z]+", "", (text or "").lower())
 

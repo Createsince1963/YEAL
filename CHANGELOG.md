@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.1.09
+- **Track player for TIDAL DIY** (design after the concept video): the player as a running track. Switch it by right-click on the player bar or in Settings > Tidal > TIDAL DIY layout (the classic bar stays the default). The dot is the playhead and runs once around the oval while the song plays; click or drag on the loop to jump. The **green band around the inner oval is the real level of the music** (taken from the decoded audio, Qt `QAudioBufferOutput`): the louder, the thicker; VIS switches it off. **VOL** turns the band yellow and shows the volume as a big number, the mouse wheel over the oval changes it too. Text controls under the oval: repeat off / all / single, shuffle, like, time and quality, PLAYLIST (queue with jump and remove, playlists, search results), LYRICS (timed, click a line to jump), VIS, VOL. No equalizer: Qt's player has none, it would need an own audio engine.
+- **Drag titles into the queue:** titles, albums, playlists and mixes dragged from the pages (or a whole selection) land in the queue where the line shows; albums and playlists bring all their titles; an empty queue starts with the first one. The same drag still downloads when dropped on the workflow panel.
+- **Download tile, folder button:** it opens the downloaded song itself, or the folder of the album / playlist / artist, or the video - not only the Tidal folder (`tidal.downloaded_target`); folders are opened, not just selected in their parent.
+- **Track table:** the column headers (title, artist, album, time) sit exactly over the cells of the rows and move with them when a column edge is dragged (the rows kept 112 px less room for the hidden action buttons, and the grips shifted the header cells by 16 px).
+- Tests: level measurement from audio buffers, queue insert / enqueue, drag payload, column alignment while resizing, folder target, new settings.
+- Not built: equalizer, hand test with sound and a signed-in account. No EXE built (the last build is 0.9.1.06).
+
+
 ## 0.9.1.08
 - **YouTube download tile:** the hint "The browser login could not be read ..." is no longer shown when the download worked (it only matters when the download fails, then the error is shown as before).
 - **TIDAL download tile:** shows the song, album or playlist name with the artist (or creator) and the cover instead of `playlist/7e9b7ad6-...`; albums and playlists also show "n of N" while they download. The technical id is never shown in the list. If the lookup fails (offline, signed out) the tile keeps the link and the download is not affected (`TidalApi.describe`, `Engine.tidal_meta`).

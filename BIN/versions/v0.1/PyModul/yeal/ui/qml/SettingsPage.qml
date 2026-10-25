@@ -504,6 +504,16 @@ Flickable {
                 summary: page.s.tidal_layout && page.s.tidal_layout.player === "top" ? qsTr("custom") : qsTr("default")
                 hint: qsTr("Playlists and queue can be moved to the other side, detached into their own window or hidden (menu of the area, or the buttons next to the page tabs); the player bar moves with a right-click. Yeal remembers the arrangement.")
                 stacked: true
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.s2
+                    Chip { text: qsTr("Classic player bar"); checked: page.s.tidal_player_style !== "track"
+                           onToggled: backend.setSetting("tidal_player_style", "bar") }
+                    Chip { text: qsTr("Track player (oval)"); checked: page.s.tidal_player_style === "track"
+                           onToggled: backend.setSetting("tidal_player_style", "track") }
+                    Chip { text: qsTr("Level band (VIS)"); checked: !!page.s.tidal_player_vis
+                           onToggled: (c) => backend.setSetting("tidal_player_vis", c) }
+                }
                 AppButton {
                     text: qsTr("Reset the layout of the TIDAL DIY view")
                     onClicked: backend.setSetting("tidal_layout", {})

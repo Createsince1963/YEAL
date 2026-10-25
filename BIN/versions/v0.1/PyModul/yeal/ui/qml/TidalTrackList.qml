@@ -158,19 +158,28 @@ ColumnLayout {
             }
         }
     }
-    RowLayout {
+    // The header cells have exactly the widths of the cells in the rows (same spacing, same fixed right-hand block), so
+    // every header label sits left-aligned over its column while a column edge is dragged. The grips are laid over the
+    // column edges and take no room of their own.
+    Item {
+        id: head
         Layout.fillWidth: true
-        Layout.leftMargin: Theme.s1 + 18 + Theme.s2
-        Layout.rightMargin: Theme.s2 + 5 * 28
-        spacing: Theme.s2
-        HeadCell { label: "#"; key: ""; w: 28 + (list.showCover ? 30 + Theme.s2 : 0) }
-        HeadCell { label: qsTr("TITLE"); key: "title" }
-        Grip { which: "artist" }
-        HeadCell { label: qsTr("ARTIST"); key: "subtitle"; w: list.artistW - 8 - Theme.s2 }
-        Grip { which: "album"; visible: list.showAlbum }
-        HeadCell { visible: list.showAlbum; label: qsTr("ALBUM"); key: "album"; w: list.albumW - 8 - Theme.s2 }
-        HeadCell { label: ""; key: ""; w: 44 }
-        HeadCell { label: qsTr("TIME"); key: "duration"; w: 42 }
+        implicitHeight: 24
+        RowLayout {
+            id: headRow
+            anchors.fill: parent
+            anchors.leftMargin: Theme.s1 + 18 + Theme.s2
+            anchors.rightMargin: Theme.s2 + Theme.s2 + 5 * 28      // right margin of a row + the spacing before its action block + the block
+            spacing: Theme.s2
+            HeadCell { label: "#"; key: ""; w: 28 + (list.showCover ? 30 + Theme.s2 : 0) }
+            HeadCell { label: qsTr("TITLE"); key: "title" }
+            HeadCell { id: artistCell; objectName: "artistCell"; label: qsTr("ARTIST"); key: "subtitle"; w: list.artistW }
+            HeadCell { id: albumCell; objectName: "albumCell"; visible: list.showAlbum; label: qsTr("ALBUM"); key: "album"; w: list.albumW }
+            HeadCell { label: ""; key: ""; w: 44 }
+            HeadCell { label: qsTr("TIME"); key: "duration"; w: 42 }
+        }
+        Grip { which: "artist"; x: headRow.x + artistCell.x - Theme.s2 / 2 - width / 2 }
+        Grip { which: "album"; visible: list.showAlbum; x: headRow.x + albumCell.x - Theme.s2 / 2 - width / 2 }
     }
     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.separator }
 
@@ -197,6 +206,7 @@ ColumnLayout {
             showCover: list.showCover
             artistW: list.artistW
             albumW: list.albumW
+            dragItems: list.pickedItems
             onToggleSelect: (shift) => list.toggle(modelData.pos, shift)
             onPlay: tidal.playerObject.playItems(list.visibleItems(), index, list.source)
         }

@@ -35,3 +35,10 @@ to Yeal. Status: proposal, waiting for the user's decision.
 - VIS with real levels (`QAudioBufferOutput`, check availability in the bundled PySide6) or without?
 - EQ: skip in the first version?
 - Size: the track needs about 420 x 150 px; where does it sit (own dock area, or replaces the player bar)?
+
+## Status 2026-10-25 (0.9.1.09): built
+`TidalTrackPlayer.qml` (oval, band, loop, VOL, text row), `TidalTrackPanel.qml` (queue / playlists / search / lyrics), levels from `QAudioBufferOutput`
+(`tidal_backend.buffer_levels`, `TidalPlayer.level`), settings `tidal_player_style` (bar | track) and `tidal_player_vis`.
+Decisions: switchable (default stays the bar), real levels only (no made-up animation when no audio data arrives), no EQ.
+Open: an equalizer needs an own audio engine (ffmpeg filter chain -> QAudioSink, restart at the position when the bands change);
+only worth it if wanted. Frames of the video for reference: `docs/m2-res_480p/` (not in the repository).

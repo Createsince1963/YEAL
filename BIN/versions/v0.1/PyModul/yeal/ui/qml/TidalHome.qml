@@ -454,18 +454,26 @@ Item {
             }
         }
 
-        TidalPlayerBar {
+        Loader {          // the player: classic bar or the oval track player (setting tidal_player_style)
+            id: playerLoader
             Layout.fillWidth: true
             Layout.row: home.playerTop ? 0 : 1
-            ctl: home
-            onToggleQueue: home.togglePane("queue")
+            Layout.preferredHeight: item ? item.implicitHeight : 72
+            sourceComponent: backend.settings.tidal_player_style === "track" ? trackPlayerC : barPlayerC
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: playerMenu.popup() }
         }
     }
+    Component { id: barPlayerC; TidalPlayerBar { ctl: home; onToggleQueue: home.togglePane("queue") } }
+    Component { id: trackPlayerC; TidalTrackPlayer { ctl: home; onToggleQueue: home.togglePane("queue") } }
     AppMenu {
         id: playerMenu
         AppMenuItem { text: qsTr("Player bar on top"); enabled: !home.playerTop; onTriggered: home.setPlayerTop(true) }
         AppMenuItem { text: qsTr("Player bar at the bottom"); enabled: home.playerTop; onTriggered: home.setPlayerTop(false) }
+        MenuSeparator {}
+        AppMenuItem { text: qsTr("Classic player bar"); marked: backend.settings.tidal_player_style !== "track"
+                      onTriggered: backend.setSetting("tidal_player_style", "bar") }
+        AppMenuItem { text: qsTr("Track player (oval)"); marked: backend.settings.tidal_player_style === "track"
+                      onTriggered: backend.setSetting("tidal_player_style", "track") }
     }
 
     Connections {

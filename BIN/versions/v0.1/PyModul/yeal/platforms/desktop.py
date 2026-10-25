@@ -148,6 +148,8 @@ def open_in_vlc(path: Path, fullscreen: bool = True) -> bool:
 
 
 def reveal_path(path: Path) -> bool:
+    if path.is_dir():                  # a folder (album, playlist): open it, do not select it inside its parent
+        return open_path(path)
     try:
         if sys.platform.startswith("win") and path.exists():
             # Explorer needs /select,"<path>" as ONE raw string: a list argument gets quoted as a

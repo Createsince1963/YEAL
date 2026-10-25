@@ -33,6 +33,9 @@ COMPONENTS = {
     "TidalPlaylists": "TidalPlaylists { width: 220; height: 400 }",
     "TidalQueue": "TidalQueue { width: 300; height: 400 }",
     "TidalPlayerBar": "TidalPlayerBar { width: 1000 }",
+    "TidalTrackPlayer": "TidalTrackPlayer { width: 700; height: 300 }",
+    "TidalTrackPanel": "TidalTrackPanel { width: 480; height: 300 }",
+    "TidalQueueDrop": "ListView { id: lv; width: 200; height: 200; TidalQueueDrop { anchors.fill: parent; list: lv } }",
     "TidalDock": "TidalDock { width: 300; height: 300; title: 'Test'; Text { text: 'content' } }",
     "TidalDockFloating": "TidalDock { width: 300; height: 300; title: 'Test'; side: 'float'; Text { text: 'content' } }",
     "WorkflowPanel": "WorkflowPanel { anchors.fill: parent; inSidebar: true; tidalPlayer: true }",
@@ -81,6 +84,17 @@ class TidalGuiQmlTest(unittest.TestCase):
                 bad = [m for m in self.messages[start:] if ".qml" in m and any(w in m for w in ERRORS)]
                 self.assertEqual(bad, [])
                 obj.deleteLater()
+
+    def test_player_style_and_vis_settings(self):
+        b = self.backend
+        b.setSetting("tidal_player_style", "track")
+        self.assertEqual(b.settings["tidal_player_style"], "track")
+        b.setSetting("tidal_player_style", "wide")                      # not a style: falls back to the classic bar
+        self.assertEqual(b.settings["tidal_player_style"], "bar")
+        b.setSetting("tidal_player_vis", False)
+        self.assertIs(b.settings["tidal_player_vis"], False)
+        b.setSetting("tidal_player_vis", True)
+        self.assertIs(b.settings["tidal_player_vis"], True)
 
     def test_layout_changes_are_saved_and_reset(self):
         """Docking, detaching, hiding and the player position end up validated in the tidal_layout setting."""
@@ -151,6 +165,42 @@ class TidalGuiQmlTest(unittest.TestCase):
         self.assertIs(b.settings["tidal_opts_collapsed"], True)
         b.setSetting("tidal_opts_collapsed", False)
         self.assertIs(b.settings["tidal_opts_collapsed"], False)
+        root.deleteLater()
+
+    def test_table_header_and_rows_stay_left_aligned_when_a_column_is_resized(self):
+        """The header cells sit exactly over the cells of the rows (also after dragging a column edge)."""
+        from PySide6.QtCore import QPointF
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { width: 1100; height: 500\nTidalTrackList { objectName: 'list'; anchors.fill: parent; "
+                     b"items: [{kind: 'track', id: '1', title: 'One', subtitle: 'Artist A', album: 'Album A', duration: 100, quality: 'HiFi'},"
+                     b"{kind: 'track', id: '2', title: 'Two', subtitle: 'Artist B', album: 'Album B', duration: 120, quality: 'MAX'}] }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_cols.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        lst = root.findChild(QObject, "list")
+        for _ in range(30):
+            self.app.processEvents()
+
+        def named(item, name, out):          # delegates of a ListView are only in the visual tree
+            if item.objectName() == name:
+                out.append(item)
+            for child in item.childItems():
+                named(child, name, out)
+            return out
+
+        def x_of(name, which=0):
+            items = named(root, name, [])
+            self.assertGreater(len(items), which, name)
+            return items[which].mapToItem(root, QPointF(0, 0)).x()
+
+        for artist_w, album_w in ((170, 190), (260, 190), (260, 120), (100, 300)):
+            lst.setProperty("artistW", artist_w)
+            lst.setProperty("albumW", album_w)
+            for _ in range(10):
+                self.app.processEvents()
+            for row in (0, 1):
+                self.assertAlmostEqual(x_of("artistCell"), x_of("artistText", row), delta=1.0, msg=(artist_w, album_w))
+                self.assertAlmostEqual(x_of("albumCell"), x_of("albumText", row), delta=1.0, msg=(artist_w, album_w))
         root.deleteLater()
 
     def test_tidal_option_settings(self):

@@ -414,7 +414,7 @@ class Engine:
                                        str(meta.get("cover") or ""), str(meta.get("artist") or ""), meta.get("items") or [])
             except OSError:
                 pass
-        job.filename = str(base)
+        job.filename = str(tidal.downloaded_target(base, started, meta))     # the folder button opens the song, album or video
         job.progress = job.dl_progress = job.pp_progress = 1.0
         job.state = JobState.DONE
         job.phase = "Done"
