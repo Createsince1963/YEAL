@@ -209,6 +209,7 @@ class Backend(QObject):
     tidalChanged = Signal()
     tidalLoginLink = Signal(str)          # device-login link of Tidal (the browser is opened with it)
     _tidalLoginDone = Signal(bool, str)   # (signed in, message) - emitted from the login thread
+    _tidalLinkFound = Signal(str)         # device-login link - emitted from the login thread (queued to the GUI thread)
     infoChanged = Signal()
     statsChanged = Signal()
     framesChanged = Signal()
@@ -277,6 +278,7 @@ class Backend(QObject):
         self._engine.tidal_config = self._tidal_config
         self._tidal_flow = None
         self._tidalLoginDone.connect(self._on_tidal_login_done)
+        self._tidalLinkFound.connect(self._open_tidal_link)
         self._queue = DownloadQueue(
             self._engine.run, self._settings.max_parallel,
             on_change=self._jobChanged.emit, on_remove=self._jobRemoved.emit)
@@ -584,11 +586,13 @@ class Backend(QObject):
         return ""
 
     def _on_tidal_link(self, url: str) -> None:        # login thread: hand the link to the GUI thread
-        QTimer.singleShot(0, lambda: self._open_tidal_link(url))
+        # (a signal is queued to the GUI thread; QTimer.singleShot from a plain Python thread never fires)
+        self._tidalLinkFound.emit(url)
 
     def _open_tidal_link(self, url: str) -> None:
         self.tidalLoginLink.emit(url)
         self.openLink(url)
+        self.toast.emit("Confirm the Tidal sign-in in the browser. If no window opened, use this link: " + url)
 
     def _on_tidal_login_done(self, ok: bool, message: str) -> None:
         self._tidal_flow = None
