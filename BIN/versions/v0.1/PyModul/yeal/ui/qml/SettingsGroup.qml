@@ -40,6 +40,7 @@ ColumnLayout {
             rotation: root.collapsed ? -90 : 0
             Behavior on rotation { NumberAnimation { duration: 120 } }
         }
+        HoverHandler { enabled: root.collapsible; cursorShape: Qt.PointingHandCursor }
         TapHandler {
             enabled: root.collapsible
             onTapped: root.collapsed = !root.collapsed

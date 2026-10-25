@@ -72,6 +72,36 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(cmd[3], "high")
         self.assertEqual(cmd[5], "4")
 
+    def test_video_options(self):
+        cmd = tidal.build_command("tiddl", "https://tidal.com/browse/album/1", "high", "", 2, "hd", "only")
+        self.assertEqual(cmd[6:10], ["-vq", "hd", "--videos", "only"])
+        cmd = tidal.build_command("tiddl", "https://tidal.com/browse/album/1")        # defaults: Full HD, videos included
+        self.assertEqual(cmd[6:10], ["-vq", "fhd", "--videos", "allow"])
+        # tiddl skips videos by default, even a direct video link: a single video must never be skipped
+        cmd = tidal.build_command("tiddl", "https://tidal.com/browse/video/77", "high", "", 2, "fhd", "none")
+        self.assertEqual(cmd[cmd.index("--videos") + 1], "allow")
+        # inside collections the user's choice stays
+        cmd = tidal.build_command("tiddl", "https://tidal.com/browse/playlist/abc", "high", "", 2, "fhd", "none")
+        self.assertEqual(cmd[cmd.index("--videos") + 1], "none")
+        cmd = tidal.build_command("tiddl", "u", "high", "", 2, "8k", "maybe")
+        self.assertEqual((cmd[7], cmd[9]), ("fhd", "allow"))
+
+    def test_output_folders(self):
+        """Singles / Playlists / Videos as sub folders of the Tidal folder."""
+        def tmpl(url):
+            cmd = tidal.build_command("tiddl", url, "high", "D:/Tidal", 2)
+            return cmd[cmd.index("-o") + 1]
+        self.assertTrue(tmpl("https://tidal.com/browse/track/1").startswith("Singles/"))
+        self.assertTrue(tmpl("https://listen.tidal.com/track/1").startswith("Singles/"))
+        self.assertTrue(tmpl("https://tidal.com/browse/video/9").startswith("Videos/"))
+        self.assertTrue(tmpl("https://tidal.com/browse/playlist/abc-def").startswith("Playlists/{playlist.title}/"))
+        self.assertTrue(tmpl("https://tidal.com/browse/mix/00abc").startswith("Playlists/Mix {mix_id}/"))
+        self.assertTrue(tmpl("https://tidal.com/browse/album/5").startswith("Albums/"))
+        self.assertTrue(tmpl("https://tidal.com/browse/artist/5").startswith("Albums/"))
+        cmd = tidal.build_command("tiddl", "https://tidal.com/browse/track/1", "high", "D:/Tidal", 2)
+        self.assertEqual(cmd[-2:], ["url", "https://tidal.com/browse/track/1"])      # url stays last
+        self.assertEqual(cmd[cmd.index("-p") + 1], "D:/Tidal")
+
     def test_classify_and_ansi(self):
         self.assertEqual(tidal.classify(tidal.strip_ansi("\x1b[32mDownloaded\x1b[0m x")), "done")
         self.assertEqual(tidal.classify("Not logged in."), "login")
@@ -101,6 +131,9 @@ class SettingsTests(unittest.TestCase):
         s = Settings(tidal_quality="ultra", tidal_threads=99, tidal_path=None).validate()
         self.assertEqual((s.tidal_quality, s.tidal_threads, s.tidal_path), ("high", 4, ""))
         self.assertEqual(Settings(tidal_threads="x").validate().tidal_threads, 2)
+        v = Settings(tidal_video_quality="8k", tidal_videos="maybe").validate()
+        self.assertEqual((v.tidal_video_quality, v.tidal_videos), ("fhd", "allow"))
+        self.assertEqual((Settings().tidal_video_quality, Settings().tidal_videos), ("fhd", "allow"))
 
 
 @unittest.skipIf(os.name == "nt", "fake tiddl is a POSIX script")
@@ -162,6 +195,16 @@ class EngineTests(unittest.TestCase):
             os.environ["PATH"] = old_path
         self.assertEqual(job.state, JobState.ERROR)
         self.assertIn("tiddl", job.error)
+
+
+class JobQualityTests(unittest.TestCase):
+    def test_job_quality_overrides_global_setting(self):
+        """The quality picked in the download options is stored per job and wins over Settings > Tidal."""
+        self.assertEqual(DownloadOptions(tidal_quality="max").normalized().tidal_quality, "max")
+        self.assertEqual(DownloadOptions(tidal_quality="bogus").normalized().tidal_quality, "")
+        cmd = tidal.build_command("tiddl", "https://tidal.com/browse/album/571379403", "max", "D:/x")
+        self.assertEqual(cmd[cmd.index("-q") + 1], "max")
+        self.assertEqual(set(tidal.TIDAL_QUALITY_LABELS), set(tidal.TIDAL_QUALITIES))
 
 
 if __name__ == "__main__":

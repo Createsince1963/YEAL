@@ -101,33 +101,10 @@ Flickable {
         }
 
         SettingsGroup {
-            title: qsTr("Browser")
-            icon: "globe"
-            collapsible: true
-            visible: backend.browserAvailable
-            Layout.fillWidth: true
-            SettingsItem {
-                label: qsTr("YouTube browser on the Downloads page")
-                icon: "window"
-                summary: page.s.show_browser ? qsTr("On") : qsTr("Off")
-                hint: qsTr("Uses the Microsoft Edge WebView2 of Windows. Opening a video fills the link field.")
-                stacked: false
-                AppSwitch { checked: page.s.show_browser; onToggled: backend.setSetting("show_browser", checked) }
-            }
-            SettingsItem {
-                label: qsTr("Block ads and trackers in the browser (experimental)")
-                icon: "block"
-                summary: page.s.adblock_experimental ? qsTr("On") : qsTr("Off")
-                hint: qsTr("Refuses known ad and tracker domains (own list: blocklist.txt in the Yeal data folder, hosts format). Video ads from YouTube itself are skipped by a script. Off by default. If YouTube misbehaves, leave it off. Takes effect after a restart.")
-                stacked: false
-                AppSwitch { checked: page.s.adblock_experimental; onToggled: backend.setSetting("adblock_experimental", checked) }
-            }
-        }
-
-        SettingsGroup {
-            title: qsTr("Appearance")
+            title: qsTr("Appearance & browser")
             icon: "sun"
             collapsible: true
+            collapsed: true
             Layout.fillWidth: true
             SettingsItem {
                 label: qsTr("Theme")
@@ -142,12 +119,31 @@ Flickable {
                     onActivated: (v) => backend.setSetting("theme", v)
                 }
             }
+            SettingsItem {
+                visible: backend.browserAvailable
+                label: qsTr("YouTube browser on the Downloads page")
+                icon: "window"
+                summary: page.s.show_browser ? qsTr("On") : qsTr("Off")
+                hint: qsTr("Uses the Microsoft Edge WebView2 of Windows. Opening a video fills the link field.")
+                stacked: false
+                AppSwitch { checked: page.s.show_browser; onToggled: backend.setSetting("show_browser", checked) }
+            }
+            SettingsItem {
+                visible: backend.browserAvailable
+                label: qsTr("Block ads and trackers in the browser (experimental)")
+                icon: "block"
+                summary: page.s.adblock_experimental ? qsTr("On") : qsTr("Off")
+                hint: qsTr("Refuses known ad and tracker domains (own list: blocklist.txt in the Yeal data folder, hosts format). Video ads from YouTube itself are skipped by a script. Off by default. If YouTube misbehaves, leave it off. Takes effect after a restart.")
+                stacked: false
+                AppSwitch { checked: page.s.adblock_experimental; onToggled: backend.setSetting("adblock_experimental", checked) }
+            }
         }
 
         SettingsGroup {
             title: qsTr("Downloads")
             icon: "download"
             collapsible: true
+            collapsed: true
             Layout.fillWidth: true
             SettingsItem {
                 label: qsTr("Save to")
@@ -163,6 +159,15 @@ Flickable {
                             onClicked: backend.setDownloadDir("") }
             }
             SettingsItem {
+                visible: !backend.isMobile
+                label: qsTr("Ask about the download folder when a drive is found")
+                icon: "folder"
+                summary: page.s.ask_drive_dialog ? qsTr("Yes") : qsTr("No")
+                hint: qsTr("When an external drive is found (at start or when plugged in), Yeal shows the current download folder and lets you continue or change it. Turn this off to stop that question.")
+                stacked: false
+                AppSwitch { checked: page.s.ask_drive_dialog; onToggled: backend.setSetting("ask_drive_dialog", checked) }
+            }
+            SettingsItem {
                 label: qsTr("Parallel downloads")
                 icon: "layers"
                 summary: String(page.s.max_parallel)
@@ -174,6 +179,38 @@ Flickable {
                     onMoved: (v) => backend.setSetting("max_parallel", v)
                 }
             }
+            SettingsItem {
+                label: qsTr("Speed limit")
+                icon: "gauge"
+                summary: page.s.rate_limit_kbps > 0 ? qsTr("%1 KB/s").arg(page.s.rate_limit_kbps) : qsTr("Unlimited")
+                hint: qsTr("In KB/s per download. 0 means unlimited.")
+                AppField {
+                    id: rateField
+                    text: page.s.rate_limit_kbps
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: IntValidator { bottom: 0; top: 10000000 }
+                    horizontalAlignment: TextInput.AlignRight
+                    Layout.preferredWidth: 120
+                    onEditingFinished: backend.setSetting("rate_limit_kbps", text === "" ? 0 : parseInt(text))
+                    Accessible.name: qsTr("Speed limit in KB per second")
+                }
+            }
+            SettingsItem {
+                label: qsTr("Gentle mode")
+                icon: "shield"
+                summary: page.s.gentle_mode ? qsTr("On") : qsTr("Off")
+                hint: qsTr("Recommended. Pauses between requests, waits longer after errors, pauses the queue when YouTube asks to slow down.")
+                stacked: false
+                AppSwitch { checked: page.s.gentle_mode; onToggled: backend.setSetting("gentle_mode", checked) }
+            }
+        }
+
+        SettingsGroup {
+            title: qsTr("Output")
+            icon: "doc"
+            collapsible: true
+            collapsed: true
+            Layout.fillWidth: true
             SettingsItem {
                 visible: backend.mp3TagsAvailable
                 label: qsTr("Ask whether to edit MP3 tags")
@@ -219,29 +256,21 @@ Flickable {
                 }
             }
             SettingsItem {
-                label: qsTr("Speed limit")
-                icon: "gauge"
-                summary: page.s.rate_limit_kbps > 0 ? qsTr("%1 KB/s").arg(page.s.rate_limit_kbps) : qsTr("Unlimited")
-                hint: qsTr("In KB/s per download. 0 means unlimited.")
-                AppField {
-                    id: rateField
-                    text: page.s.rate_limit_kbps
-                    inputMethodHints: Qt.ImhDigitsOnly
-                    validator: IntValidator { bottom: 0; top: 10000000 }
-                    horizontalAlignment: TextInput.AlignRight
-                    Layout.preferredWidth: 120
-                    onEditingFinished: backend.setSetting("rate_limit_kbps", text === "" ? 0 : parseInt(text))
-                    Accessible.name: qsTr("Speed limit in KB per second")
-                }
-            }
-            SettingsItem {
-                label: qsTr("Gentle mode")
-                icon: "shield"
-                summary: page.s.gentle_mode ? qsTr("On") : qsTr("Off")
-                hint: qsTr("Recommended. Pauses between requests, waits longer after errors, pauses the queue when YouTube asks to slow down.")
+                label: qsTr("Play only one media at a time")
+                icon: "play"
+                summary: page.s.single_playback ? qsTr("On") : qsTr("Off")
+                hint: qsTr("Saved HTML pages: the local player and the YouTube player pause each other (pages created from now on). In the app, switching between YouTube and TIDAL pauses the player you leave.")
                 stacked: false
-                AppSwitch { checked: page.s.gentle_mode; onToggled: backend.setSetting("gentle_mode", checked) }
+                AppSwitch { checked: page.s.single_playback; onToggled: backend.setSetting("single_playback", checked) }
             }
+        }
+
+        SettingsGroup {
+            title: qsTr("Login & network")
+            icon: "network"
+            collapsible: true
+            collapsed: true
+            Layout.fillWidth: true
             SettingsItem {
                 label: qsTr("Use browser login for downloads")
                 icon: "lock"
@@ -278,6 +307,7 @@ Flickable {
             title: qsTr("Streaming")
             icon: "cast"
             collapsible: true
+            collapsed: true
             visible: backend.streamAvailable
             Layout.fillWidth: true
             footer: qsTr("Plays finished downloads on speakers and TVs in your Wi-Fi/LAN (UPnP/DLNA), e.g. KEF LS50 Wireless I and II. Yeal serves the file and the device fetches it. Windows may ask once to allow Yeal in the firewall: choose \"Private networks\".")
@@ -407,9 +437,168 @@ Flickable {
         }
 
         SettingsGroup {
+            title: qsTr("Tidal")
+            icon: "music"
+            collapsible: true
+            collapsed: true
+            visible: !backend.isMobile
+            Layout.fillWidth: true
+            SettingsItem {
+                label: qsTr("Tidal subscription required")
+                icon: "info"
+                summary: qsTr("Only with a Tidal subscription")
+                hint: backend.tidalNotice
+                stacked: true
+            }
+            SettingsItem {
+                label: qsTr("Tidal helper (tiddl)")
+                icon: "code"
+                summary: backend.tidalInstalled ? qsTr("Ready") : qsTr("Missing")
+                hint: backend.tidalInstalled ? backend.tidalExe : backend.tidalInstallHint
+                stacked: true
+                Badge { text: backend.tidalInstalled ? qsTr("Ready") : qsTr("Missing")
+                        kind: backend.tidalInstalled ? "success" : "warning" }
+                AppButton { text: qsTr("Choose…"); iconName: "folder"; onClicked: tiddlLoader.item.open() }
+                AppButton { text: qsTr("Automatic"); kind: "plain"
+                            onClicked: page.toastRequest(backend.setTidalPath("") || qsTr("tiddl is detected again")) }
+                AppButton { text: qsTr("Download…"); iconName: "open"; kind: "plain"
+                            onClicked: backend.openLink("https://github.com/oskvr37/tiddl") }
+            }
+            SettingsItem {
+                label: qsTr("Tidal account")
+                icon: "lock"
+                summary: backend.tidalLoggedIn ? qsTr("Signed in") : backend.tidalLoginRunning ? qsTr("Waiting for the browser…") : qsTr("Signed out")
+                hint: qsTr("Each user signs in with their own Tidal account in the browser. Yeal never sees the password.")
+                stacked: true
+                Badge { text: backend.tidalLoggedIn ? qsTr("Signed in") : qsTr("Signed out")
+                        kind: backend.tidalLoggedIn ? "success" : "neutral" }
+                AppButton { visible: !backend.tidalLoggedIn && !backend.tidalLoginRunning; text: qsTr("Sign in…"); iconName: "lock"
+                            enabled: backend.tidalInstalled
+                            onClicked: { var err = backend.tidalLogin(); if (err) page.toastRequest(err) } }
+                AppButton { visible: backend.tidalLoginRunning; text: qsTr("Cancel"); kind: "plain"
+                            onClicked: backend.tidalCancelLogin() }
+                AppButton { visible: backend.tidalLoggedIn; text: qsTr("Sign out"); kind: "plain"
+                            onClicked: backend.tidalLogout() }
+                AppButton { text: qsTr("Check"); kind: "plain"; onClicked: backend.tidalRefresh() }
+            }
+            SettingsItem {
+                label: qsTr("Audio quality")
+                icon: "music"
+                summary: page.s.tidal_quality === "max" ? qsTr("Max (up to 24-bit, 192 kHz)")
+                         : page.s.tidal_quality === "high" ? qsTr("High (16-bit, 44.1 kHz)")
+                         : page.s.tidal_quality === "normal" ? qsTr("Low (320 kbps)") : qsTr("Low (96 kbps)")
+                hint: qsTr("The same choices as in the TIDAL app. Adaptive streaming does not apply to downloads: Yeal asks Tidal for exactly the quality chosen here (what your subscription offers is used; Max needs a HiFi Plus / Max plan).")
+                stacked: true
+                ColumnLayout {
+                    id: qualityBox
+                    Layout.fillWidth: true
+                    spacing: 0
+                    readonly property string q: page.s.tidal_quality
+                    Repeater {
+                        model: [
+                            { id: "low", title: qsTr("Low"), sub: qsTr("Balance between audio quality and data use") },
+                            { id: "high", title: qsTr("High"), sub: qsTr("16-bit, 44.1 kHz (FLAC)") },
+                            { id: "max", title: qsTr("Max"), sub: qsTr("Up to 24-bit, 192 kHz (FLAC)") }
+                        ]
+                        delegate: RowLayout {
+                            id: qRow
+                            required property var modelData
+                            readonly property bool on: modelData.id === "low"
+                                ? (qualityBox.q === "low" || qualityBox.q === "normal") : qualityBox.q === modelData.id
+                            Layout.fillWidth: true
+                            spacing: Theme.s3
+                            Item {
+                                Layout.fillWidth: true
+                                implicitHeight: pick.implicitHeight + 2 * Theme.s2
+                                RowLayout {
+                                    id: pick
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: Theme.s3
+                                    Rectangle {
+                                        implicitWidth: 20; implicitHeight: 20; radius: 10
+                                        color: "transparent"
+                                        border.width: 2
+                                        border.color: qRow.on ? Theme.accent : Theme.textTertiary
+                                        Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 5
+                                                    color: Theme.accent; visible: qRow.on }
+                                    }
+                                    ColumnLayout {
+                                        spacing: 2
+                                        Layout.fillWidth: true
+                                        Text { text: qRow.modelData.title; color: Theme.text; font.pixelSize: Theme.body
+                                               font.weight: Font.Medium }
+                                        Text { text: qRow.modelData.sub; color: Theme.textSecondary
+                                               font.pixelSize: Theme.footnote; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                                    }
+                                }
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                TapHandler {
+                                    onTapped: backend.setSetting("tidal_quality", qRow.modelData.id === "low"
+                                        ? (qualityBox.q === "normal" ? "normal" : "low") : qRow.modelData.id)
+                                }
+                                Accessible.role: Accessible.RadioButton
+                                Accessible.name: qRow.modelData.title + ", " + qRow.modelData.sub
+                                Accessible.checked: qRow.on
+                            }
+                            Segmented {
+                                visible: qRow.modelData.id === "low" && qRow.on
+                                current: qualityBox.q === "normal" ? "normal" : "low"
+                                options: [{ text: "96 kbps", value: "low" }, { text: "320 kbps", value: "normal" }]
+                                Layout.preferredWidth: 200
+                                onActivated: (v) => backend.setSetting("tidal_quality", v)
+                            }
+                        }
+                    }
+                }
+            }
+            SettingsItem {
+                label: qsTr("Video quality")
+                icon: "film"
+                summary: page.s.tidal_video_quality === "fhd" ? qsTr("Full HD") : page.s.tidal_video_quality === "hd" ? qsTr("HD") : qsTr("SD")
+                hint: qsTr("For Tidal music videos. Full HD means 1080p where Tidal offers it.")
+                stacked: Theme.compact
+                Segmented {
+                    current: page.s.tidal_video_quality
+                    options: [{ text: qsTr("SD"), value: "sd" }, { text: qsTr("HD"), value: "hd" }, { text: qsTr("Full HD"), value: "fhd" }]
+                    Layout.preferredWidth: 280
+                    onActivated: (v) => backend.setSetting("tidal_video_quality", v)
+                }
+            }
+            SettingsItem {
+                label: qsTr("Videos in albums and playlists")
+                icon: "film"
+                summary: page.s.tidal_videos === "only" ? qsTr("Only videos") : page.s.tidal_videos === "none" ? qsTr("Skip") : qsTr("Include")
+                hint: qsTr("A link to a single Tidal video is always downloaded. This decides what happens with videos inside albums, playlists and artists: include them, skip them, or download only the videos.")
+                stacked: Theme.compact
+                Segmented {
+                    current: page.s.tidal_videos
+                    options: [{ text: qsTr("Skip"), value: "none" }, { text: qsTr("Include"), value: "allow" },
+                              { text: qsTr("Only videos"), value: "only" }]
+                    Layout.preferredWidth: 320
+                    onActivated: (v) => backend.setSetting("tidal_videos", v)
+                }
+            }
+            SettingsItem {
+                label: qsTr("Parallel Tidal tracks")
+                icon: "layers"
+                summary: String(page.s.tidal_threads)
+                hint: qsTr("Keep this low: many parallel requests can get a Tidal account blocked.")
+                Stepper {
+                    value: page.s.tidal_threads
+                    from: 1
+                    to: 4
+                    onMoved: (v) => backend.setSetting("tidal_threads", v)
+                }
+            }
+        }
+
+        SettingsGroup {
             title: qsTr("Download engine")
             icon: "cpu"
             collapsible: true
+            collapsed: true
             Layout.fillWidth: true
             footer: qsTr("yt-dlp is checked for updates every few days. Updating keeps downloads working when sites change.")
             SettingsItem {
@@ -473,6 +662,7 @@ Flickable {
             title: qsTr("Advanced")
             icon: "terminal"
             collapsible: true
+            collapsed: true
             Layout.fillWidth: true
             footer: customError.text !== "" ? customError.text
                 : qsTr("Extra yt-dlp options as a JSON object, applied to every download. Unsafe options are rejected.")
@@ -515,88 +705,14 @@ Flickable {
                     Text { id: customError; visible: false; text: "" }
                 }
             }
-        }
-
-        SettingsGroup {
-            title: qsTr("Admin")
-            icon: "lock"
-            collapsible: true
-            visible: backend.vaultAvailable
-            Layout.fillWidth: true
-            AdminPanel {}
-        }
-
-        SettingsGroup {
-            title: qsTr("Tidal")
-            icon: "music"
-            collapsible: true
-            visible: !backend.isMobile
-            Layout.fillWidth: true
             SettingsItem {
-                label: qsTr("Tidal subscription required")
-                icon: "info"
-                summary: qsTr("Only with a Tidal subscription")
-                hint: backend.tidalNotice
-                stacked: true
-            }
-            SettingsItem {
-                label: qsTr("Tidal helper (tiddl)")
-                icon: "code"
-                summary: backend.tidalInstalled ? qsTr("Ready") : qsTr("Missing")
-                hint: backend.tidalInstalled ? backend.tidalExe : backend.tidalInstallHint
-                stacked: true
-                Badge { text: backend.tidalInstalled ? qsTr("Ready") : qsTr("Missing")
-                        kind: backend.tidalInstalled ? "success" : "warning" }
-                AppButton { text: qsTr("Choose…"); iconName: "folder"; onClicked: tiddlLoader.item.open() }
-                AppButton { text: qsTr("Automatic"); kind: "plain"
-                            onClicked: page.toastRequest(backend.setTidalPath("") || qsTr("tiddl is detected again")) }
-                AppButton { text: qsTr("Download…"); iconName: "open"; kind: "plain"
-                            onClicked: backend.openLink("https://github.com/oskvr37/tiddl") }
-            }
-            SettingsItem {
-                label: qsTr("Tidal account")
+                visible: backend.vaultAvailable
+                label: qsTr("Admin vault")
                 icon: "lock"
-                summary: backend.tidalLoggedIn ? qsTr("Signed in") : backend.tidalLoginRunning ? qsTr("Waiting for the browser…") : qsTr("Signed out")
-                hint: qsTr("Each user signs in with their own Tidal account in the browser. Yeal never sees the password.")
+                summary: backend.vaultUnlocked ? qsTr("Unlocked") : qsTr("Locked")
+                hint: qsTr("Stored YouTube/browser logins, protected by the admin password.")
                 stacked: true
-                Badge { text: backend.tidalLoggedIn ? qsTr("Signed in") : qsTr("Signed out")
-                        kind: backend.tidalLoggedIn ? "success" : "neutral" }
-                AppButton { visible: !backend.tidalLoggedIn && !backend.tidalLoginRunning; text: qsTr("Sign in…"); iconName: "lock"
-                            enabled: backend.tidalInstalled
-                            onClicked: { var err = backend.tidalLogin(); if (err) page.toastRequest(err) } }
-                AppButton { visible: backend.tidalLoginRunning; text: qsTr("Cancel"); kind: "plain"
-                            onClicked: backend.tidalCancelLogin() }
-                AppButton { visible: backend.tidalLoggedIn; text: qsTr("Sign out"); kind: "plain"
-                            onClicked: backend.tidalLogout() }
-                AppButton { text: qsTr("Check"); kind: "plain"; onClicked: backend.tidalRefresh() }
-            }
-            SettingsItem {
-                label: qsTr("Quality")
-                icon: "music"
-                summary: page.s.tidal_quality === "max" ? qsTr("Max (FLAC, up to 24-bit)") : page.s.tidal_quality === "high" ? qsTr("High (FLAC 16-bit)")
-                         : page.s.tidal_quality === "normal" ? qsTr("Normal (AAC 320)") : qsTr("Low (AAC 96)")
-                hint: qsTr("What your subscription offers is used; Max needs a plan with HiFi Plus / Max.")
-                stacked: Theme.compact
-                Segmented {
-                    current: page.s.tidal_quality
-                    options: [{ text: qsTr("Low"), value: "low" }, { text: qsTr("Normal"), value: "normal" },
-                              { text: qsTr("High"), value: "high" }, { text: qsTr("Max"), value: "max" }]
-                    Layout.fillWidth: Theme.compact
-                    Layout.preferredWidth: 340
-                    onActivated: (v) => backend.setSetting("tidal_quality", v)
-                }
-            }
-            SettingsItem {
-                label: qsTr("Parallel Tidal tracks")
-                icon: "layers"
-                summary: String(page.s.tidal_threads)
-                hint: qsTr("Keep this low: many parallel requests can get a Tidal account blocked.")
-                Stepper {
-                    value: page.s.tidal_threads
-                    from: 1
-                    to: 4
-                    onMoved: (v) => backend.setSetting("tidal_threads", v)
-                }
+                AdminPanel {}
             }
         }
 
@@ -604,6 +720,7 @@ Flickable {
             title: qsTr("Info")
             icon: "info"
             collapsible: true
+            collapsed: true
             Layout.fillWidth: true
             Item {
                 Layout.fillWidth: true
@@ -659,29 +776,26 @@ Flickable {
                 }
             }
             SettingsItem {
-                id: licensesRow
-                property bool open: false
                 label: qsTr("Module licenses")
                 icon: "doc"
                 hint: qsTr("Versions and licenses of the included runtime modules")
                 stacked: true
-                ColumnLayout {
+                ScrollView {
                     Layout.fillWidth: true
-                    AppButton { text: licensesRow.open ? qsTr("Hide") : qsTr("Show"); kind: "plain"
-                                iconName: licensesRow.open ? "chevronDown" : "chevronRight"
-                                onClicked: licensesRow.open = !licensesRow.open }
-                    Text {
-                        visible: licensesRow.open
+                    Layout.preferredHeight: 280
+                    TextArea {
                         text: backend.thirdPartyLicenses
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextArea.Wrap
                         color: Theme.textSecondary
                         font.pixelSize: Theme.footnote
-                        wrapMode: Text.Wrap
-                        Layout.fillWidth: true
-                        Layout.topMargin: Theme.s2
+                        background: Rectangle { color: Theme.field; radius: Theme.radius }
                     }
                 }
             }
         }
+
         Item { Layout.preferredHeight: Theme.s2 }
     }
 }

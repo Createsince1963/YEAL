@@ -544,11 +544,13 @@ class Backend(QObject):
 
     # ---- Tidal (0.9.0.0) ------------------------------------------------
     tidalNotice = Property(str, lambda self: tidal.NOTICE, constant=True)
+    tidalQualityChoices = Property('QVariantList', lambda self: [{"value": k, "text": v} for k, v in tidal.TIDAL_QUALITY_LABELS.items()], constant=True)
     tidalInstallHint = Property(str, lambda self: tidal.INSTALL_HINT, constant=True)
 
     def _tidal_config(self) -> dict:
         return {"path": self._settings.tidal_path, "quality": self._settings.tidal_quality,
-                "threads": self._settings.tidal_threads}
+                "threads": self._settings.tidal_threads, "video_quality": self._settings.tidal_video_quality,
+                "videos": self._settings.tidal_videos}
 
     @Property(str, notify=tidalChanged)
     def tidalExe(self) -> str:  # type: ignore[override]
@@ -632,6 +634,8 @@ class Backend(QObject):
         for url in urls:
             options = self._settings.to_options()
             options.html_theme = self._effective_theme()
+            if tidal.is_tidal_url(url):        # Tidal: the quality chosen in the download options applies to this job
+                options.tidal_quality = self._settings.tidal_quality
             if is_playlist_url(url):   # a playlist link: the entries are listed, the user picks
                 options.playlist = True
                 options.playlist_dir = True
@@ -1118,6 +1122,8 @@ class Backend(QObject):
         # Drives that were removed can be offered again when they come back.
         self._drive_offered &= {d["id"] for d in found}
         current = str(self._ctx.download_dir).lower()
+        if not self._settings.ask_drive_dialog:
+            return           # the user chose "Don't ask again" (Settings > Downloads turns it back on)
         for d in found:
             if d["id"] in self._drive_offered or d["id"] in self._settings.drive_ignored:
                 continue
@@ -1335,7 +1341,7 @@ class Backend(QObject):
 
     @Slot(str, "QVariant")
     def setSetting(self, key: str, value: Any) -> None:
-        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port"):
+        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1345,6 +1351,10 @@ class Backend(QObject):
         if key == "theme" and value not in THEMES:
             return
         if key == "tidal_quality" and value not in tidal.TIDAL_QUALITIES:
+            return
+        if key == "tidal_video_quality" and value not in tidal.TIDAL_VIDEO_QUALITIES:
+            return
+        if key == "tidal_videos" and value not in tidal.TIDAL_VIDEOS:
             return
         if key == "html_open_mode" and value not in HTML_OPEN_MODES:
             return

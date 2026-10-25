@@ -1,9 +1,12 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
-// Download location chooser: a dropdown with the Windows Downloads folder on top (default) followed by
-// the drives that were found. The user picks one, optionally edits the folder name (drives only) and confirms.
+// Download location question when an external drive is found. Step 1 (mode "keep") shows the CURRENT download
+// folder and the drives found: Continue keeps it, "Change folder..." opens step 2 (mode "change"): a dropdown with
+// the Windows Downloads folder on top followed by the drives (optionally edit the folder name) or any folder via
+// the system dialog. "Don't ask again" (step 1) turns the question off (Settings > Downloads turns it back on).
 Popup {
     id: dlg
     objectName: "externalDriveDialog"
@@ -12,6 +15,8 @@ Popup {
     property string selectedId: downloadsId
     property string errorText: ""
     property string downloadsPath: ""
+    property string mode: "keep"       // "keep" = current folder + Continue, "change" = pick another place
+    readonly property string currentDir: String(backend.settings.download_dir || "")
     // Dropdown entries: the Downloads folder first, then the drives sorted by letter.
     readonly property var entries: {
         var list = [{ id: downloadsId, isDownloads: true, root: downloadsPath, label: "", free: 0, total: 0,
@@ -40,6 +45,7 @@ Popup {
         drives = list
         if (!opened) {
             downloadsPath = backend.userDownloadsDir()
+            mode = "keep"
             selectEntry(entries[0])          // topmost entry = Windows Downloads folder is the default
             errorText = ""
             open()
@@ -55,7 +61,7 @@ Popup {
         if (current.isDownloads) return
         drives = drives.filter(function (d) { return d.id !== selectedId })
         selectEntry(entries[0])
-        if (drives.length === 0) close()
+        if (drives.length === 0) dismissAll()
     }
     function gb(bytes) {
         if (bytes >= 1099511627776) return (bytes / 1099511627776).toFixed(2) + " TB"
@@ -66,7 +72,18 @@ Popup {
                                         : backend.useExternalDrive(current.root, nameField.text)
         if (errorText === "") { drives = []; selectedId = downloadsId; close() }
     }
-    function dismissAll() { drives = []; selectedId = downloadsId; close() }
+    function dismissAll() { drives = []; selectedId = downloadsId; mode = "keep"; close() }
+    function stopAsking() { backend.setSetting("ask_drive_dialog", false); dismissAll() }
+
+    FolderDialog {
+        id: browseDialog
+        title: qsTr("Choose download folder")
+        onAccepted: {
+            var err = backend.setDownloadDir(selectedFolder.toString())
+            if (err) dlg.errorText = err
+            else dlg.dismissAll()
+        }
+    }
 
     readonly property rect area: Theme.dialogArea.width > 0 ? Theme.dialogArea
         : Qt.rect(0, 0, Overlay.overlay ? Overlay.overlay.width : 0, Overlay.overlay ? Overlay.overlay.height : 0)
@@ -86,11 +103,13 @@ Popup {
         border.color: Theme.separator
     }
     Shortcut { sequence: "Escape"; enabled: dlg.opened; onActivated: dlg.dismissAll() }
+    Shortcut { sequence: "Return"; enabled: dlg.opened && dlg.mode === "keep"; onActivated: dlg.dismissAll() }
 
     contentItem: ColumnLayout {
         spacing: Theme.s3
         Text {
-            text: dlg.drives.length > 1 ? qsTr("External drives found") : qsTr("External drive found")
+            text: dlg.mode === "keep" ? qsTr("Download folder")
+                : dlg.drives.length > 1 ? qsTr("External drives found") : qsTr("External drive found")
             color: Theme.text
             font.pixelSize: Theme.headline
             font.weight: Font.DemiBold
@@ -98,6 +117,7 @@ Popup {
             Accessible.role: Accessible.Heading
         }
         Text {
+            visible: dlg.mode === "change"
             text: qsTr("Where should your downloads be saved?")
             color: Theme.text
             font.pixelSize: Theme.body
@@ -105,8 +125,69 @@ Popup {
             Layout.fillWidth: true
         }
 
+        // ---- step 1: current folder, Continue / Change folder
+        ColumnLayout {
+            visible: dlg.mode === "keep"
+            Layout.fillWidth: true
+            spacing: Theme.s3
+            Text {
+                text: qsTr("Your downloads are saved to:")
+                color: Theme.text
+                font.pixelSize: Theme.body
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+            AppField {
+                Layout.fillWidth: true
+                readOnly: true
+                text: dlg.currentDir
+                Accessible.name: qsTr("Current download folder")
+            }
+            Text {
+                text: dlg.drives.length > 1 ? qsTr("Drives found:") : qsTr("Drive found:")
+                color: Theme.textSecondary
+                font.pixelSize: Theme.footnote
+                Layout.fillWidth: true
+            }
+            Repeater {
+                model: dlg.drives
+                delegate: Text {
+                    required property var modelData
+                    text: modelData.root + (modelData.label ? "  " + modelData.label : "") + "   \u2013   "
+                          + qsTr("%1 free of %2").arg(dlg.gb(modelData.free)).arg(dlg.gb(modelData.total))
+                    color: Theme.textSecondary
+                    font.pixelSize: Theme.footnote
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                }
+            }
+            RowLayout {
+                spacing: Theme.s2
+                Layout.fillWidth: true
+                AppButton {
+                    kind: "plain"
+                    implicitHeight: 30
+                    font.pixelSize: Theme.footnote
+                    text: qsTr("Don't ask again")
+                    onClicked: dlg.stopAsking()
+                    Accessible.description: qsTr("Turns this question off. Settings > Downloads turns it back on.")
+                }
+                Item { Layout.fillWidth: true }
+                AppButton { text: qsTr("Change folder\u2026"); iconName: "folder"; onClicked: { dlg.errorText = ""; dlg.mode = "change" } }
+                AppButton { text: qsTr("Continue"); kind: "primary"; onClicked: dlg.dismissAll() }
+            }
+            Text {
+                text: qsTr("You can turn this question on again in Settings > Downloads.")
+                color: Theme.textTertiary
+                font.pixelSize: Theme.caption
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+        }
+
         ComboBox {
             id: combo
+            visible: dlg.mode === "change"
             Layout.fillWidth: true
             implicitHeight: Theme.touch + 14
             model: dlg.entries
@@ -203,7 +284,7 @@ Popup {
         }
         // Usage bar of the selected drive (not for the Downloads folder: it lives on the system drive).
         Rectangle {
-            visible: !dlg.current.isDownloads && dlg.current.total > 0
+            visible: dlg.mode === "change" && !dlg.current.isDownloads && dlg.current.total > 0
             Layout.fillWidth: true
             height: 6
             radius: 3
@@ -217,11 +298,11 @@ Popup {
             }
         }
 
-        Text { visible: !dlg.current.isDownloads; text: qsTr("Folder to create in the root of the drive")
+        Text { visible: dlg.mode === "change" && !dlg.current.isDownloads; text: qsTr("Folder to create in the root of the drive")
                color: Theme.textSecondary; font.pixelSize: Theme.footnote; Layout.fillWidth: true }
         AppField {
             id: nameField
-            visible: !dlg.current.isDownloads
+            visible: dlg.mode === "change" && !dlg.current.isDownloads
             maximumLength: 60
             Layout.fillWidth: true
             Accessible.name: qsTr("Folder name")
@@ -236,15 +317,20 @@ Popup {
             Layout.fillWidth: true
         }
         RowLayout {
+            visible: dlg.mode === "change"
             spacing: Theme.s2
             Layout.fillWidth: true
             AppButton {
-                text: qsTr("Don't ask again")
+                kind: "plain"
+                implicitHeight: 30
+                font.pixelSize: Theme.footnote
+                text: qsTr("Don't ask about this drive")
                 visible: !dlg.current.isDownloads
                 onClicked: { backend.ignoreExternalDrive(dlg.current.id); dlg.removeSelected() }
             }
             Item { Layout.fillWidth: true }
-            AppButton { text: qsTr("Not now"); onClicked: dlg.dismissAll() }
+            AppButton { text: qsTr("Back"); onClicked: { dlg.errorText = ""; dlg.mode = "keep" } }
+            AppButton { text: qsTr("Other folder\u2026"); iconName: "folder"; onClicked: browseDialog.open() }
             AppButton { text: dlg.current.isDownloads ? qsTr("Use this folder") : qsTr("Use this drive"); kind: "primary"; onClicked: dlg.accept() }
         }
     }

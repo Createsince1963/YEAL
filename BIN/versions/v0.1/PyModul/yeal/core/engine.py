@@ -236,7 +236,7 @@ class Engine:
     def __init__(self, ctx, ydl_class=None):
         self.ctx = ctx
         self._ydl_class = ydl_class
-        self.tidal_config: Optional[Callable[[], dict]] = None   # -> {"path", "quality", "threads"} (set by the UI backend)
+        self.tidal_config: Optional[Callable[[], dict]] = None   # -> {"path", "quality", "threads", "video_quality", "videos"} (set by the UI backend)
 
     def _lyrics_for(self, job: DownloadJob, item: dict, path: str, notify: Callable[[DownloadJob], None]) -> Optional[dict]:
         """Find the song text (LRCLIB, else the captions), save .txt/.lrc/.srt and tag the audio file."""
@@ -356,8 +356,9 @@ class Engine:
             notify(job)
 
         try:
-            code, lines = tidal.run_download(exe, job.url, str(cfg.get("quality") or "high"), str(base),
-                                             int(cfg.get("threads") or 2), cancel, on_line)
+            code, lines = tidal.run_download(exe, job.url, str(job.options.tidal_quality or cfg.get("quality") or "high"), str(base),
+                                             int(cfg.get("threads") or 2), cancel, on_line,
+                                             str(cfg.get("video_quality") or "fhd"), str(cfg.get("videos") or "allow"))
         except OSError as exc:
             fail(f"tiddl could not be started: {exc}")
             return
@@ -557,7 +558,8 @@ class Engine:
                     desc, trans = extras.write_extras(
                         item, path, job.options.save_description, job.options.save_transcript,
                         job.options.sub_langs, job.options.subtitles, job.options.mode,
-                        job.options.online_player, job.options.html_theme, found, job.options.html_create)
+                        job.options.online_player, job.options.html_theme, found, job.options.html_create,
+                        job.options.single_playback)
                     job.saved_description = job.saved_description or desc
                     job.saved_transcript = job.saved_transcript or trans
             self._tag_mp3(job, info)     # after the lyrics step, which rewrites the tags with ffmpeg

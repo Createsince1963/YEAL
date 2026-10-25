@@ -21,9 +21,24 @@ from typing import Callable, List, Optional
 from urllib.parse import urlparse
 
 TIDAL_QUALITIES = ("low", "normal", "high", "max")   # tiddl: m4a 96 / m4a 320 / FLAC 16-bit / FLAC up to 24-bit
+TIDAL_QUALITY_LABELS = {   # shown in the download options (same steps as Tidal's own audio quality setting)
+    "low": "Tidal Low (AAC 96 kbps)", "normal": "Tidal Normal (AAC 320 kbps)",
+    "high": "Tidal High (FLAC 16-bit / 44.1 kHz)", "max": "Tidal Max (FLAC up to 24-bit / 192 kHz)"}
+TIDAL_VIDEO_QUALITIES = ("sd", "hd", "fhd")           # tiddl --video-quality
+TIDAL_VIDEOS = ("none", "allow", "only")              # tiddl --videos: skip / include / only videos inside albums, playlists, artists
 TIDAL_HOSTS = ("tidal.com", "www.tidal.com", "listen.tidal.com", "embed.tidal.com")
 _RESOURCE = re.compile(r"/(?:browse/)?(track|album|playlist|artist|mix|video)/([0-9A-Za-z-]+)", re.IGNORECASE)
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07")
+# Folder layout below <download folder>\Tidal\ (tiddl --output template, one per kind of link).
+# Single songs -> Singles, playlists and mixes -> Playlists\<name>, videos -> Videos, albums and artists -> Albums.
+OUTPUT_TEMPLATES = {
+    "track": "Singles/{item.artist} - {item.title}",
+    "video": "Videos/{item.artist} - {item.title}",
+    "playlist": "Playlists/{playlist.title}/{playlist.index:02d} - {item.artist} - {item.title}",
+    "mix": "Playlists/Mix {mix_id}/{item.artist} - {item.title}",
+    "album": "Albums/{album.artist}/{album.title}/{item.number:02d} - {item.title}",
+    "artist": "Albums/{album.artist}/{album.title}/{item.number:02d} - {item.title}",
+}
 INSTALL_HINT = "Install tiddl once with:  pip install tiddl   (needs Python), then choose it under Settings > Tidal."
 
 NOTICE = ("Tidal needs an active Tidal subscription. Sign in with your own Tidal account; the downloads are meant "
@@ -44,6 +59,12 @@ def resource_of(url: str) -> str:
     """'album/123' style id used for display and for tiddl."""
     m = _RESOURCE.search(urlparse((url or "").strip()).path)
     return f"{m.group(1).lower()}/{m.group(2)}" if m else ""
+
+
+def output_template(url: str) -> str:
+    """tiddl output template (sub folder + file name) for a Tidal link: Singles / Playlists / Videos / Albums."""
+    kind = resource_of(url).split("/")[0]
+    return OUTPUT_TEMPLATES.get(kind, "")
 
 
 def strip_ansi(text: str) -> str:
@@ -82,10 +103,21 @@ def find_tiddl(configured: str = "") -> str:
     return ""
 
 
-def build_command(exe: str, url: str, quality: str = "high", base_dir: str = "", threads: int = 2) -> List[str]:
-    """`tiddl download -q <quality> -t <n> -p <dir> url <link>` (global options come before `url`)."""
+def build_command(exe: str, url: str, quality: str = "high", base_dir: str = "", threads: int = 2,
+                  video_quality: str = "fhd", videos: str = "allow") -> List[str]:
+    """`tiddl download -q <quality> -t <n> -vq <sd|hd|fhd> --videos <mode> -p <dir> url <link>` (global options come before `url`).
+    tiddl skips videos by default (`--videos none`), even a direct video link: a link to a single video is therefore
+    always downloaded with `allow`; for albums/playlists/artists the user's choice applies."""
     quality = quality if quality in TIDAL_QUALITIES else "high"
-    cmd = [exe, "download", "-q", quality, "-t", str(max(1, min(4, int(threads or 1))))]
+    video_quality = video_quality if video_quality in TIDAL_VIDEO_QUALITIES else "fhd"
+    videos = videos if videos in TIDAL_VIDEOS else "allow"
+    if resource_of(url).startswith("video/") and videos == "none":
+        videos = "allow"
+    cmd = [exe, "download", "-q", quality, "-t", str(max(1, min(4, int(threads or 1)))),
+           "-vq", video_quality, "--videos", videos]
+    template = output_template(url)
+    if template:
+        cmd += ["-o", template]
     if base_dir:
         cmd += ["-p", str(base_dir), "--scan-path", str(base_dir)]
     return cmd + ["url", url]
@@ -153,10 +185,11 @@ def friendly_error(lines: List[str], code: int) -> str:
 
 
 def run_download(exe: str, url: str, quality: str, base_dir: str, threads: int,
-                 cancel: threading.Event, on_line: Callable[[str, str], None]) -> tuple:
+                 cancel: threading.Event, on_line: Callable[[str, str], None],
+                 video_quality: str = "fhd", videos: str = "allow") -> tuple:
     """Run one tiddl download. `on_line(kind, text)` is called for every output line.
     Returns (exit code, all lines). The process is terminated when `cancel` is set."""
-    proc = _popen(build_command(exe, url, quality, base_dir, threads))
+    proc = _popen(build_command(exe, url, quality, base_dir, threads, video_quality, videos))
     lines: List[str] = []
 
     def watch() -> None:

@@ -8,6 +8,20 @@ Item {
     id: page
     property bool browserMode: false     // set by Main.qml
     property bool suspendWeb: false
+    property string player: "youtube"    // "youtube" | "tidal"; set by Main.qml
+    property bool tidalWanted: false     // TIDAL view is created on first use, then kept alive
+    property string leftPlayer: "youtube"
+    // Switching players: the one that is left is paused (not reloaded), so the two never play together.
+    function pausePlayer(which) {
+        var l = which === "tidal" ? tidalLoader : webLoader
+        if (l.item && backend.settings.single_playback)
+            l.item.run("document.querySelectorAll('audio,video').forEach(function(m){m.pause()})")
+    }
+    onPlayerChanged: {
+        if (player === "tidal") tidalWanted = true
+        pausePlayer(leftPlayer)
+        leftPlayer = player
+    }
     property bool browserReady: false
     readonly property alias slot: inlineSlot
     signal videoLink(string url)
@@ -27,10 +41,23 @@ Item {
                 id: webLoader
                 anchors.fill: parent
                 anchors.margins: Theme.s3
+                visible: page.player === "youtube"
                 active: page.browserMode && page.browserReady
                 source: "WebPane.qml"
                 onLoaded: {
-                    item.suspended = Qt.binding(function () { return page.suspendWeb })
+                    item.suspended = Qt.binding(function () { return page.suspendWeb || page.player !== "youtube" })
+                    item.videoLink.connect(function (url) { page.videoLink(url) })
+                }
+            }
+            Loader {
+                id: tidalLoader
+                anchors.fill: parent
+                anchors.margins: Theme.s3
+                visible: page.player === "tidal"
+                active: page.browserMode && page.browserReady && page.tidalWanted
+                source: "TidalPane.qml"
+                onLoaded: {
+                    item.suspended = Qt.binding(function () { return page.suspendWeb || page.player !== "tidal" })
                     item.videoLink.connect(function (url) { page.videoLink(url) })
                 }
             }

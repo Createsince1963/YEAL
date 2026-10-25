@@ -66,6 +66,8 @@ class DownloadOptions:
     playlist_dir: bool = False     # playlist link: save in <download>/Playlists/<playlist name>/ + playlist page
     playlist_items: str = ""       # yt-dlp item spec of the chosen entries, e.g. "1,3,5-7" ("" = all)
     html_create: str = "both"      # description pages: "server" (online player) | "file" (standalone) | "both" (linked)
+    single_playback: bool = True   # description pages: local and online player never play at the same time
+    tidal_quality: str = ""        # Tidal links: low | normal | high | max chosen in the download options ("" = Settings > Tidal)
 
     def normalized(self) -> "DownloadOptions":
         mode = self.mode if self.mode in MODES else "video"
@@ -100,7 +102,9 @@ class DownloadOptions:
                                self.cookies_browser if self.cookies_browser in COOKIE_BROWSERS else "",
                                bool(self.gentle), bool(self.save_lyrics), bool(self.keep_whole),
                                live, bool(self.playlist_dir), items,
-                               self.html_create if self.html_create in ("server", "file", "both") else "both")
+                               self.html_create if self.html_create in ("server", "file", "both") else "both",
+                               bool(self.single_playback),
+                               self.tidal_quality if self.tidal_quality in ("low", "normal", "high", "max") else "")
 
 
 @dataclass

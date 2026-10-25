@@ -10,6 +10,8 @@ Rectangle {
     implicitWidth: 224
     property bool onRight: false
     property bool rowNav: false          // three buttons in one row (wide bar next to the browser view)
+    property string player: "youtube"    // which player the right-hand side shows
+    signal playerSelected(string player)
     readonly property alias slot: panelSlot
     color: Theme.sidebar
 
@@ -27,6 +29,7 @@ Rectangle {
 
         RowLayout {
             spacing: Theme.s3
+            Layout.fillWidth: true
             Layout.leftMargin: Theme.s2
             Layout.topMargin: Theme.s2
             Layout.bottomMargin: Theme.s4
@@ -44,6 +47,24 @@ Rectangle {
                 font.pixelSize: Theme.headline + 1
                 font.weight: Font.DemiBold
                 color: Theme.text
+            }
+            RowLayout {      // YouTube / TIDAL switch (only next to the player view)
+                visible: root.rowNav
+                spacing: Theme.s2
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.s2
+                PlayerButton {
+                    logo: "logo_youtube.png"; iconName: "play"; text: "YouTube"
+                    selected: root.player === "youtube"
+                    Layout.fillWidth: true; Layout.preferredWidth: 1
+                    onClicked: root.playerSelected("youtube")
+                }
+                PlayerButton {
+                    logo: "logo_tidal.png"; iconName: "music"; text: "TIDAL"
+                    selected: root.player === "tidal"
+                    Layout.fillWidth: true; Layout.preferredWidth: 1
+                    onClicked: root.playerSelected("tidal")
+                }
             }
         }
         RowLayout {

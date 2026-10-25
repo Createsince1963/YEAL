@@ -46,14 +46,34 @@ def embed_url(info: dict) -> str:
     return ""
 
 
+# Only one player at a time on a description page: the local <audio>/<video> and the online YouTube player
+# pause each other. The iframe is controlled and observed through YouTube's postMessage API.
+_SINGLE_PLAYBACK_JS = (
+    '<script>(function(){'
+    'function media(){return[].slice.call(document.querySelectorAll("audio,video"))}'
+    'function frame(){return document.querySelector("#online iframe")}'
+    'function send(o){var f=frame();if(f&&f.contentWindow){try{f.contentWindow.postMessage(JSON.stringify(o),"*")}catch(e){}}}'
+    'function pauseOnline(){send({event:"command",func:"pauseVideo",args:""})}'
+    'function listen(){send({event:"listening",id:1,channel:"widget"})}'
+    'window.yealOnline=function(){return!!frame()};'
+    'document.addEventListener("play",function(e){media().forEach(function(m){if(m!==e.target)m.pause()});pauseOnline()},true);'
+    'window.addEventListener("message",function(e){var f=frame();if(!f||e.source!==f.contentWindow)return;'
+    'var d=e.data;if(typeof d==="string"){try{d=JSON.parse(d)}catch(x){return}}if(!d)return;'
+    'if((d.event==="onStateChange"&&d.info===1)||(d.event==="infoDelivery"&&d.info&&d.info.playerState===1))'
+    'media().forEach(function(m){m.pause()})});'
+    'var f=frame();if(f){f.addEventListener("load",listen);listen()}'
+    '})();</script>\n')
+
+
 def description_html(info: dict, media_name: str = "", media_kind: str = "video",
                      online_player: bool = False, theme: str = "auto", lyrics: Optional[dict] = None,
-                     flavour: str = "server", sibling: str = "") -> str:
+                     flavour: str = "server", sibling: str = "", single_playback: bool = True) -> str:
     """Standalone HTML page with the description (http(s) links clickable). When `media_name`
     is given, the file next to the page is embedded as a player (relative link: only the file name, the
     page and the media always sit in the same folder). `flavour`: "server" plays the online player when the
     page is opened over http (Yeal's local server); "file" never embeds it (works from disk, offline).
-    `sibling` = file name of the other flavour in the same folder; a relative link to it is shown on top."""
+    `sibling` = file name of the other flavour in the same folder; a relative link to it is shown on top.
+    `single_playback`: the local player and the online YouTube player never play at the same time."""
     title = html.escape(str(info.get("title") or "Description"))
     meta = []
     if info.get("uploader") or info.get("channel"):
@@ -71,6 +91,10 @@ def description_html(info: dict, media_name: str = "", media_kind: str = "video"
         player = (f'<{tag} controls preload="metadata" src="{src}"></{tag}>\n'
                   f'<p class="meta"><a href="{src}">{html.escape(media_name)}</a></p>\n')
     embed = embed_url(info) if online_player else ""
+    single = bool(single_playback and embed and flavour != "file")     # only then two players can exist on the page
+    single = single and "youtube" in embed          # the pause bridge is YouTube only
+    if single:
+        embed += "?enablejsapi=1"      # lets the page pause / observe the YouTube player
     if embed:   # online player first (like on the site); the local file player stays below
         page = html.escape(source, quote=True)
         poster = ""
@@ -121,7 +145,7 @@ def description_html(info: dict, media_name: str = "", media_kind: str = "video"
         seek = ('<script>document.addEventListener("click",function(e){var a=e.target.closest(".ts");'
                 'if(!a)return;e.preventDefault();var t=+a.dataset.t;'
                 'var m=document.querySelector("video,audio");'
-                'if(m){m.currentTime=t;m.play();m.scrollIntoView({block:"nearest"})}'
+                'if(m){m.currentTime=t;if(!(window.yealOnline&&window.yealOnline()))m.play();m.scrollIntoView({block:"nearest"})}'
                 'var f=document.querySelector("#online iframe");'
                 'if(f){var u=new URL(f.src);u.searchParams.set("start",t);u.searchParams.set("autoplay","1");f.src=u.href}'
                 '});</script>\n')
@@ -144,7 +168,7 @@ def description_html(info: dict, media_name: str = "", media_kind: str = "video"
                'if(i>=0){L[i].classList.add("on");L[i].scrollIntoView({block:"nearest",behavior:"smooth"})}}});'
                'document.getElementById("lyrics").addEventListener("click",function(e){'
                'var p=e.target.closest(".ly");if(!p)return;var s=+p.dataset.t;'
-               'if(m){m.currentTime=s;m.play()}'
+               'if(m){m.currentTime=s;if(!(window.yealOnline&&window.yealOnline()))m.play()}'
                'var f=document.querySelector("#online iframe");'
                'if(f){var u=new URL(f.src);u.searchParams.set("start",Math.floor(s));u.searchParams.set("autoplay","1");f.src=u.href}'
                '})})();</script>\n')
@@ -177,7 +201,7 @@ def description_html(info: dict, media_name: str = "", media_kind: str = "video"
         ".poster span{position:relative;background:#000a;padding:.6rem 1rem;border-radius:999px}"
         f"{theme_css}\n</style>\n</head>\n<body>\n"
         f"<h1>{title}</h1>\n<p class=\"meta\">{' &middot; '.join(meta)}</p>\n{nav}{player}"
-        f"<div>\n{body}\n</div>\n{lyr}{seek}</body>\n</html>\n")
+        f"<div>\n{body}\n</div>\n{lyr}{seek}{_SINGLE_PLAYBACK_JS if single else ''}</body>\n</html>\n")
 
 
 def playlist_html(title: str, uploader: str, source: str, items: List[dict],
@@ -323,7 +347,8 @@ def pick_subtitle(info: dict, langs: Iterable[str]) -> str:
 def write_extras(info: dict, video_path: str, want_description: bool, want_transcript: bool,
                  langs: Iterable[str], keep_subtitles: bool, media_kind: str = "video",
                  online_player: bool = False, theme: str = "auto",
-                 lyrics: Optional[dict] = None, html_create: str = "both") -> tuple[bool, bool]:
+                 lyrics: Optional[dict] = None, html_create: str = "both",
+                 single_playback: bool = True) -> tuple[bool, bool]:
     """Write the requested extras next to `video_path`, with the same base name
     (`name.html`, `name.txt`) so the page's embedded player finds the media file.
     Returns (description_saved, transcript_saved)."""
@@ -337,10 +362,10 @@ def write_extras(info: dict, video_path: str, want_description: bool, want_trans
             two = html_create == "both" and bool(online_player and embed_url(info))   # a 2nd page only differs by the embed
             flavour = "file" if html_create == "file" else "server"
             main.write_text(description_html(info, name, media_kind, online_player, theme, lyrics, flavour,
-                                             alt.name if two else ""), encoding="utf-8")
+                                             alt.name if two else "", single_playback), encoding="utf-8")
             if two:
                 alt.write_text(description_html(info, name, media_kind, online_player, theme, lyrics, "file",
-                                                main.name), encoding="utf-8")
+                                                main.name, single_playback), encoding="utf-8")
             saved_desc = True
         sub = pick_subtitle(info, langs) if want_transcript else ""
         if sub:

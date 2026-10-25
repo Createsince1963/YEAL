@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from .models import AUDIO_FORMATS, COOKIE_BROWSERS, MODES, QUALITIES, DownloadOptions
-from .tidal import TIDAL_QUALITIES
+from .tidal import TIDAL_QUALITIES, TIDAL_VIDEOS, TIDAL_VIDEO_QUALITIES
 
 THEMES = ("system", "light", "dark")
 HTML_OPEN_MODES = ("file", "server")
@@ -71,6 +71,8 @@ class Settings:
     tidal_path: str = ""              # optional user-selected tiddl executable (Tidal helper); empty = automatic lookup
     tidal_quality: str = "high"       # Tidal: low | normal | high | max (needs a Tidal subscription)
     tidal_threads: int = 2            # Tidal: parallel track downloads (kept low on purpose)
+    tidal_video_quality: str = "fhd"  # Tidal videos: sd | hd | fhd
+    tidal_videos: str = "allow"       # videos inside albums/playlists/artists: none (skip) | allow (include) | only
     panel_width: int = 400            # width of the tools panel next to the YouTube view
     panel_right: bool = False         # tools panel on the right instead of the left
     adblock_experimental: bool = False  # Windows browser view: block ad/tracker domains (experimental, needs restart)
@@ -79,6 +81,7 @@ class Settings:
     ask_mp3_tags: bool = True         # after an MP3 download: ask "edit the MP3 tags?" (the answer defaults to No)
     html_open_mode: str = "server"    # saved HTML pages: local Python HTTP server (online player) or file:// (independent)
     html_create: str = "both"         # which description pages are written: server | file | both (linked to each other)
+    single_playback: bool = True      # saved HTML pages: the local player and the online player never play at the same time
     dl_button_style: str = "icon"     # direct Download button in the header button bar: icon | label | off
     dl_button_pos: str = "left"       # ... and where it sits in that bar: left | right
     stream_device: dict = field(default_factory=dict)   # chosen UPnP/DLNA renderer (Renderer.to_dict()); {} = none yet
@@ -87,6 +90,7 @@ class Settings:
     stream_scan_seconds: int = 4      # how long the network search waits for answers
     stream_port: int = 0              # port of Yeal's media server for the renderer; 0 = automatic (or fixed for the firewall)
     download_dir: str = ""            # empty -> platform default
+    ask_drive_dialog: bool = True     # show the "download folder / external drive found" dialog (Don't ask again turns it off)
     rate_limit_kbps: int = 0          # 0 = unlimited
     proxy: str = ""
     custom_options: dict = field(default_factory=dict)
@@ -111,6 +115,10 @@ class Settings:
         self.tidal_path = str(self.tidal_path or "")[:1000]
         if self.tidal_quality not in TIDAL_QUALITIES:
             self.tidal_quality = "high"
+        if self.tidal_video_quality not in TIDAL_VIDEO_QUALITIES:
+            self.tidal_video_quality = "fhd"
+        if self.tidal_videos not in TIDAL_VIDEOS:
+            self.tidal_videos = "allow"
         try:
             self.tidal_threads = max(1, min(4, int(self.tidal_threads)))
         except (TypeError, ValueError):
@@ -230,7 +238,7 @@ class Settings:
             rate_limit_kbps=self.rate_limit_kbps, proxy=self.proxy,
             profile=prof["name"], custom=dict(self.custom_options),
             cookies_browser=self.cookies_browser, gentle=self.gentle_mode,
-            html_create=self.html_create).normalized()
+            html_create=self.html_create, single_playback=self.single_playback).normalized()
 
     # ---- persistence ----------------------------------------------------
     @classmethod

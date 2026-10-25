@@ -92,6 +92,7 @@ ApplicationWindow {
     }
 
     // Windows with the YouTube view: our workflow lives in the (wider) sidebar, the page is the browser.
+    property string player: "youtube"      // right-hand player: "youtube" | "tidal"
     readonly property bool browserMode: !Theme.compact && backend.browserAvailable && backend.settings.show_browser
 
     // one bar: navigation on top, our workflow below (Downloads page). Its width is the user's choice.
@@ -115,6 +116,8 @@ ApplicationWindow {
             currentIndex: win.page
             onRight: win.barRight
             rowNav: win.browserMode
+            player: win.player
+            onPlayerSelected: (p) => win.player = p
             onSelected: (i) => win.requestPage(i)
         }
     }
@@ -133,6 +136,7 @@ ApplicationWindow {
         DownloadsPage {
             id: downloads
             browserMode: win.browserMode
+            player: win.player
             suspendWeb: panel.overlayOpen || firstRun.opened || settingsSavePrompt.opened
             onVideoLink: (url) => panel.browserLink(url)
         }
@@ -177,6 +181,7 @@ ApplicationWindow {
         id: panel
         objectName: "workflowPanel"
         inSidebar: win.browserMode
+        tidalPlayer: win.player === "tidal"
         parent: win.panelInSidebar && sidebarLoader.item ? sidebarLoader.item.slot : downloads.slot
         anchors.fill: parent
         visible: win.page === 0

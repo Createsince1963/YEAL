@@ -7,6 +7,7 @@ import QtQuick.Layouts
 Item {
     id: panel
     property bool inSidebar: false
+    property bool tidalPlayer: false     // the TIDAL player is shown on the right
     signal manageProfiles()
     readonly property var stats: backend.stats
     readonly property string profileName: backend.settings.active_profile
@@ -15,6 +16,14 @@ Item {
         for (var i = 0; i < list.length; ++i)
             if (list[i].name === profileName) return list[i]
         return ({ save_description: false, save_transcript: false, online_player: false, split_chapters: false, save_lyrics: false, keep_whole: true })
+    }
+    // Tidal context: TIDAL player is active or the link in the field is a Tidal link -> Tidal quality steps instead of the yt-dlp profiles
+    readonly property bool tidalMode: tidalPlayer || /tidal\.com\//i.test(urlField.text)
+    readonly property string tidalQuality: backend.settings.tidal_quality
+    readonly property string tidalLabel: {
+        var c = backend.tidalQualityChoices
+        for (var i = 0; i < c.length; ++i) if (c[i].value === tidalQuality) return c[i].text
+        return tidalQuality
     }
     readonly property var formatOptions: [
         { text: qsTr("Video"), value: "video" },
@@ -222,7 +231,14 @@ Item {
                     options: panel.formatOptions
                     onActivated: (v) => backend.setFormatMode(v)
                 }
+                Text {      // which source the options below belong to
+                    text: panel.tidalMode ? qsTr("TIDAL options - audio quality") : qsTr("YouTube options")
+                    color: Theme.textSecondary
+                    font.pixelSize: Theme.footnote
+                    Layout.fillWidth: true
+                }
                 Flow {
+                    visible: !panel.tidalMode     // YouTube-only extras (descriptions, transcript, lyrics, album split)
                     spacing: Theme.s2
                     Layout.fillWidth: true
                     Chip {
@@ -252,7 +268,7 @@ Item {
                     }
                 }
                 Flow {
-                    visible: panel.activeProfile.split_chapters
+                    visible: panel.activeProfile.split_chapters && !panel.tidalMode
                     spacing: Theme.s2
                     Layout.fillWidth: true
                     Chip {
@@ -267,7 +283,7 @@ Item {
                     }
                 }
                 Rectangle {     // suggestion: a tracklist was found in the description
-                    visible: panel.showTracklistHint
+                    visible: panel.showTracklistHint && !panel.tidalMode
                     Layout.fillWidth: true
                     implicitHeight: hintCol.implicitHeight + 2 * Theme.s2
                     radius: Theme.radius
@@ -300,7 +316,7 @@ Item {
                     Layout.fillWidth: true
                     AppButton {
                         id: profileButton
-                        text: panel.profileName
+                        text: panel.tidalMode ? panel.tidalLabel : panel.profileName
                         iconName: "sliders"
                         Layout.fillWidth: panel.inSidebar
                         Layout.maximumWidth: panel.inSidebar ? 100000 : (Theme.compact ? 180 : 260)
@@ -308,7 +324,16 @@ Item {
                         AppMenu {
                             id: profileMenu
                             Repeater {
-                                model: backend.settings.profile_names
+                                model: panel.tidalMode ? backend.tidalQualityChoices : []
+                                delegate: AppMenuItem {
+                                    required property var modelData
+                                    text: modelData.text
+                                    marked: modelData.value === panel.tidalQuality
+                                    onTriggered: backend.setSetting("tidal_quality", modelData.value)
+                                }
+                            }
+                            Repeater {
+                                model: panel.tidalMode ? [] : backend.settings.profile_names
                                 delegate: AppMenuItem {
                                     required property string modelData
                                     text: modelData
@@ -322,7 +347,7 @@ Item {
                         }
                     }
                     Segmented {
-                        visible: !Theme.compact
+                        visible: !Theme.compact && !panel.tidalMode
                         Layout.fillWidth: !panel.inSidebar
                         Layout.maximumWidth: 280
                         Layout.alignment: Qt.AlignHCenter
