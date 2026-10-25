@@ -48,3 +48,9 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - Wiedergabe mit tiddl-Login: Tidal liefert zum Abspielen max. FLAC 16-bit/44.1 kHz (auch bei MAX); Badge zeigt das ehrlich. Downloads nicht betroffen.
 - Bash-Heredocs in dieser Umgebung halbieren `\\` → Dateien mit Backslashes nur mit Write/Edit schreiben.
 - Feed-Endpunkt: `v2/feed/activities?userId=…` ohne abschließenden Schrägstrich.
+
+## Update 0.9.1.04 (2026-10-25, local commit + tag v0.9.1.04, not pushed)
+- Done: `TidalHome.qml` (SplitView playlists | tabs + page | queue, player bar, context menu, name/confirm dialogs, history), Main/DownloadsPage wiring (`webRequested` -> TIDAL Web, `tidalDiyPlaying` pauses web players), drag and drop to download (`TidalDragSource.qml` on tiles/rows/playlists, `DropArea` in `WorkflowPanel.qml`), collapsible `TidalOptions.qml` (one group open at a time).
+- All new components load without QML warnings (`tests/test_tidal_gui_qml.py`). The signed-in view, playback, the drag from the TIDAL **Web** view (native WebView2 drag-out) and the real GUI were NOT tried by hand yet: do the manual test from the plan first.
+- Known: the full `unittest discover` run segfaults at `test_streaming...test_qml_button_menu_and_dialog_load` on clean HEAD too (several Qt engines in one process); the test passes alone. Run test files individually.
+- Still open: tests for QueueModel/TidalPlayer/`write_tidal_linklist`, step 7 (docks, own windows, `tidal_layout` saving, reset in Settings), step 8 (ARCHITECTURE.md, TIDAL_EVALUATION.md, manuals, EXE build, full manual test).
