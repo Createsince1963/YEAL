@@ -7,6 +7,11 @@ Flickable {
     id: page
     signal toastRequest(string message)
     readonly property var s: backend.settings
+    // Workflow menu "Tidal settings…": open the Tidal group and scroll to it.
+    function showTidal() {
+        tidalGroup.collapsed = false
+        contentY = Math.max(0, Math.min(tidalGroup.mapToItem(column, 0, 0).y - Theme.s3, contentHeight - height))
+    }
 
     contentHeight: column.implicitHeight + 2 * Theme.s5
     clip: true
@@ -437,6 +442,7 @@ Flickable {
         }
 
         SettingsGroup {
+            id: tidalGroup
             title: qsTr("Tidal")
             icon: "music"
             collapsible: true

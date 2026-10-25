@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.9.1.01
+- Start of the TIDAL DIY work (0.9.1): the player switch next to the workflow now has three buttons, **YouTube | TIDAL Web | TIDAL DIY**. TIDAL Web is the embedded TIDAL web player as before; TIDAL DIY is Yeal's own TIDAL view (being built step by step; for now it shows the sign-in with the subscription notice). In a narrow bar the buttons read "Web" / "DIY", the tooltip gives the full name. The Tidal download options apply to both Tidal views. After a Tidal sign-in Yeal returns to the view it came from.
+- Menus are as wide as their longest entry (at least 200 px, at most the window): the Tidal quality menu no longer cuts off "Tidal Normal (AAC 320 kbps)" and "Tidal Max (FLAC up to 24-bit / 192 kHz)". In Tidal mode the menu offers "Tidal settings…" (opens the Tidal group in Settings) instead of "Manage profiles…".
+- Fixed: the player buttons asked for logo files that do not exist (QML warnings); they show icon and name.
+- Versions: interim versions are numbered 0.9.1.01, 0.9.1.02, …; each is kept locally (snapshot, commit, tag).
+
+### Also in 0.9.1.01 (was Unreleased)
 - **Fixed: Tidal sign-in showed the wrong page** (the GitHub page of tiddl). Yeal took the first web address in tiddl's output, which can be an update notice. Only the Tidal link (link.tidal.com / login.tidal.com, with or without `https://`) is used now (`tidal.find_login_link`, tests in `tests/test_tidal.py`).
 - **Tidal sign-in inside Yeal.** Settings > Tidal > Sign in now opens tiddl's device-login link in the embedded TIDAL view (Downloads page switches to TIDAL) instead of the system browser: the user signs in or confirms there, tiddl notices the confirmation by itself and Yeal switches the view back to the TIDAL start page. Yeal never reads the Tidal session or password. Without the embedded view the link opens in the system browser as before.
 - **Fixed: Tidal sign-in never opened the browser** (Settings stayed on "Waiting for the browser..."). The login link was handed to the GUI thread with `QTimer.singleShot` from a plain Python thread, which never fires; it now uses a Qt signal. The link is also shown in a message in case no window opens.

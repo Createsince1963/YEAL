@@ -48,22 +48,32 @@ Rectangle {
                 font.weight: Font.DemiBold
                 color: Theme.text
             }
-            RowLayout {      // YouTube / TIDAL switch (only next to the player view)
+            RowLayout {      // YouTube / TIDAL Web / TIDAL DIY switch (only next to the player view)
+                id: playerRow
                 visible: root.rowNav
                 spacing: Theme.s2
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.s2
+                readonly property bool narrow: width < 330     // short labels "Web" / "DIY" in a narrow bar
                 PlayerButton {
-                    logo: "logo_youtube.png"; iconName: "play"; text: "YouTube"
+                    iconName: "play"; text: "YouTube"
                     selected: root.player === "youtube"
                     Layout.fillWidth: true; Layout.preferredWidth: 1
                     onClicked: root.playerSelected("youtube")
                 }
                 PlayerButton {
-                    logo: "logo_tidal.png"; iconName: "music"; text: "TIDAL"
+                    iconName: "music"; text: playerRow.narrow ? "Web" : "TIDAL Web"
+                    tip: qsTr("TIDAL Web - the TIDAL web player")
                     selected: root.player === "tidal"
                     Layout.fillWidth: true; Layout.preferredWidth: 1
                     onClicked: root.playerSelected("tidal")
+                }
+                PlayerButton {
+                    iconName: "music"; text: playerRow.narrow ? "DIY" : "TIDAL DIY"
+                    tip: qsTr("TIDAL DIY - Yeal's own TIDAL view")
+                    selected: root.player === "tidaldiy"
+                    Layout.fillWidth: true; Layout.preferredWidth: 1
+                    onClicked: root.playerSelected("tidaldiy")
                 }
             }
         }

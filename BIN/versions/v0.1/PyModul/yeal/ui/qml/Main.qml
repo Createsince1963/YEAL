@@ -92,6 +92,7 @@ ApplicationWindow {
         function onTidalLoginLink(url) {
             if (win.browserMode) {                      // embedded TIDAL view: sign in right inside Yeal
                 win.requestPage(0)
+                if (win.player !== "tidal") win.loginReturn = win.player
                 win.player = "tidal"
                 downloads.openTidalLogin(url)
                 toast.show(qsTr("Confirm the Tidal sign-in in the TIDAL view."))
@@ -100,11 +101,17 @@ ApplicationWindow {
                 toast.show(qsTr("Confirm the Tidal sign-in in the browser. Link: ") + url)
             }
         }
-        function onTidalChanged() { if (backend.tidalLoggedIn) downloads.closeTidalLogin() }
+        function onTidalChanged() {
+            if (!backend.tidalLoggedIn) return
+            if (downloads.tidalLoginOpen && win.loginReturn !== "") win.player = win.loginReturn
+            win.loginReturn = ""
+            downloads.closeTidalLogin()
+        }
     }
 
     // Windows with the YouTube view: our workflow lives in the (wider) sidebar, the page is the browser.
-    property string player: "youtube"      // right-hand player: "youtube" | "tidal"
+    property string player: "youtube"      // right-hand player: "youtube" | "tidal" (TIDAL Web) | "tidaldiy" (own Tidal view)
+    property string loginReturn: ""         // view to go back to after the Tidal sign-in in TIDAL Web
     readonly property bool browserMode: !Theme.compact && backend.browserAvailable && backend.settings.show_browser
 
     // one bar: navigation on top, our workflow below (Downloads page). Its width is the user's choice.
@@ -157,6 +164,7 @@ ApplicationWindow {
             onToastRequest: (m) => toast.show(m)
         }
         SettingsPage {
+            id: settingsPage
             onToastRequest: (m) => toast.show(m)
         }
     }
@@ -193,11 +201,12 @@ ApplicationWindow {
         id: panel
         objectName: "workflowPanel"
         inSidebar: win.browserMode
-        tidalPlayer: win.player === "tidal"
+        tidalPlayer: win.player !== "youtube"     // TIDAL Web and TIDAL DIY
         parent: win.panelInSidebar && sidebarLoader.item ? sidebarLoader.item.slot : downloads.slot
         anchors.fill: parent
         visible: win.page === 0
         onManageProfiles: win.requestPage(1)
+        onTidalSettings: { win.requestPage(2); settingsPage.showTidal() }
     }
 
     Loader {

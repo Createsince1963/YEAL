@@ -9,7 +9,7 @@ MenuItem {
     property bool marked: false   // shows a check mark
 
     implicitHeight: Theme.compact ? 44 : 34
-    implicitWidth: 200
+    implicitWidth: Math.max(200, contentItem.implicitWidth + leftPadding + rightPadding + 6)   // AppMenu fits the widest entry
     leftPadding: Theme.s3
     rightPadding: Theme.s3
     hoverEnabled: true

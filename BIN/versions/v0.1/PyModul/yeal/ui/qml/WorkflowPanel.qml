@@ -9,6 +9,7 @@ Item {
     property bool inSidebar: false
     property bool tidalPlayer: false     // the TIDAL player is shown on the right
     signal manageProfiles()
+    signal tidalSettings()
     readonly property var stats: backend.stats
     readonly property string profileName: backend.settings.active_profile
     readonly property var activeProfile: {
@@ -342,8 +343,9 @@ Item {
                                 }
                             }
                             MenuSeparator {}
-                            AppMenuItem { text: qsTr("Manage profiles…"); iconName: "stack"
-                                          onTriggered: panel.manageProfiles() }
+                            AppMenuItem { text: panel.tidalMode ? qsTr("Tidal settings…") : qsTr("Manage profiles…")
+                                          iconName: panel.tidalMode ? "music" : "stack"
+                                          onTriggered: panel.tidalMode ? panel.tidalSettings() : panel.manageProfiles() }
                         }
                     }
                     Segmented {

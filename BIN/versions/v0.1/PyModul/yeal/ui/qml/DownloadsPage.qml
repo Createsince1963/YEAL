@@ -8,17 +8,23 @@ Item {
     id: page
     property bool browserMode: false     // set by Main.qml
     property bool suspendWeb: false
-    property string player: "youtube"    // "youtube" | "tidal"; set by Main.qml
-    property bool tidalWanted: false     // TIDAL view is created on first use, then kept alive
+    property string player: "youtube"    // "youtube" | "tidal" (TIDAL Web) | "tidaldiy" (own view); set by Main.qml
+    property bool tidalWanted: false     // TIDAL Web view is created on first use, then kept alive
+    property bool tidalDiyWanted: false  // same for the own TIDAL view
     property string leftPlayer: "youtube"
-    // Switching players: the one that is left is paused (not reloaded), so the two never play together.
+    // Switching players: the one that is left is paused (not reloaded), so two never play together.
     function pausePlayer(which) {
+        if (!backend.settings.single_playback) return
+        if (which === "tidaldiy") {
+            if (tidalDiyLoader.item) tidalDiyLoader.item.pausePlayback()
+            return
+        }
         var l = which === "tidal" ? tidalLoader : webLoader
-        if (l.item && backend.settings.single_playback)
-            l.item.run("document.querySelectorAll('audio,video').forEach(function(m){m.pause()})")
+        if (l.item) l.item.run("document.querySelectorAll('audio,video').forEach(function(m){m.pause()})")
     }
     onPlayerChanged: {
         if (player === "tidal") tidalWanted = true
+        if (player === "tidaldiy") tidalDiyWanted = true
         pausePlayer(leftPlayer)
         leftPlayer = player
     }
@@ -77,6 +83,15 @@ Item {
                     if (page.pendingLogin !== "") { item.navigate(page.pendingLogin); page.pendingLogin = "" }
                     item.videoLink.connect(function (url) { page.videoLink(url) })
                 }
+            }
+            Loader {
+                id: tidalDiyLoader
+                anchors.fill: parent
+                anchors.margins: Theme.s3
+                visible: page.player === "tidaldiy"
+                active: page.browserMode && page.browserReady && page.tidalDiyWanted
+                source: "TidalHome.qml"
+                onLoaded: item.videoLink.connect(function (url) { page.videoLink(url) })
             }
             Text {
                 visible: page.browserMode && webLoader.status === Loader.Error
