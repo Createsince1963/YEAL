@@ -1,0 +1,4 @@
+68af404067689a773142663abe0273b2  BIN/versions/v0.1/PyModul/yeal/ui/qml/SettingsPage.qml
+40e924ac60c7bd9b83cc22285df4b5f7  BIN/versions/v0.1/PyModul/yeal/ui/qml/ExternalDriveDialog.qml
+e5b42959ec685b34611efa3c8fb73770  BIN/versions/v0.1/PyModul/yeal/core/settings.py
+7436e86c1ee36b36251faac0f15ce7d1  BIN/versions/v0.1/PyModul/yeal/ui/backend.py

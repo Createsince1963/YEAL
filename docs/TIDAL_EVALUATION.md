@@ -26,3 +26,12 @@ Facts below come from the GitHub pages as fetched on 2026-10-24; commit dates we
 3. Settings group "Tidal": login (device flow in the system browser), quality, target folder, concurrency (default low), legal notice shown once.
 4. Reuse Yeal's tile list for albums/playlists, per-track and overall progress bars, relative-link HTML pages, MP3/FLAC tag step (default No).
 5. Tests with a fake tiddl executable; no real account needed in CI.
+
+## Decision 2026-10-25: tidal-dl-ng (r3ferrei fork) is not used as a second engine
+Checked against the GitHub master (v0.24.6, last commit 2025-03-16); the zip on A:\ could not be opened.
+- It does not start as shipped: `ModuleNotFoundError: No module named 'config'` (`from config import HandlingApp` in `cli.py`).
+- Python is pinned to `>=3.12,<3.13`; Yeal's desktop Python is 3.13, so it would need its own 3.12 environment.
+- AGPL-3.0: only usable as a separate process, never copied or bundled; its GUI is not reused.
+- The CLI has no per-run options (quality, folder and video quality live in a global config file, default 3-5 s delay between items, video quality 480p).
+- It offers nothing that tiddl does not already do (track, album, playlist, mix, artist, video).
+Result: Yeal keeps tiddl as the only Tidal engine. Open idea, not started: an own Tidal library browser (playlists, track table with tick boxes, download queue) in Yeal's design, using `tidalapi` (LGPL-3.0, pure Python) for listing and tiddl for downloading; listening stays in the embedded TIDAL web player.
