@@ -79,11 +79,14 @@ def app_path() -> Path:
 
 def is_logged_in(path: Optional[Path] = None) -> bool:
     """tiddl keeps the login in auth.json; a non-empty token means someone is signed in."""
-    try:
-        data = json.loads((path or app_path() / "auth.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
-    return isinstance(data, dict) and bool(data.get("token"))
+    for file in ([path] if path else [app_path() / "auth.json", app_path() / ".tiddl_config.json"]):
+        try:
+            data = json.loads(file.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(data, dict) and (data.get("token") or data.get("access_token")):
+            return True
+    return False
 
 
 def find_tiddl(configured: str = "") -> str:

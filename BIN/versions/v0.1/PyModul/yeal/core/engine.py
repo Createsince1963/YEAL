@@ -335,8 +335,9 @@ class Engine:
             fail("The Tidal helper tiddl was not found. " + tidal.INSTALL_HINT)
             return
         if not tidal.is_logged_in():
-            fail("Not signed in to Tidal. Open Settings > Tidal and sign in with your Tidal account "
-                 "(a Tidal subscription is required).")
+            fail("Not signed in to Tidal. Open Settings > Tidal and press Sign in (a Tidal subscription is required). "
+                 "Note: logging in inside the TIDAL player on the right is a separate login and does not count for downloads.",
+                 f"looked for the tiddl login in {tidal.app_path()}")
             return
         base = Path(self.ctx.download_dir) / "Tidal"
         base.mkdir(parents=True, exist_ok=True)
