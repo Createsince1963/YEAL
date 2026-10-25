@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1.15
+- **Speaker planet as a moon system:** choosing the speaker is now a small solar system inside the Speaker card: the speaker planet is in the middle, the speakers and TVs found in the network circle around it as **moons** (up to six on the inner ring, more on rings further out). A click on a moon chooses it (the chosen one is filled, a green rim means "seen in the last search"); the tooltip shows name, make, model and address. The planet glows while a song plays on a speaker. Left of it: the song, "Play on speaker", pause / continue / stop and "search again".
+- Tests: the moons of 0 / 1 / 3 / 8 speakers are all there, inside the card and not on top of each other.
+- No EXE built.
+
 ## 0.9.1.14
 - **Sun view tidied up:** the text buttons under the oval (repeat, shuffle, VIS, COLOR) are gone from the sun; they live in the **Settings** planet (colour, band, shuffle, repeat, volume; for TIDAL songs also "Like this song"). Under the sun only the volume slider, the 10 s jumps and the time remain.
 - No EXE built.

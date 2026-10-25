@@ -129,6 +129,45 @@ class TidalGuiQmlTest(unittest.TestCase):
         self.assertEqual(root.property("count"), 9)
         root.deleteLater()
 
+    def test_speaker_planet_shows_the_speakers_as_moons(self):
+        import time
+        b = self.backend
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { objectName: 'r'; width: 460; height: 200\n"
+                     b"SunSpeaker { anchors.fill: parent; player: backend.localPlayerObject }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_moons.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+
+        def moons(item, out):
+            if item.objectName() == "moon":
+                out.append(item)
+            for child in item.childItems():
+                moons(child, out)
+            return out
+
+        def settle():
+            end = time.time() + 0.3
+            while time.time() < end:
+                self.app.processEvents()
+                time.sleep(0.01)
+        saved = list(b._stream_found)
+        try:
+            for count in (0, 1, 3, 8):
+                b._stream_found = [{"id": "dev%d" % i, "name": "Speaker %d" % i, "host": "192.168.1.%d" % i} for i in range(count)]
+                b.streamChanged.emit()
+                settle()
+                found = moons(root, [])
+                self.assertEqual(len(found), count, count)
+                # every moon sits inside the sky and no two moons lie on top of each other
+                spots = [(m.x(), m.y()) for m in found]
+                self.assertEqual(len(set(spots)), len(spots), spots)
+                self.assertTrue(all(0 <= x <= 460 and -10 <= y <= 200 for x, y in spots), spots)
+        finally:
+            b._stream_found = saved
+            b.streamChanged.emit()
+        root.deleteLater()
+
     def test_sun_settings_are_validated(self):
         b = self.backend
         b.setSetting("sun_scale", 9)
