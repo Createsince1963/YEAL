@@ -129,10 +129,43 @@ Item {
         function onExternalDrive(info) { driveDialog.enqueue(info) }
         function onTracklistFound(url, count) { panel.tracklistUrl = url; panel.tracklistCount = count }
     }
+    // Drop a link here: from the TIDAL DIY view (title / album / playlist), from the embedded web players or from
+    // another program. TIDAL links are downloaded at once (the "drop to download" frame shows it); other links
+    // fill the link field as before and wait for the Download button.
     DropArea {
+        id: dropZone
         anchors.fill: parent
-        keys: ["text/plain"]
-        onDropped: (drop) => { if (drop.hasText) panel.fillLinks(drop.text) }
+        keys: ["text/plain", "text/uri-list"]
+        onDropped: (drop) => {
+            var text = drop.hasText ? drop.text : (drop.urls && drop.urls.length ? drop.urls.join("\n") : "")
+            if (text === "") return
+            drop.accept(Qt.CopyAction)
+            var links = backend.extractLinks(text)
+            var isTidal = function (l) { return /^https?:\/\/([a-z0-9-]+\.)?tidal\.com\//i.test(l) }
+            if (links.length > 0 && links.every(isTidal)) {
+                var n = backend.addUrls(links.join("\n"))
+                if (n > 0) backend.notify(qsTr("%1 TIDAL link(s) added to the downloads.").arg(n))
+            } else {
+                panel.fillLinks(text)
+            }
+        }
+    }
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 2
+        visible: dropZone.containsDrag
+        z: 50
+        radius: Theme.radius
+        color: Theme.accentSoft
+        border.width: 2
+        border.color: Theme.accent
+        Text {
+            anchors.centerIn: parent
+            text: qsTr("Drop to download")
+            color: Theme.accent
+            font.pixelSize: Theme.headline
+            font.weight: Font.DemiBold
+        }
     }
 
     ColumnLayout {

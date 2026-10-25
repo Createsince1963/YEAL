@@ -25,6 +25,7 @@ Rectangle {
     readonly property bool fav: favTick >= 0 && !!row.ctl && tidal.isFavorite("track", row.item.id || "")
     property int favTick: 0
     Connections { target: tidal; function onFavoritesChanged() { row.favTick++ } }
+    TidalDragSource { item: row.item }
 
     RowLayout {
         anchors.fill: parent
@@ -125,7 +126,7 @@ Rectangle {
             }
         }
         Text {
-            implicitWidth: 42
+            Layout.preferredWidth: 42
             text: row.ctl ? row.ctl.fmt(row.item.duration) : ""
             color: Theme.textSecondary
             font.pixelSize: Theme.footnote

@@ -27,6 +27,12 @@ COMPONENTS = {
     "Sidebar": "Sidebar { anchors.fill: parent; rowNav: true; player: 'tidaldiy' }",
     "AppMenu": "AppMenu { AppMenuItem { text: 'Tidal Max (FLAC up to 24-bit / 192 kHz)' } }",
     "TidalOptions": "TidalOptions { width: 400 }",
+    "TidalDragSource": "TidalDragSource { item: ({ url: 'https://tidal.com/browse/album/1' }) }",
+    "TidalTile": "TidalTile { item: ({ kind: 'album', id: '1', title: 'A', subtitle: 'B', url: 'https://tidal.com/browse/album/1' }) }",
+    "TidalTrackRow": "TidalTrackRow { width: 600; item: ({ kind: 'track', id: '1', title: 'T', subtitle: 'S', album: 'A', duration: 60, url: 'https://tidal.com/browse/track/1' }) }",
+    "TidalPlaylists": "TidalPlaylists { width: 220; height: 400 }",
+    "TidalQueue": "TidalQueue { width: 300; height: 400 }",
+    "TidalPlayerBar": "TidalPlayerBar { width: 1000 }",
     "WorkflowPanel": "WorkflowPanel { anchors.fill: parent; inSidebar: true; tidalPlayer: true }",
     "SettingsPage": "SettingsPage { anchors.fill: parent; Component.onCompleted: showTidal() }",
 }
@@ -35,6 +41,7 @@ ERRORS = ("ReferenceError", "TypeError", "is not defined", "Unable to assign", "
 
 @unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class TidalGuiQmlTest(unittest.TestCase):
+    maxDiff = None
     @classmethod
     def setUpClass(cls):
         from yeal.core.engine import Engine

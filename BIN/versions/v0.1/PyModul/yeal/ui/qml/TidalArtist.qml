@@ -15,7 +15,7 @@ Item {
     property int favTick: 0
     Connections { target: tidal; function onFavoritesChanged() { page.favTick++ } }
     readonly property bool fav: favTick >= 0 && tidal.isFavorite("artist", page.itemId)
-    readonly property var top: req.data ? req.data.top : []
+    readonly property var topTracks: req.data ? req.data.top : []
 
     ColumnLayout {
         anchors.fill: parent
@@ -42,10 +42,10 @@ Item {
                 Flow {
                     Layout.fillWidth: true
                     spacing: Theme.s1
-                    AppButton { text: qsTr("Play"); iconName: "play"; kind: "primary"; enabled: page.top.length > 0
-                                onClicked: tidal.playerObject.playItems(page.top, 0, qsTr("Artist: ") + (page.info.title || "")) }
-                    AppButton { text: qsTr("Shuffle"); iconName: "shuffle"; enabled: page.top.length > 0
-                                onClicked: tidal.playerObject.shuffleItems(page.top, qsTr("Artist: ") + (page.info.title || "")) }
+                    AppButton { text: qsTr("Play"); iconName: "play"; kind: "primary"; enabled: page.topTracks.length > 0
+                                onClicked: tidal.playerObject.playItems(page.topTracks, 0, qsTr("Artist: ") + (page.info.title || "")) }
+                    AppButton { text: qsTr("Shuffle"); iconName: "shuffle"; enabled: page.topTracks.length > 0
+                                onClicked: tidal.playerObject.shuffleItems(page.topTracks, qsTr("Artist: ") + (page.info.title || "")) }
                     IconButton { iconName: "heart"; tint: page.fav ? Theme.accent : Theme.textSecondary
                                  tip: page.fav ? qsTr("Unfollow") : qsTr("Follow (add to collection)")
                                  onClicked: tidal.toggleFavorite("artist", page.itemId) }
@@ -69,7 +69,7 @@ Item {
             visible: page.tab === "top"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            items: page.top
+            items: page.topTracks
             ctl: page.ctl
             source: qsTr("Artist: ") + (page.info.title || "")
         }

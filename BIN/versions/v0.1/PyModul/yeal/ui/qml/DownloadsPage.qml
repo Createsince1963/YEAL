@@ -28,6 +28,14 @@ Item {
         pausePlayer(leftPlayer)
         leftPlayer = player
     }
+    signal playerRequested(string which)
+    // Show a TIDAL link in the TIDAL Web view (e.g. from the TIDAL DIY context menu)
+    function openTidalWeb(url) {
+        tidalWanted = true
+        playerRequested("tidal")
+        if (tidalLoader.item) tidalLoader.item.navigate(url)
+        else pendingLogin = url
+    }
     property bool browserReady: false
     // Tidal download login: tiddl prints a device-login link; it is shown in the embedded TIDAL view, where the
     // user signs in / confirms. tiddl notices the confirmation by itself, Yeal never touches the Tidal session.
@@ -91,7 +99,10 @@ Item {
                 visible: page.player === "tidaldiy"
                 active: page.browserMode && page.browserReady && page.tidalDiyWanted
                 source: "TidalHome.qml"
-                onLoaded: item.videoLink.connect(function (url) { page.videoLink(url) })
+                onLoaded: {
+                    item.videoLink.connect(function (url) { page.videoLink(url) })
+                    item.webRequested.connect(function (url) { page.openTidalWeb(url) })
+                }
             }
             Text {
                 visible: page.browserMode && webLoader.status === Loader.Error

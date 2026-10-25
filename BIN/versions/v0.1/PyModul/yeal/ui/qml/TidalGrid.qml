@@ -105,6 +105,7 @@ Item {
                 implicitHeight: 50
                 radius: 8
                 color: liHover.hovered ? Theme.hover : "transparent"
+                TidalDragSource { item: li.modelData }
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.s1

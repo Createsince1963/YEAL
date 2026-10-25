@@ -66,8 +66,9 @@ Item {
                 width: view.width - 4
                 implicitHeight: 44
                 radius: 6
-                readonly property bool open: col.ctl && col.ctl.currentId === modelData.id
+                readonly property bool open: !!col.ctl && col.ctl.currentId === modelData.id
                 color: col.picked[modelData.id] ? Theme.accentSoft : open ? Theme.pressed : plHover.hovered ? Theme.hover : "transparent"
+                TidalDragSource { item: pl.modelData; urls: col.picked[pl.modelData.id] ? col.pickedItems().map(function (p) { return p.url }) : [] }
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: 3

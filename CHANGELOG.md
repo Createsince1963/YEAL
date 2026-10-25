@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.1.04
+- **TIDAL DIY view** (`TidalHome.qml`): playlists column | navigation tabs (Start, Explore, Feed, My collection, back/forward) with the page | search and queue, player bar below. Albums, playlists, mixes, artists, genre pages, search results and "All" lists open as pages; titles play in Yeal's own player. Context menu on every tile, row and playlist: play, play next, add to queue, open, add to / remove from collection, add to playlist, download, save as HTML link list, copy link, open in TIDAL Web. Not signed in: sign-in prompt with the subscription notice.
+- **Drag and drop to download:** drag a title, album, playlist or mix from the TIDAL DIY view onto the workflow panel (a "Drop to download" frame shows the target). TIDAL links dropped there, also from the embedded web players or other programs, are added to the downloads at once; other links fill the link field as before. Several picked playlists are dragged together.
+- **TIDAL options are collapsed:** every group (quality, videos, video quality, Dolby Atmos, artist singles, extras) is one line with its current value; the chips appear below it only when the group is opened, one group at a time.
+- Playing in TIDAL DIY pauses the YouTube and TIDAL Web players (setting "single playback"); "Open in TIDAL Web" switches to the web view and loads the link.
+- Fixed: artist page property clashed with a built-in item property; track length and quality badge no longer warn when a value is missing.
+- Tests: all new Tidal components load without QML warnings (`tests/test_tidal_gui_qml.py`). Not yet done: docks / own windows and saving the layout (`tidal_layout`), manuals, EXE build.
+
+
 ## 0.9.1.03
 - New **TIDAL options** in the workflow (shown for TIDAL Web and TIDAL DIY, like the YouTube options) and in Settings > Tidal > Download options, all as chips:
   quality (Low / Normal / High FLAC / Max Hi-Res), videos (none / with / only) and video quality (SD / HD / Full HD), Dolby Atmos (off / with / only), artist singles (albums only / with singles / only singles; only used for artist links), lyrics in the file, lyrics as .lrc, cover in the file, cover image, M3U playlist, Yeal player page (HTML), overwrite existing files, rewrite tags.

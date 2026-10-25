@@ -101,6 +101,10 @@ ApplicationWindow {
                 toast.show(qsTr("Confirm the Tidal sign-in in the browser. Link: ") + url)
             }
         }
+        function onTidalDiyPlaying() {                    // single playback: the web players stop
+            downloads.pausePlayer("youtube")
+            downloads.pausePlayer("tidal")
+        }
         function onTidalChanged() {
             if (!backend.tidalLoggedIn) return
             if (downloads.tidalLoginOpen && win.loginReturn !== "") win.player = win.loginReturn
@@ -158,6 +162,7 @@ ApplicationWindow {
             player: win.player
             suspendWeb: panel.overlayOpen || firstRun.opened || settingsSavePrompt.opened
             onVideoLink: (url) => panel.browserLink(url)
+            onPlayerRequested: (which) => win.player = which
         }
         ProfilesPage {
             onUseProfile: win.requestPage(0)

@@ -12,6 +12,8 @@ Item {
     width: wide ? Math.round(size * 16 / 9) : size
     height: (wide ? Math.round(size * 9 / 16) : size) + caption.implicitHeight + Theme.s2
 
+    TidalDragSource { item: tile.item }
+
     Rectangle {
         id: art
         width: tile.width
@@ -45,7 +47,7 @@ Item {
         }
         Badge {
             visible: tile.item && (tile.item.quality === "MAX" || tile.item.quality === "Atmos")
-            text: tile.item ? tile.item.quality : ""
+            text: (tile.item && tile.item.quality) || ""
             kind: "accent"
             anchors { left: parent.left; top: parent.top; margins: Theme.s1 }
         }
