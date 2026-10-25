@@ -338,3 +338,91 @@ class JobQualityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class JobDescriptionTests(unittest.TestCase):
+    """The download list shows song / album / playlist, artist and cover - never the technical id - and the HTML page
+    carries the id (as a link) and the cover of every title."""
+    TRACKS = [
+        {"kind": "track", "id": "111", "title": "Highway Star", "subtitle": "Deep Purple", "url": "https://tidal.com/browse/track/111",
+         "cover": "https://resources.tidal.com/images/aa/bb/160x160.jpg"},
+        {"kind": "track", "id": "222", "title": "Maybe I'm a Leo", "subtitle": "Deep Purple", "url": "https://tidal.com/browse/track/222",
+         "cover": "https://resources.tidal.com/images/cc/dd/160x160.jpg"},
+    ]
+    META = {"kind": "album", "id": "1", "title": "Machine Head", "artist": "Deep Purple",
+            "cover": "https://resources.tidal.com/images/aa/bb/320x320.jpg", "items": TRACKS}
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        (self.root / "app").mkdir()
+        (self.root / "app" / "auth.json").write_text(json.dumps({"token": "t"}))
+        self.old = os.environ.get("TIDDL_PATH")
+        os.environ["TIDDL_PATH"] = str(self.root / "app")
+        self.exe = make_fake(self.root)
+        self.engine = Engine(FakeCtx(self.root))
+        self.engine.tidal_config = lambda: {"path": self.exe, "quality": "high", "threads": 2, "html": True}
+
+    def tearDown(self):
+        if self.old is None:
+            os.environ.pop("TIDDL_PATH", None)
+        else:
+            os.environ["TIDDL_PATH"] = self.old
+        self.tmp.cleanup()
+
+    def run_job(self, url="https://tidal.com/browse/album/1"):
+        job = DownloadJob(1, url, DownloadOptions(mode="audio"))
+        seen = []
+        self.engine.run(job, threading.Event(), lambda j: seen.append((j.title, j.uploader, j.thumbnail)))
+        return job, seen
+
+    def test_job_gets_title_artist_and_cover(self):
+        self.engine.tidal_meta = lambda url: self.META
+        job, seen = self.run_job()
+        self.assertEqual((job.title, job.uploader), ("Machine Head", "Deep Purple"))
+        self.assertTrue(job.thumbnail.startswith("https://resources.tidal.com/"))
+        self.assertEqual(job.playlist_count, 2)
+        self.assertFalse(any("album/1" in t for t, _, _ in seen[1:]))     # after the lookup the id is gone from the title
+
+    def test_single_song_shows_song_and_artist(self):
+        meta = dict(self.META, kind="track", id="111", title="Highway Star", items=self.TRACKS[:1])
+        self.engine.tidal_meta = lambda url: meta
+        job, _ = self.run_job("https://tidal.com/browse/track/111")
+        self.assertEqual((job.title, job.uploader), ("Highway Star", "Deep Purple"))
+        self.assertEqual(job.playlist_count, 0)
+
+    def test_lookup_failure_keeps_the_link_and_the_download_works(self):
+        def boom(url):
+            raise RuntimeError("offline")
+        self.engine.tidal_meta = boom
+        job, _ = self.run_job()
+        self.assertEqual(job.state, JobState.DONE)
+        self.assertEqual(job.title, "album/1")
+        self.assertEqual(job.thumbnail, "")
+
+    def test_html_page_has_cover_artist_and_id_per_title(self):
+        os.environ["FAKE_WRITE"] = "1"
+        self.engine.tidal_meta = lambda url: self.META
+        try:
+            job, _ = self.run_job()
+        finally:
+            os.environ.pop("FAKE_WRITE")
+        page = self.root / "dl" / "Tidal" / "Albums" / "Deep Purple" / "Machine Head" / "Machine Head.html"
+        text = page.read_text(encoding="utf-8")
+        self.assertIn('data-th="https://resources.tidal.com/images/aa/bb/320x320.jpg"', text)    # cover of title 1
+        self.assertIn('data-th="https://resources.tidal.com/images/cc/dd/320x320.jpg"', text)    # cover of title 2
+        self.assertIn('href="https://tidal.com/browse/track/111"', text)
+        self.assertIn(">#111<", text)
+        self.assertIn('data-sub="Deep Purple"', text)
+        self.assertIn('id="cv"', text)                   # the header cover follows the playing title
+        self.assertIn('id="np"', text)
+
+    def test_match_tracks_by_name_then_by_order(self):
+        files = [Path("01 - Highway Star.flac"), Path("02 - Maybe I'm a Leo.flac")]
+        found = tidal.match_tracks(files, list(reversed(self.TRACKS)))
+        self.assertEqual([t["id"] for t in found], ["111", "222"])
+        playlist_style = [Path("01 - Deep Purple - Highway Star.flac")]
+        self.assertEqual(tidal.match_tracks(playlist_style, self.TRACKS)[0]["id"], "111")
+        odd = [Path("01 - Something else.flac"), Path("02 - Another.flac")]
+        self.assertEqual([t["id"] for t in tidal.match_tracks(odd, self.TRACKS)], ["111", "222"])   # same count: order
+        self.assertEqual(tidal.match_tracks([Path("x.flac")], self.TRACKS), [None])                 # nothing to go by

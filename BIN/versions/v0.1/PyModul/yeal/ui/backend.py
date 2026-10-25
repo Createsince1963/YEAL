@@ -278,6 +278,7 @@ class Backend(QObject):
         self._updating = False
         self._engine = engine or Engine(ctx)
         self._engine.tidal_config = self._tidal_config
+        self._engine.tidal_meta = lambda url: self.tidal.api.describe(url)     # runs in the download worker thread
         self._tidal_flow = None
         self._tidalLoginDone.connect(self._on_tidal_login_done)
         self._tidalLinkFound.connect(self._open_tidal_link)

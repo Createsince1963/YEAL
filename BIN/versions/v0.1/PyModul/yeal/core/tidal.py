@@ -231,18 +231,52 @@ def new_audio_folders(base: Path, since: float) -> List[Path]:
     return sorted(found, key=lambda p: (-len(p.parts), str(p)))
 
 
+def _norm(text: str) -> str:
+    return re.sub(r"[^0-9a-z]+", "", (text or "").lower())
+
+
+def match_tracks(files: List[Path], tracks: List[dict]) -> List[Optional[dict]]:
+    """The Tidal track of every downloaded file (same order as `files`), None where nothing fits.
+    tiddl names files '<nn> - <title>' (album) or '<nn> - <artist> - <title>' (playlist); a file belongs to the longest
+    title that its name ends with. With the same number of files and tracks and no match the order decides."""
+    free = list(tracks or [])
+    out: List[Optional[dict]] = []
+    for f in files:
+        stem = _norm(re.sub(r"^\d+\s*-\s*", "", f.stem))
+        best = None
+        for t in free:
+            title = _norm(str(t.get("title") or ""))
+            if title and stem.endswith(title) and (best is None or len(title) > len(_norm(str(best.get("title") or "")))):
+                best = t
+        if best is not None:
+            free.remove(best)
+        out.append(best)
+    if len(files) == len(tracks or []) and not any(out):
+        return list(tracks)
+    return out
+
+
 def write_html_pages(base: Path, since: float, source: str, theme: str = "auto", cover: str = "",
-                     uploader: str = "") -> List[Path]:
+                     uploader: str = "", tracks: Optional[List[dict]] = None) -> List[Path]:
     """Yeal's player page (extras.write_playlist_page) in every album / playlist folder this run wrote to.
-    Single songs (Singles / Videos folders) get none."""
+    Single songs (Singles / Videos folders) get none. `tracks` (Tidal track dicts of the link) give every row its own
+    cover, artist and Tidal link / id, which the page shows while that title plays."""
     from . import extras
     pages = []
     for folder in new_audio_folders(base, since):
         if folder.name.lower() in ("singles", "videos") or folder == Path(base):
             continue
         files = sorted(p for p in folder.iterdir() if p.suffix.lower() in AUDIO_EXTS and p.is_file())
-        items = [{"index": i + 1, "title": re.sub(r"^\d+\s*-\s*", "", f.stem), "file": f.name, "thumb": cover}
-                 for i, f in enumerate(files)]
+        found = match_tracks(files, tracks or [])
+        items = []
+        for i, f in enumerate(files):
+            t = found[i] or {}
+            thumb = str(t.get("cover") or "")
+            if thumb.startswith("https://resources.tidal.com/"):
+                thumb = re.sub(r"/\d+x\d+\.jpg$", "/320x320.jpg", thumb)
+            items.append({"index": i + 1, "title": re.sub(r"^\d+\s*-\s*", "", f.stem), "file": f.name,
+                          "thumb": thumb or cover, "artist": str(t.get("subtitle") or ""),
+                          "id": str(t.get("id") or ""), "link": str(t.get("url") or "")})
         page = extras.write_playlist_page(folder, folder.name, uploader, source, items, "audio", theme)
         if page:
             pages.append(page)

@@ -86,3 +86,41 @@ def finish(ffmpeg: Optional[str], folder: Path, album: str, artist: str, chapter
             tag_track(ffmpeg, t, album, artist, i, len(tracks), track_title(chapters, i, t))
     write_playlist(folder, album, tracks, chapters)
     return len(tracks)
+
+
+# ---- cutting long tracks (one long video / mix split by its chapters or description timestamps)
+CUT_SHIFT = 0.5     # seconds: every cut between two tracks is placed this much earlier than the listed time
+
+
+def shift_cuts(chapters: list, seconds: float = CUT_SHIFT) -> list:
+    """Chapters with every inner cut moved `seconds` earlier: a track starts that much sooner and the track before it ends
+    there. The first start and the last end stay. A track is never made shorter than one second."""
+    out = [dict(c) for c in chapters or []]
+    for i in range(1, len(out)):
+        prev, cur = out[i - 1], out[i]
+        start = float(cur.get("start_time") or 0)
+        new = max(float(prev.get("start_time") or 0) + 1.0, start - seconds)
+        if new < start:
+            cur["start_time"] = new
+            prev["end_time"] = new
+    return out
+
+
+def install_cut_shift(ydl, seconds: float = CUT_SHIFT) -> bool:
+    """Put a step in front of yt-dlp's chapter splitting that moves the cuts (see shift_cuts). Returns False when the
+    job has no splitting step or yt-dlp's internals look different (the cuts then stay where the chapters say)."""
+    try:
+        from yt_dlp.postprocessor.common import PostProcessor
+        steps = ydl._pps["post_process"]
+        at = next(i for i, pp in enumerate(steps) if type(pp).__name__.startswith("FFmpegSplitChapters"))
+
+        class ShiftCuts(PostProcessor):
+            def run(self, info):
+                if info.get("chapters"):
+                    info["chapters"] = shift_cuts(info["chapters"], seconds)
+                return [], info
+
+        steps.insert(at, ShiftCuts(ydl))
+        return True
+    except (ImportError, AttributeError, KeyError, StopIteration, TypeError):
+        return False

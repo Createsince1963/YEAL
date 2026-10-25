@@ -72,6 +72,8 @@ def make_handler(state: Fake):
                     {"followableActivity": {"historyMix": {"id": "m1", "titleTextInfo": {"text": "September"}, "images": {"SMALL": {"url": "https://img/m1"}}},
                                             "activityType": "NEW_HISTORY_MIX", "occurredAt": "2026-10-20T00:00:00Z"}, "seen": False}],
                     "stats": {}})
+            if p == "/v1/tracks/11":
+                return self._send(200, TRACK)
             if p == "/v1/albums/7":
                 return self._send(200, ALBUM)
             if p == "/v1/albums/7/items":
@@ -269,6 +271,29 @@ class TidalApiTest(unittest.TestCase):
         self.assertEqual(T.image_url(""), "")
         self.assertEqual(T.image_url("https://x/y"), "https://x/y")
 
+    # what a link points to, for the download list (title, artist, cover, never the id)
+    def test_album(self):
+        d = self.api.describe("https://tidal.com/browse/album/7")
+        self.assertEqual((d["kind"], d["title"], d["artist"]), ("album", "Machine Head", "Deep Purple"))
+        self.assertEqual(d["cover"], "https://resources.tidal.com/images/aa/bb/cc/320x320.jpg")
+        self.assertEqual(len(d["items"]), 60)
+
+    def test_track(self):
+        d = self.api.describe("https://tidal.com/browse/track/11")
+        self.assertEqual((d["title"], d["artist"]), ("Highway Star (Remastered)", "Deep Purple"))
+        self.assertEqual(d["cover"], "https://resources.tidal.com/images/aa/bb/320x320.jpg")
+        self.assertEqual([t["id"] for t in d["items"]], ["11"])
+
+    def test_playlist(self):
+        d = self.api.describe("https://listen.tidal.com/playlist/pl-1")
+        self.assertEqual(d["title"], "Mine")
+        self.assertTrue(d["items"])
+
+    def test_not_a_tidal_link(self):
+        with self.assertRaises(T.TidalError):
+            self.api.describe("https://example.com/x")
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -82,6 +82,15 @@ def apply_fallback(exc: BaseException, opts: dict, done: set) -> str:
     return ""
 
 
+COOKIE_NOTE_PREFIX = "The browser login could not be read"
+
+
+def drop_cookie_note(note: str) -> str:
+    """Remove the 'browser login could not be read' hint from a job note. It is only useful when the download failed;
+    when it worked without the login the hint is just noise."""
+    return "\n".join(line for line in (note or "").split("\n") if not line.startswith(COOKIE_NOTE_PREFIX))
+
+
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -237,6 +246,7 @@ class Engine:
     def __init__(self, ctx, ydl_class=None):
         self.ctx = ctx
         self._ydl_class = ydl_class
+        self.tidal_meta: Optional[Callable[[str], dict]] = None   # url -> TidalApi.describe() (set by the UI backend; None = no lookup)
         self.tidal_config: Optional[Callable[[], dict]] = None   # -> {"path", "quality", "threads", "video_quality", "videos", "atmos", "singles", "no_skip", "rewrite", "html", "theme", "extras"} (set by the UI backend)
 
     def _lyrics_for(self, job: DownloadJob, item: dict, path: str, notify: Callable[[DownloadJob], None]) -> Optional[dict]:
@@ -306,7 +316,8 @@ class Engine:
             ch = chapters[i - 1] if i <= len(chapters) else {}
             secs = float(ch.get("end_time", 0) or 0) - float(ch.get("start_time", 0) or 0)
             items.append({"index": i, "title": album.track_title(chapters, i, t), "file": t.name,
-                          "duration": fmt_duration(secs) if secs > 0 else "", "page": ""})
+                          "duration": fmt_duration(secs) if secs > 0 else "", "page": "",
+                          "thumb": str(info.get("thumbnail") or job.thumbnail or "")})   # the video's cover for every track
         if items:
             extras.write_playlist_page(folder, str(info.get("title") or folder.name),
                                        str(info.get("uploader") or info.get("channel") or ""),
@@ -324,6 +335,18 @@ class Engine:
         job.progress = 0.01
         job.title = job.title or tidal.resource_of(job.url)
         notify(job)
+        meta: dict = {}
+        if self.tidal_meta:          # song / album / playlist name, artist and cover for the download list (no ids)
+            try:
+                meta = self.tidal_meta(job.url) or {}
+            except Exception:  # noqa: BLE001 - the list then keeps the link; the download itself is not affected
+                meta = {}
+            if meta.get("title"):
+                job.title = str(meta["title"])
+                job.uploader = str(meta.get("artist") or "")
+                job.thumbnail = str(meta.get("cover") or "")
+                job.playlist_count = len(meta.get("items") or []) if meta.get("kind") in ("album", "playlist", "mix") else 0
+                notify(job)
 
         def fail(text: str, detail: str = "") -> None:
             job.state = JobState.ERROR
@@ -387,7 +410,8 @@ class Engine:
             job.note = "Some Tidal items failed - see the log of tiddl (%s)." % ((home or tidal.app_path()) / "latest.log")
         if cfg.get("html"):
             try:
-                tidal.write_html_pages(base, started, job.url, str(cfg.get("theme") or "auto"))
+                tidal.write_html_pages(base, started, job.url, str(cfg.get("theme") or "auto"),
+                                       str(meta.get("cover") or ""), str(meta.get("artist") or ""), meta.get("items") or [])
             except OSError:
                 pass
         job.filename = str(base)
@@ -546,6 +570,8 @@ class Engine:
             while True:
                 try:
                     with ydl_class(opts) as ydl:
+                        if job.options.split_chapters:
+                            album.install_cut_shift(ydl)      # cuts 0.5 s earlier than the listed times
                         info = ydl.extract_info(job.url, download=True)
                     break
                 except Cancelled:
@@ -602,6 +628,7 @@ class Engine:
                             pass
             if cancel.is_set():
                 raise cancelled()
+            job.note = drop_cookie_note(job.note)     # the download worked: the unreadable browser login does not matter
             job.state = JobState.DONE
             job.phase = ""
             job.dl_progress = job.pp_progress = 1.0

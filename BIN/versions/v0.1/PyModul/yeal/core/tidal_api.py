@@ -59,6 +59,11 @@ def image_url(image_id: Optional[str], size: int = 320, wide: bool = False) -> s
     return "%s%s/%dx%d.jpg" % (IMAGES, image_id.replace("-", "/"), size, height)
 
 
+def resize_image(url: str, size: int) -> str:
+    """The same resources.tidal.com picture in another square size ('.../160x160.jpg' -> '.../320x320.jpg')."""
+    return re.sub(r"/\d+x\d+\.jpg$", "/%dx%d.jpg" % (size, size), url or "") if (url or "").startswith(IMAGES) else (url or "")
+
+
 def browse_url(kind: str, item_id) -> str:
     return "%s%s/%s" % (BROWSE, kind, item_id)
 
@@ -502,6 +507,38 @@ class TidalApi:
         items = self._all("mixes/%s/items" % mix_id)
         return {"kind": "mix", "id": mix_id, "title": "Mix", "subtitle": "", "cover": items[0]["cover"] if items else "",
                 "items": items, "url": browse_url("mix", mix_id)}
+
+    def track(self, track_id) -> dict:
+        return norm_track(self.get("tracks/%s" % track_id))
+
+    def video(self, video_id) -> dict:
+        return norm_video(self.get("videos/%s" % video_id))
+
+    def describe(self, url: str) -> dict:
+        """What a Tidal link points to, for the download list and the HTML player page:
+        {kind, id, title, artist, cover (320 px), items: [track dicts]}. Raises TidalError."""
+        kind, _, item_id = tidal.resource_of(url).partition("/")
+        if not kind or not item_id:
+            raise TidalError("Not a Tidal link.")
+        items: List[dict] = []
+        if kind == "track":
+            head = self.track(item_id)
+            items = [head]
+        elif kind == "album":
+            head = norm_album(self.get("albums/%s" % item_id))
+            items = [t for t in self._all("albums/%s/items" % item_id) if t.get("kind") == "track"]
+        elif kind == "playlist":
+            head = norm_playlist(self.get("playlists/%s" % item_id, cache=False), self.auth.user_id)
+            items = [t for t in self._all("playlists/%s/items" % item_id) if t.get("kind") == "track"]
+        elif kind == "mix":
+            head = self.mix(item_id)
+            items = [t for t in head.get("items") or [] if t.get("kind") == "track"]
+        elif kind == "video":
+            head = self.video(item_id)
+        else:
+            head = norm_artist(self.get("artists/%s" % item_id))
+        return {"kind": kind, "id": item_id, "title": head.get("title", ""), "artist": head.get("subtitle", ""),
+                "cover": resize_image(head.get("coverLarge") or head.get("cover") or "", 320), "items": items}
 
     def lyrics(self, track_id) -> dict:
         return parse_lyrics(self.get("tracks/%s/lyrics" % track_id))

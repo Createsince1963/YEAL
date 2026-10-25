@@ -231,10 +231,17 @@ def playlist_html(title: str, uploader: str, source: str, items: List[dict],
         img = (f'<img src="{esc(th, quote=True)}" alt="" loading="lazy" referrerpolicy="no-referrer" '
                'onerror="this.style.visibility=\'hidden\'">') if th else ""
         link = f'<a class="pg" href="{esc(quote(page), quote=True)}" title="Description">&#9432;</a>' if page else ""
+        art = esc(str(it.get("artist") or ""))
+        tid, tlink = str(it.get("id") or ""), str(it.get("link") or "")
+        sub = f"<small>{art}</small>" if art else ""
+        ident = (f'<a class="id" href="{esc(tlink, quote=True)}" target="_blank" rel="noopener noreferrer" '
+                 f'title="Open in TIDAL">#{esc(tid)}</a>') if tid and tlink.startswith("https://") else ""
         if f:
-            rows.append(f'<li class="it" data-src="{esc(quote(f), quote=True)}" data-t="{esc(ttl.lower(), quote=True)}">'
+            rows.append(f'<li class="it" data-src="{esc(quote(f), quote=True)}" data-t="{esc(ttl.lower(), quote=True)}" '
+                        f'data-th="{esc(th, quote=True)}" data-ti="{esc(str(it.get("title") or f), quote=True)}" '
+                        f'data-sub="{esc(str(it.get("artist") or ""), quote=True)}">'
                         f'<span class="n">{n}</span><span class="c">{img}<i class="d">{dur}</i></span>'
-                        f'<span class="t">{ttl}</span>{link}</li>')
+                        f'<span class="t">{ttl}{sub}</span>{ident}{link}</li>')
         else:
             rows.append(f'<li class="it off" data-t="{esc(ttl.lower(), quote=True)}"><span class="n">{n}</span>'
                         f'<span class="c">{img}</span><span class="t">{ttl}</span><span class="x">not downloaded</span></li>')
@@ -246,7 +253,7 @@ def playlist_html(title: str, uploader: str, source: str, items: List[dict],
     if source.startswith(("http://", "https://")):
         meta.append(_linkify(esc(source)))
     cover = next((thumb_of(i) for i in items if thumb_of(i)), "")
-    cover_html = (f'<img class="cv" src="{esc(cover, quote=True)}" alt="" referrerpolicy="no-referrer" '
+    cover_html = (f'<img class="cv" id="cv" src="{esc(cover, quote=True)}" alt="" referrerpolicy="no-referrer" '
                   'onerror="this.style.display=\'none\'">') if (audio and cover) else ""
     light = ("color:#1d1d1f;background:#fff", ".meta,.d,.n,.x{color:#6e6e73}a{color:#0071e3}.it:hover{background:#0000000d}"
              ".it.on{background:#0071e322}.c{background:#e5e5ea}input,button{background:#f2f2f7;color:#1d1d1f}")
@@ -286,17 +293,22 @@ def playlist_html(title: str, uploader: str, source: str, items: List[dict],
         "input,button{border:0;border-radius:10px;padding:.5rem .8rem;font:inherit}input{flex:1;min-width:10rem}button{cursor:pointer}"
         "ol{list-style:none;margin:0;padding:0}.it{border-radius:10px;cursor:pointer}"
         ".c{position:relative;border-radius:8px;overflow:hidden;display:block}.c img{width:100%;height:100%;object-fit:cover;display:block}"
+        ".t small{display:block;font-size:.8rem;opacity:.7}.id{font-size:.75rem;text-decoration:none;opacity:.6;white-space:nowrap}"
         ".it.off{opacity:.45;cursor:default}.d,.x{font-size:.85rem}.n{font-variant-numeric:tabular-nums}.pg{text-decoration:none}"
         f"{layout}{theme_css}\n</style>\n</head>\n<body>\n"
-        f'<div class="hd">{cover_html}<div><h1>{esc(title)}</h1>\n<p class="meta">{" &middot; ".join(meta)}</p></div></div>\n'
+        f'<div class="hd">{cover_html}<div><h1>{esc(title)}</h1>\n<p class="meta">{" &middot; ".join(meta)}</p>'
+        '<p class="meta" id="np"></p></div></div>\n'
         f'<div id="p"><{tag} id="m" controls preload="metadata"></{tag}></div>\n'
         '<div class="bar"><button id="all" type="button">&#9654; Play all</button><button id="shuf" type="button">&#128256; Shuffle</button>'
         '<input id="q" type="search" placeholder="Filter titles" aria-label="Filter titles"></div>\n'
         f'<ol class="{"a" if audio else "v"}" id="l">\n{chr(10).join(rows)}\n</ol>\n'
-        '<script>(function(){var m=document.getElementById("m"),L=[].slice.call(document.querySelectorAll(".it[data-src]")),cur=-1,order=null;'
+        '<script>(function(){var m=document.getElementById("m"),L=[].slice.call(document.querySelectorAll(".it[data-src]")),cur=-1,order=null,'
+        'cv=document.getElementById("cv"),np=document.getElementById("np"),t0=document.title;'
         'function vis(e){return e.style.display!=="none"}'
+        'function info(i){var d=L[i].dataset;if(cv&&d.th){cv.src=d.th;cv.style.display=""}'
+        'if(np)np.textContent=d.ti?"▶ "+d.ti+(d.sub?" - "+d.sub:""):"";document.title=d.ti?d.ti+" - "+t0:t0}'
         'function go(i){if(i<0||i>=L.length)return;if(cur>=0)L[cur].classList.remove("on");cur=i;L[i].classList.add("on");'
-        'm.src=L[i].dataset.src;m.play();L[i].scrollIntoView({block:"nearest"})}'
+        'm.src=L[i].dataset.src;info(i);m.play();L[i].scrollIntoView({block:"nearest"})}'
         'function next(){var a=order||L.map(function(_,i){return i});var p=a.indexOf(cur);'
         'for(var k=p+1;k<a.length;k++){if(vis(L[a[k]])){go(a[k]);return}}}'
         'L.forEach(function(e,i){e.addEventListener("click",function(ev){if(ev.target.closest(".pg"))return;go(i)})});'
@@ -306,7 +318,7 @@ def playlist_html(title: str, uploader: str, source: str, items: List[dict],
         'var f=order.find(function(i){return vis(L[i])});if(f!==undefined)go(f)};'
         'document.getElementById("q").oninput=function(){var s=this.value.toLowerCase();'
         '[].slice.call(document.querySelectorAll("#l .it")).forEach(function(e){e.style.display=e.dataset.t.indexOf(s)<0?"none":""})};'
-        'if(L.length){m.src=L[0].dataset.src;L[0].classList.add("on");cur=0}})();</script>\n</body>\n</html>\n')
+        'if(L.length){m.src=L[0].dataset.src;L[0].classList.add("on");cur=0;if(L[0].dataset.th&&cv)cv.src=L[0].dataset.th}})();</script>\n</body>\n</html>\n')
 
 
 def write_playlist_page(folder: Path, title: str, uploader: str, source: str, items: List[dict],

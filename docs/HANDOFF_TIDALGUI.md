@@ -67,3 +67,7 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 
 ## Update 0.9.1.07 (2026-10-25, local commit + tag v0.9.1.07, not pushed)
 - Done: TIDAL options in the workflow panel are two-column tiles, quality merged in (the duplicate quality menu button is hidden for TIDAL), the whole block folds (`tidal_opts_collapsed`), `TidalOptions.qml` rewritten (data model `groups`, `overview`). EXE not rebuilt for this version.
+
+## Update 0.9.1.08 (2026-10-25, local commit + tag v0.9.1.08, not pushed)
+- Done: download tile fixes (YouTube cookie hint hidden on success; TIDAL tile with song / artist / cover via `TidalApi.describe` and `Engine.tidal_meta`), HTML page per-title cover + `#id` link + time-synced header cover, cut shift 0.5 s earlier for chapter splitting (`album.shift_cuts`, `album.install_cut_shift`), album page cover. EXE not rebuilt for 0.9.1.07 / 0.9.1.08.
+- Still open: hand test with a signed-in account; real check of the HTML page in a browser; the manuals do not yet mention the 0.5 s cut shift.

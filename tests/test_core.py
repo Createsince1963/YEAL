@@ -684,3 +684,77 @@ class ExtrasAndPlaylistTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CookieNoteTests(unittest.TestCase):
+    def test_hint_is_dropped_when_the_download_worked(self):
+        from yeal.core.engine import drop_cookie_note
+        note = ("Subtitles were not available - downloaded without them.\n"
+                "The browser login could not be read (Chrome and Edge lock their cookies) - downloaded without it. "
+                "For protected videos choose Firefox under Settings > Use browser login.")
+        self.assertEqual(drop_cookie_note(note), "Subtitles were not available - downloaded without them.")
+        self.assertEqual(drop_cookie_note(note.split("\n")[1]), "")
+        self.assertEqual(drop_cookie_note(""), "")
+
+
+class SplitCutTests(unittest.TestCase):
+    CH = [{"start_time": 0, "end_time": 10, "title": "One"}, {"start_time": 10, "end_time": 20, "title": "Two"},
+          {"start_time": 20, "end_time": 30, "title": "Three"}]
+
+    def test_every_inner_cut_moves_half_a_second_earlier(self):
+        from yeal.core import album
+        out = album.shift_cuts(self.CH)
+        self.assertEqual([(c["start_time"], c["end_time"]) for c in out], [(0, 9.5), (9.5, 19.5), (19.5, 30)])
+        self.assertEqual(self.CH[0]["end_time"], 10)               # the input is not changed
+
+    def test_a_short_track_is_never_cut_away(self):
+        from yeal.core import album
+        out = album.shift_cuts([{"start_time": 0, "end_time": 0.8}, {"start_time": 0.8, "end_time": 5}])
+        self.assertEqual(out[1]["start_time"], 0.8)                 # 0.3 would leave less than a second: the cut stays
+        self.assertEqual(out[0]["end_time"], 0.8)
+        out = album.shift_cuts([{"start_time": 0, "end_time": 1.2}, {"start_time": 1.2, "end_time": 5}])
+        self.assertEqual(out[1]["start_time"], 1.0)                 # but never below one second for the first track
+        self.assertEqual(album.shift_cuts([]), [])
+
+    def test_step_is_put_in_front_of_the_split_step(self):
+        from yeal.core import album
+        try:
+            from yt_dlp import YoutubeDL
+        except ImportError:
+            self.skipTest("yt-dlp not installed")
+        ydl = YoutubeDL({"quiet": True, "postprocessors": [{"key": "FFmpegSplitChapters", "force_keyframes": False}]})
+        self.assertTrue(album.install_cut_shift(ydl))
+        names = [type(p).__name__ for p in ydl._pps["post_process"]]
+        self.assertEqual(names, ["ShiftCuts", "FFmpegSplitChaptersPP"])      # the shift runs first
+        _, info = ydl._pps["post_process"][0].run({"chapters": self.CH})
+        self.assertEqual(info["chapters"][1]["start_time"], 9.5)
+        self.assertEqual(info["chapters"][0]["end_time"], 9.5)
+
+    def test_no_split_step_or_other_internals_change_nothing(self):
+        from yeal.core import album
+
+        class Plain:
+            pass
+
+        class NoSplit:
+            _pps = {"post_process": [object()]}
+        self.assertFalse(album.install_cut_shift(Plain()))
+        self.assertFalse(album.install_cut_shift(NoSplit()))
+
+    def test_album_page_shows_the_cover_of_the_video(self):
+        import tempfile
+        from pathlib import Path
+        from yeal.core.engine import Engine
+        from yeal.core.models import DownloadJob, DownloadOptions
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "Album"
+            folder.mkdir()
+            for n in ("01 - One.mp3", "02 - Two.mp3"):
+                (folder / n).write_bytes(b"x")
+            engine = Engine(make_ctx(tmp), ydl_class=FakeYDL)
+            job = DownloadJob(1, "https://youtu.be/x", DownloadOptions(mode="audio"))
+            info = {"title": "Album", "thumbnail": "https://i.ytimg.com/vi/x/hq.jpg", "chapters": self.CH[:2]}
+            engine._album_page(job, info, folder)
+            text = (folder / "Album.html").read_text(encoding="utf-8")
+            self.assertEqual(text.count('data-th="https://i.ytimg.com/vi/x/hq.jpg"'), 2)
+            self.assertIn('class="cv"', text)

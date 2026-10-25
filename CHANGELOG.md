@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.1.08
+- **YouTube download tile:** the hint "The browser login could not be read ..." is no longer shown when the download worked (it only matters when the download fails, then the error is shown as before).
+- **TIDAL download tile:** shows the song, album or playlist name with the artist (or creator) and the cover instead of `playlist/7e9b7ad6-...`; albums and playlists also show "n of N" while they download. The technical id is never shown in the list. If the lookup fails (offline, signed out) the tile keeps the link and the download is not affected (`TidalApi.describe`, `Engine.tidal_meta`).
+- **TIDAL HTML player page:** every title has its own cover and artist; the id is only a small link `#id` to the title at TIDAL. While a title plays, the cover in the page header, the "now playing" line and the browser tab title follow the song at once (`tidal.match_tracks` pairs the files with the TIDAL titles by name, then by order).
+- **Long tracks cut into songs (chapters / timestamps):** every cut is placed **0.5 s earlier** than the listed time (checked with a real file: the first song ends 0.5 s sooner, the last starts 0.5 s sooner, middle songs keep their length; a song is never made shorter than 1 s). The cover stays in every song.
+- **Album page of cut songs:** the cover is shown for every song and in the page header (before the squares were empty).
+- Tests: cut shifting incl. the step order inside yt-dlp, the cookie hint, album page cover, TIDAL job description, `TidalApi.describe`, `match_tracks`, HTML page with ids and covers.
+
+
 ## 0.9.1.07
 - **TIDAL options: smaller and without the double quality control.** The quality menu button below the options is gone for TIDAL; the quality is the first tile of the TIDAL options. The option groups are small tiles in **two columns** (caption + current value); the choices of the opened group appear below, across the full width, one group at a time.
 - **The whole TIDAL options block can be folded** with a click on its heading; folded it is one line with the current quality, videos and extras (remembered, setting `tidal_opts_collapsed`). A small settings button in the heading opens Settings > Tidal. The values are the defaults of every download (the same settings as in Settings > Tidal).
