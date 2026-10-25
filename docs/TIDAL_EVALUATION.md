@@ -35,3 +35,10 @@ Checked against the GitHub master (v0.24.6, last commit 2025-03-16); the zip on 
 - The CLI has no per-run options (quality, folder and video quality live in a global config file, default 3-5 s delay between items, video quality 480p).
 - It offers nothing that tiddl does not already do (track, album, playlist, mix, artist, video).
 Result: Yeal keeps tiddl as the only Tidal engine. Open idea, not started: an own Tidal library browser (playlists, track table with tick boxes, download queue) in Yeal's design, using `tidalapi` (LGPL-3.0, pure Python) for listing and tiddl for downloading; listening stays in the embedded TIDAL web player.
+
+## Status 2026-10-25: own Tidal view built (0.9.1.01 - 0.9.1.06)
+The open idea above became "TIDAL DIY": instead of `tidalapi`, `core/tidal_api.py` talks to Tidal's web API with the
+token that tiddl already stores (standard library only, no extra dependency). It lists pages, search, albums,
+artists, playlists, mixes, favorites and lyrics, edits playlists and favorites, and fetches the stream for Yeal's own
+player; downloads still go through tiddl. Playing with that token gives at most FLAC 16-bit / 44.1 kHz.
+Design of the view: `docs/PLAN_TIDALGUI_0.9.1.md`; hand-over notes: `docs/HANDOFF_TIDALGUI.md`.

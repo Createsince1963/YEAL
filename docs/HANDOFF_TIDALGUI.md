@@ -59,3 +59,8 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - Done: step 7. `TidalDock.qml` (dock left/right, own window, hide), `TidalHome.qml` arranges the areas (re-parenting inside the SplitView, `arrange()`), saves `tidal_layout` (`setSide`, `togglePane`, `moveFloat`, `saveWidths`, `setPlayerTop`, `resetLayout`), reset button in Settings > Tidal. `Backend.setSetting` now converts `QJSValue` objects (before, object values from QML were dropped silently).
 - Hand test still needed: drag the dividers, detach a window, restart Yeal and check the arrangement returns; second monitor removed case.
 - Still open: tests for `QueueModel` / `TidalPlayer` / `write_tidal_linklist`, step 8 (ARCHITECTURE.md, TIDAL_EVALUATION.md, manuals, `Yeal.spec` check, EXE build, full manual test).
+
+## Update 0.9.1.06 (2026-10-25, local commit + tag v0.9.1.06, not pushed)
+- Done: step 8. `tests/test_tidal_player.py` (QueueModel, player logic, link list), manuals EN/DE chapter TIDAL, ARCHITECTURE.md / TIDAL_EVALUATION.md, `Yeal.spec` checked (no change needed), `dist\Yeal.exe` built (58.6 MB) and started once offscreen (ran 12 s).
+- NOT done: manual end-to-end test with the signed-in account (plan section 7), drag from the TIDAL Web view, EXE test with real playback.
+- New idea waiting for a decision: `docs/PLAN_PLAYER_TRACK.md` (track-shaped player from the concept video; the video itself stays untracked in `docs/optional/`).

@@ -31,6 +31,7 @@
       <a href="#audio">Audio and MP3</a>
       <a href="#playlists">Playlists, albums, live</a>
       <a href="#browser">YouTube browser</a>
+      <a href="#tidal">TIDAL</a>
       <a href="#queue">Queue</a>
       <a href="#extras">Companion files</a>
       <a href="#profiles">Profiles</a>
@@ -118,6 +119,28 @@
         </ul>
         <div class="warning"><strong>Age-restricted or protected videos:</strong> Sign in to YouTube in Firefox, Edge, or Chrome, select the same browser under “Settings &gt; Browser login,” close that browser, and retry the download. The sign-in inside Yeal's embedded browser is not used for downloads.</div>
         <div class="warning"><strong>Ad blocking:</strong> This feature is experimental and can interfere with YouTube. Disable it and restart Yeal if the site behaves unexpectedly.</div>
+      </section>
+
+      <section id="tidal">
+        <h2>TIDAL</h2>
+        <p>TIDAL needs your own TIDAL subscription. Yeal uses the helper tiddl for downloads and the sign-in you create in <em>Settings &gt; Tidal</em>; it never sees your password.</p>
+        <h3>Three views</h3>
+        <p>The buttons above the workflow switch the right-hand side: <strong>YouTube</strong>, <strong>TIDAL Web</strong> (the embedded TIDAL web player, where you sign in yourself) and <strong>TIDAL DIY</strong> (Yeal's own TIDAL view). Only one of them plays at a time; the one you leave is paused.</p>
+        <h3>TIDAL DIY</h3>
+        <ul>
+          <li>Pages: Start, Explore, Feed and My collection (playlists, albums, artists, tracks, mixes, videos), search, album, artist, playlist and mix pages.</li>
+          <li>Playing: Yeal's own player with queue, shuffle, repeat, volume, lyrics and a quality badge that shows what really plays (with the tiddl sign-in TIDAL plays at most CD quality; downloads are not affected).</li>
+          <li>Queue: drag the tiles to change the order, “Save as playlist” stores it in your TIDAL account.</li>
+          <li>Playlists: create, rename, delete, add and remove titles, add titles to your collection with the heart.</li>
+          <li>Right-click on any tile, row or playlist: play, play next, add to queue, collection, add to playlist, download, save as HTML link list, copy link, open in TIDAL Web.</li>
+          <li><strong>HTML link list:</strong> saves a page with links to the titles of a playlist, album or mix without downloading anything (folder <em>Tidal\Linklisten</em> in the download folder; an existing page is never replaced).</li>
+        </ul>
+        <h3>Arranging the view</h3>
+        <p>Playlists and “Search and queue” can be docked on the left or right, detached into their own window or hidden (button in the header of the area, or right-click). The two buttons next to the page tabs show or hide them, the third resets everything. The player bar moves to the top or bottom with a right-click. Yeal remembers the arrangement; <em>Settings &gt; Tidal &gt; TIDAL DIY layout</em> resets it.</p>
+        <h3>Download by drag and drop</h3>
+        <p>Drag a title, album, playlist or mix from TIDAL DIY onto the workflow panel: it is added to the downloads at once. Links dragged there from other places fill the link field as before.</p>
+        <h3>TIDAL options</h3>
+        <p>Each option group is one line with its current value; click it to open the choices (one group at a time): quality, videos, video quality, Dolby Atmos, artist singles and extras (lyrics, .lrc, cover, M3U, player page, overwrite, rewrite tags). The same options are in <em>Settings &gt; Tidal</em>. Downloads run in Yeal's own tiddl folder, your own tiddl setup is not changed.</p>
       </section>
 
       <section id="queue">

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1.06
+- Tests for the TIDAL DIY play queue and player: moving, removing and inserting rows keeps following the playing track, shuffle only touches the upcoming titles and restores their order, repeat (off / all / one), what happens at the end of the queue, volume limits (`tests/test_tidal_player.py`, 22 tests, no audio device needed).
+- Tests for the HTML link list: text and links are escaped, only https TIDAL links appear, no media files are referred to, an existing page is never replaced, an unwritable folder gives no crash.
+- Manuals (English and German): new chapter TIDAL (three views, TIDAL DIY, arranging the view, drag and drop, TIDAL options). `docs/ARCHITECTURE.md` describes the TIDAL DIY layers and the QtMultimedia exception; `docs/TIDAL_EVALUATION.md` has the outcome.
+- `Yeal.spec` checked: QtMultimedia and QtQuick.Window stay in the bundle, all QML files are packed as a folder (the new `TidalDock.qml` etc. need no change).
+
+
 ## 0.9.1.05
 - **TIDAL DIY: areas can be arranged.** The playlist column and "search and queue" can be docked on the left or the right, detached into their own window or hidden (menu button in the header of each area, or right-click on it). Two buttons next to the page tabs show / hide them again, a third resets the arrangement. A detached window can be moved and resized freely; closing it docks the area again. A window left on a screen that is gone comes back to the main screen. The player bar moves to the top or bottom with a right-click. Widths, sides, window positions and the player position are remembered (`tidal_layout`); Settings > Tidal > "TIDAL DIY layout" resets them.
 - The queue button (player bar and page tabs) uses the three-line icon of TIDAL.
