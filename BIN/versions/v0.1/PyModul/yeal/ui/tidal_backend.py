@@ -19,7 +19,7 @@ from PySide6.QtCore import (Property, QAbstractListModel, QModelIndex, QObject, 
                             Slot)
 from PySide6.QtGui import QGuiApplication
 
-from ..core import extras, tidal, tidal_api
+from ..core import dsp, extras, tidal, tidal_api
 
 LEVEL_BUCKET_US = 20000      # the level of the music is kept in 20 ms steps (matches the 30 Hz picture of the track player)
 
@@ -238,6 +238,7 @@ class TidalPlayer(QObject):
         self._want = ""              # track id whose stream is being fetched (late answers are ignored)
         self._now_source = ""        # "Played from" of titles dropped on the player
         self._abuf = None            # QAudioBufferOutput: decoded audio for the level
+        self._engine_in_use = "qt"
         self._levels: dict = {}      # 20 ms bucket -> level 0..1
         self._level = 0.0
         self._last_buf = 0.0         # time of the last audio buffer (is the level real?)
@@ -260,24 +261,67 @@ class TidalPlayer(QObject):
         except ImportError:
             self.error.emit("Playback needs Qt Multimedia, which is missing in this installation.")
             return False
-        self._audio = QAudioOutput(self)
-        self._audio.setVolume(self._volume / 100.0)
-        self._set_output_device()
-        self._player = QMediaPlayer(self)
-        self._player.setAudioOutput(self._audio)
+        media = self._make_dsp_media()
+        if media is not None:                 # Yeal's own engine: ffmpeg -> float32 chain -> the chosen output
+            self._engine_in_use = "dsp"
+            self._audio = self._player = media
+            media.setVolume(self._volume / 100.0)
+            media.levels.connect(self._on_pairs)
+            self._set_output_device()
+        else:
+            self._engine_in_use = "qt"
+            self._audio = QAudioOutput(self)
+            self._audio.setVolume(self._volume / 100.0)
+            self._set_output_device()
+            self._player = QMediaPlayer(self)
+            self._player.setAudioOutput(self._audio)
         self._player.positionChanged.connect(lambda *_: self.positionChanged.emit())
         self._player.durationChanged.connect(lambda *_: self.positionChanged.emit())
         self._player.playbackStateChanged.connect(self._on_state)
         self._player.mediaStatusChanged.connect(self._on_status)
         self._player.errorOccurred.connect(lambda _e, text: self.error.emit("Playback failed: " + text) if text else None)
-        try:                          # the level of the music for the track player (Qt 6.8+); without it the level stays 0
-            from PySide6.QtMultimedia import QAudioBufferOutput
-            self._abuf = QAudioBufferOutput(self)
-            self._player.setAudioBufferOutput(self._abuf)
-            self._abuf.audioBufferReceived.connect(self._on_audio_buffer)
-        except (ImportError, AttributeError):
-            self._abuf = None
+        if self._engine_in_use == "qt":
+            try:                          # the level of the music for the track player (Qt 6.8+); without it the level stays 0
+                from PySide6.QtMultimedia import QAudioBufferOutput
+                self._abuf = QAudioBufferOutput(self)
+                self._player.setAudioBufferOutput(self._abuf)
+                self._abuf.audioBufferReceived.connect(self._on_audio_buffer)
+            except (ImportError, AttributeError):
+                self._abuf = None
         return True
+
+    # -- the engine: Qt's media player or Yeal's own (DspMedia)
+    def _wanted_engine(self) -> str:
+        pick = getattr(self._owner, "audio_engine", None)
+        return pick() if callable(pick) else "qt"
+
+    def _make_dsp_media(self):
+        if self._wanted_engine() != "dsp":
+            return None
+        from . import dsp_media
+        ffmpeg = getattr(self._owner, "ffmpeg_path", lambda: "")()
+        if not dsp_media.usable(ffmpeg):
+            self.error.emit("Yeal's own engine needs numpy and ffmpeg - playing with the standard engine.")
+            return None
+        media = dsp_media.DspMedia(ffmpeg, self)
+        media.setConfig(dsp.config_from(getattr(self._owner, "dsp_config", lambda: {})()))
+        return media
+
+    @Slot()
+    def applyDsp(self) -> None:
+        """The filter settings changed: the running song goes on with the new filters."""
+        if self._engine_in_use == "dsp" and self._player is not None:
+            self._player.setConfig(dsp.config_from(getattr(self._owner, "dsp_config", lambda: {})()))
+
+    @Slot()
+    def applyEngine(self) -> None:
+        """Another engine was chosen: playback stops; the next song starts with the new engine."""
+        if self._player is None or self._wanted_engine() == self._engine_in_use:
+            return
+        self.stop()
+        old, self._player, self._audio, self._abuf = self._player, None, None, None
+        old.deleteLater()
+        self.changed.emit()
 
     def _on_state(self, state) -> None:
         from PySide6.QtMultimedia import QMediaPlayer
@@ -646,7 +690,10 @@ class TidalPlayer(QObject):
         self._owner.submit(work)
 
     def _on_audio_buffer(self, buf) -> None:
-        pairs = pairs_of(buf)
+        self._on_pairs(pairs_of(buf))
+
+    def _on_pairs(self, pairs) -> None:
+        """Levels of the music (from Qt's audio buffers, or from the blocks of Yeal's own engine)."""
         if not pairs:
             return
         for bucket, level in pairs:
@@ -689,6 +736,8 @@ class TidalPlayer(QObject):
                            "Downloads still use the quality chosen in TIDAL options.") if info.get("downgraded") else \
             "Quality that is playing now"
         self._player.setSource(QUrl(info["url"]))
+        if self._engine_in_use == "dsp":                       # Tidal's own loudness value of the song (for ReplayGain)
+            self._player.setReplayGain(info.get("replayGain") or 0.0)
         self._player.play()
         self.changed.emit()
 
@@ -743,6 +792,15 @@ class TidalBackend(QObject):
 
     def audio_device(self):
         return self._backend.audio_device()
+
+    def audio_engine(self) -> str:
+        return self._backend.audio_engine()
+
+    def dsp_config(self) -> dict:
+        return self._backend.dsp_config()
+
+    def ffmpeg_path(self) -> str:
+        return self._backend.ffmpeg_path()
 
     def request_single_playback(self) -> None:
         """The own player starts: the embedded web players are paused (Settings: single playback)."""

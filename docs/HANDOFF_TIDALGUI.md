@@ -93,3 +93,8 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - Done: generic `SunView.qml` (zones left / right / top / bottom, slots, planets with own orbits by dragging, orbit slider), `LocalPlayerView.qml` and new `TidalSunView.qml` are thin wrappers; `TidalHome` has the sun mode (`tidal_sun`, `forceHidden` on the docks).
 - Hand test: dragging planets with the mouse, the slider and wheel in a big window, the sun view of TIDAL DIY with a signed-in account, cards in a small window.
 - Open: equalizer; lyrics for local files; planets keep their zone for the cards even when dragged to the other side.
+
+## Update 0.9.1.17 (2026-10-26, local commit + tag v0.9.1.17, not pushed, NO EXE)
+- Done: audio output choice (0.9.1.16), own audio engine (`core/dsp.py`, `ui/dsp_media.py`, `SunSound.qml`, settings `audio_engine` / `dsp`).
+- Hand test needed: listen with Bluetooth headphones (A2DP stereo entry), EQ sliders while a song plays (350 ms pause, small gap when the filter is rebuilt), ReplayGain jump for a local file (the gain is set when the scan ends), crossfeed taste, an impulse response, seeking in a long mix, TIDAL songs through the own engine (stream URL via ffmpeg, hi-res DASH still falls back to CD quality).
+- Open: bundle numpy in the exe (size!) or leave the engine as an optional extra; live filter change without the gap; ReplayGain before the first sound; DASH hi-res through ffmpeg; the same chain for Stream to box is not possible (the speaker plays the file itself).

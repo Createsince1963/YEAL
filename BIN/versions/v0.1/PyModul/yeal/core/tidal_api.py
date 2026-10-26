@@ -592,7 +592,8 @@ class TidalApi:
         downgraded = downgraded or (quality.startswith("HI_RES") and not str(info.get("audioQuality", "")).startswith("HI_RES"))
         return {"url": man["url"], "mime": man["mime"], "codec": man["codec"], "quality": info.get("audioQuality", ""),
                 "badge": quality_badge(info), "downgraded": downgraded,
-                "bitDepth": info.get("bitDepth") or 0, "sampleRate": info.get("sampleRate") or 0}
+                "bitDepth": info.get("bitDepth") or 0, "sampleRate": info.get("sampleRate") or 0,
+                "replayGain": info.get("trackReplayGain")}
 
     # -- writing (favorites, playlists)
     _FAV_FIELD = {"track": "trackIds", "album": "albumIds", "artist": "artistIds", "video": "videoIds",

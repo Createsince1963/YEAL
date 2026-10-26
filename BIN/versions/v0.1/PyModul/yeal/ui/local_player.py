@@ -8,13 +8,14 @@ there from the first second. Sound does not overlap with the TIDAL players: star
 """
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 from typing import Any, List
 
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 
-from ..core import tidal
+from ..core import dsp, tidal
 from ..core.models import JobState
 from .tidal_backend import LEVEL_BUCKET_US, TidalPlayer, pairs_of
 
@@ -90,6 +91,15 @@ class LocalOwner(QObject):
 
     def audio_device(self):
         return self._backend.audio_device()
+
+    def audio_engine(self) -> str:
+        return self._backend.audio_engine()
+
+    def dsp_config(self) -> dict:
+        return self._backend.dsp_config()
+
+    def ffmpeg_path(self) -> str:
+        return self._backend.ffmpeg_path()
 
     def submit(self, fn) -> None:
         fn()
@@ -202,6 +212,9 @@ class LocalPlayer(TidalPlayer):
         self._profile.add(pairs, duration_ms)
         self._profile.dirty = False
         self.profileChanged.emit()
+        if self._engine_in_use == "dsp" and self._player is not None:       # ReplayGain from the loudness of the whole file
+            power = sum(10.0 ** ((lv * 48.0 - 48.0) / 10.0) for _, lv in pairs) / len(pairs)
+            self._player.setReplayGain(dsp.replaygain_db(10.0 * math.log10(max(power, 1e-12))))
 
     @Slot()
     def stop(self) -> None:

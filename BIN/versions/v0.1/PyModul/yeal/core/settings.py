@@ -139,6 +139,8 @@ class Settings:
     tidal_opts_collapsed: bool = False   # workflow panel: the TIDAL options block is folded to one line
     tidal_player_style: str = "bar"      # TIDAL DIY player: bar (classic) | track (oval track player)
     local_volume: int = 80             # volume of the player for downloaded files
+    audio_engine: str = "qt"           # qt: the Qt media player | dsp: Yeal's own engine (ffmpeg -> float32 chain -> sound card; needs numpy and ffmpeg)
+    dsp: dict = field(default_factory=dict)          # settings of the own engine (equalizer, crossfeed ... see core/dsp.py validate_config)
     audio_output: str = ""             # the audio output of this computer the players use (Bluetooth headphones, speakers ...); "" = the system default
     sun_scale: float = 1.0             # sun views: size of the orbits (0.5 .. 3)
     sun_layout: dict = field(default_factory=dict)   # sun views: where the planets were dragged to (see _validate_sun_layout)
@@ -208,6 +210,10 @@ class Settings:
         self.tidal_tile_size = _clamp(self.tidal_tile_size, 90, 260, 140)
         self.local_volume = _clamp(self.local_volume, 0, 100, 80)
         self.audio_output = str(self.audio_output or "")[:200]
+        if self.audio_engine not in ("qt", "dsp"):
+            self.audio_engine = "qt"
+        from . import dsp as _dsp
+        self.dsp = _dsp.validate_config(self.dsp)
         try:
             self.sun_scale = round(max(0.5, min(3.0, float(self.sun_scale))), 2)
         except (TypeError, ValueError):

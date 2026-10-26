@@ -37,6 +37,7 @@ COMPONENTS = {
     "TidalTrackPanel": "TidalTrackPanel { width: 480; height: 300 }",
     "TidalQueueDrop": "ListView { id: lv; width: 200; height: 200; TidalQueueDrop { anchors.fill: parent; list: lv } }",
     "LocalPlayerView": "LocalPlayerView { anchors.fill: parent }",
+    "SunSound": "SunSound { width: 300; height: 400 }",
     "TidalDock": "TidalDock { width: 300; height: 300; title: 'Test'; Text { text: 'content' } }",
     "TidalDockFloating": "TidalDock { width: 300; height: 300; title: 'Test'; side: 'float'; Text { text: 'content' } }",
     "WorkflowPanel": "WorkflowPanel { anchors.fill: parent; inSidebar: true; tidalPlayer: true }",

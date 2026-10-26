@@ -291,6 +291,10 @@ class Backend(QObject):
             self._media_devices.audioOutputsChanged.connect(self.audioOutputsChanged)
         except ImportError:
             self._media_devices = None
+        self._dsp_timer = QTimer(self)                 # moving an equalizer slider must not restart the song 50 times
+        self._dsp_timer.setSingleShot(True)
+        self._dsp_timer.setInterval(350)
+        self._dsp_timer.timeout.connect(lambda: [p.applyDsp() for p in (self.tidal.player, self.localPlayer)])
         self.tidal = TidalBackend(self)
         from .local_player import LocalPlayer        # player for downloaded files (oval design)
         self.localPlayer = LocalPlayer(self)
@@ -1364,7 +1368,7 @@ class Backend(QObject):
     def setSetting(self, key: str, value: Any) -> None:
         if isinstance(value, QJSValue):      # a JS object from QML (e.g. the TIDAL DIY layout)
             value = value.toVariant()
-        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout", "tidal_opts_collapsed", "tidal_player_style", "tidal_player_vis_mode", "local_volume", "local_orbit", "tidal_player_color", "sun_scale", "sun_layout", "tidal_sun", "audio_output"):
+        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout", "tidal_opts_collapsed", "tidal_player_style", "tidal_player_vis_mode", "local_volume", "local_orbit", "tidal_player_color", "sun_scale", "sun_layout", "tidal_sun", "audio_output", "audio_engine", "dsp"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1556,6 +1560,39 @@ class Backend(QObject):
             if wanted and d["id"] == wanted:
                 return d["device"]
         return next((d["device"] for d in devices if d["isDefault"]), None)
+
+    # ---- Yeal's own audio engine (equalizer, crossfeed, ReplayGain, convolution; needs numpy and ffmpeg)
+    def ffmpeg_path(self) -> str:
+        return str(self._ctx.ffmpeg) if self._ctx.ffmpeg else ""
+
+    def audio_engine(self) -> str:
+        return "dsp" if self._settings.audio_engine == "dsp" else "qt"
+
+    def dsp_config(self) -> dict:
+        return dict(self._settings.dsp or {})
+
+    @Property(bool, constant=True)
+    def dspAvailable(self) -> bool:  # type: ignore[override]
+        from . import dsp_media
+        return (not self._ctx.is_mobile) and dsp_media.usable(self.ffmpeg_path())
+
+    @Slot(str)
+    def setAudioEngine(self, name: str) -> None:
+        self.setSetting("audio_engine", name)
+        for player in (self.tidal.player, self.localPlayer):
+            player.applyEngine()
+
+    @Slot("QVariant")
+    def setDsp(self, changes) -> None:
+        """Change some filter settings (a dict with only the changed keys); the running song follows after a short pause."""
+        if isinstance(changes, QJSValue):
+            changes = changes.toVariant()
+        if not isinstance(changes, dict):
+            return
+        merged = dict(self._settings.dsp or {})
+        merged.update(changes)
+        self.setSetting("dsp", merged)
+        self._dsp_timer.start()
 
     @Slot(str)
     def selectAudioOutput(self, device_id: str) -> None:

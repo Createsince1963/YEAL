@@ -57,6 +57,7 @@ QtObject {
         "skipNext": "M6 5l9 7-9 7z M18 5v14",
         "skipPrev": "M18 5l-9 7 9 7z M6 5v14",
         "queue": "M4 6h12 M4 11h12 M4 16h7 M15 15v5l4-2.5z",
+        "equalizer": "M6 4v16 M12 4v16 M18 4v16 M3.5 9h5 M9.5 15h5 M15.5 7h5",
         "bluetooth": "M7 7.5l10 9-5 4.5V3l5 4.5-10 9",
         "headphones": "M4 15v-3a8 8 0 0 1 16 0v3 M4 14h3.5v6H5a1 1 0 0 1-1-1z M16.5 14H20v5a1 1 0 0 1-1 1h-2.5z",
         "queueList": "M4 7h16 M4 12h16 M4 17h16",
