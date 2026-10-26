@@ -10,7 +10,7 @@ import os
 import re
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT = Path(SPECPATH)
 SRC = ROOT / "BIN" / "versions" / "v0.1" / "PyModul"
@@ -99,13 +99,30 @@ if not WEBVIEW_PLUGIN.is_file():
     raise SystemExit("Build stopped: " + str(WEBVIEW_PLUGIN) + " not found (PySide6 install without QtWebView?).")
 binaries.append((str(WEBVIEW_PLUGIN), "PySide6/plugins/webview"))
 
+# ---- tiddl (the Tidal helper) runs from inside the exe: `Yeal.exe --tiddl ...` (main.py). It is a Python package with these
+# dependencies; they are packed with their submodules and data (certifi: the CA bundle for https). Without tiddl in the build
+# Python the exe is still built, but the Tidal helper then has to be installed separately (tiddl.exe next to Yeal.exe or on PATH).
+import importlib.util
+TIDDL_PACKAGES = ["tiddl", "aiofiles", "aiohttp", "aiohappyeyeballs", "aiosignal", "frozenlist", "multidict", "yarl", "propcache",
+                  "m3u8", "mutagen", "pydantic", "pydantic_core", "annotated_types", "typing_inspection", "typing_extensions",
+                  "requests", "requests_cache", "url_normalize", "cattrs", "attrs", "urllib3", "idna", "charset_normalizer",
+                  "certifi", "typer", "click", "rich", "shellingham", "tomlkit", "platformdirs"]
+tiddl_imports, tiddl_datas = [], []
+if importlib.util.find_spec("tiddl") is None:
+    print("WARNING: tiddl is not installed in the build Python: the exe will NOT contain the Tidal helper.")
+else:
+    for pkg in TIDDL_PACKAGES:
+        if importlib.util.find_spec(pkg) is not None:
+            tiddl_imports += collect_submodules(pkg)
+            tiddl_datas += collect_data_files(pkg)
+
 a = Analysis(
     [str(SRC / "main.py")],
     pathex=[str(SRC)],
     binaries=binaries,
     datas=[(str(SRC / "yeal" / "ui" / "qml"), "yeal/ui/qml"),
-           (str(ROOT / "CHANGELOG.md"), ".")],
-    hiddenimports=collect_submodules("yt_dlp") + ["PySide6.QtMultimedia", "PySide6.QtQuickControls2",
+           (str(ROOT / "CHANGELOG.md"), ".")] + tiddl_datas,
+    hiddenimports=collect_submodules("yt_dlp") + tiddl_imports + ["PySide6.QtMultimedia", "PySide6.QtQuickControls2",
                                                     "PySide6.QtQuick", "PySide6.QtQml", "PySide6.QtNetwork"],
     hookspath=[],
     runtime_hooks=[],

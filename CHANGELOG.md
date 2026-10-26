@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1.28
+- **tiddl inside the exe:** the exe of 0.9.1.06 did not contain tiddl (it only looked for `tiddl.exe` on PATH / next to Python), so a PC without a separate tiddl install showed "Tidal helper missing". Now `Yeal.exe --tiddl ...` runs the tiddl package from inside the exe (`main.py`, `tidal.EMBEDDED`, `tidal.command_prefix`): download, sign-in, sign-out and token refresh use it; the frozen app prefers it over PATH, a tiddl chosen by hand in Settings still wins. `Yeal.spec` packs tiddl and its dependencies (submodules + data such as the certifi CA bundle) and warns when tiddl is missing in the build Python. Lookup also checks `tiddl\` next to the exe.
+- NOT verified in a built exe (no EXE built, rule): the first build must be tried on a PC without Python / tiddl (sign-in, one download, `Yeal.exe --tiddl auth --help`). ffmpeg still has to be in `bin\` next to the exe (or built in with YEAL_EMBED_TOOLS=1).
+- Tests: command prefix, frozen preference, `main.py --tiddl` runs (`test_tidal.py`).
+
 ## 0.9.1.27
 - **Sound check in the Settings planet:** "Quick check (1 min)" and "Long check (4 min)" start the calibration as its own process (`ui/calibration_runner.py`; `main.py --calibrate --json`, in the exe `Yeal.exe --calibrate --json`), so the window stays free. The card shows the progress line, then the PASS / WARN / FAIL list and the recommended sound buffer and repaint rate next to the current ones; "Use the recommended values" writes `audio_buffer_ms` and `ui_refresh_hz`. Music is paused while it runs (the test is silent); Cancel stops it. The Settings card has the pencil (edit) zoom like the others.
 - Tests: the child command line, and a real run of the quick check through the runner (`test_calibration.py`). No EXE built.

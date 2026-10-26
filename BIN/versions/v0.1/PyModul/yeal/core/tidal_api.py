@@ -302,7 +302,7 @@ def _run_refresh() -> bool:
     if not exe:
         return False
     try:
-        subprocess.run([exe, "auth", "refresh"], capture_output=True, timeout=30, env=tidal._env(),
+        subprocess.run(tidal.command_prefix(exe) + ["auth", "refresh"], capture_output=True, timeout=30, env=tidal._env(),
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except (OSError, subprocess.SubprocessError):
         return False

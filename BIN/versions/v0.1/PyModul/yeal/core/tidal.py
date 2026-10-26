@@ -104,17 +104,39 @@ def is_logged_in(path: Optional[Path] = None) -> bool:
     return False
 
 
+EMBEDDED = "built into Yeal"          # find_tiddl() answer when tiddl runs from inside Yeal.exe (`Yeal.exe --tiddl ...`, see main.py)
+
+
+def embedded_available() -> bool:
+    """The exe carries tiddl as a Python package (Yeal.spec packs it); only the frozen app uses it."""
+    if not getattr(sys, "frozen", False):
+        return False
+    import importlib.util
+    try:
+        return importlib.util.find_spec("tiddl") is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def command_prefix(exe: str) -> List[str]:
+    """The start of a tiddl command line: the executable, or Yeal.exe in its tiddl mode."""
+    return [sys.executable, "--tiddl"] if exe == EMBEDDED else [exe]
+
+
 def find_tiddl(configured: str = "") -> str:
-    """Path of the tiddl executable: the user's choice, else PATH, else next to the running Python."""
+    """Path of the tiddl executable: the user's choice, else the tiddl inside Yeal.exe, else PATH, else next to the running
+    Python (or next to Yeal.exe, also in its bin folder)."""
     if configured:
         p = Path(configured)
         return str(p) if p.is_file() else ""
+    if embedded_available():
+        return EMBEDDED
     found = shutil.which("tiddl")
     if found:
         return found
     names = ("tiddl.exe", "tiddl") if os.name == "nt" else ("tiddl",)
     base = Path(sys.executable).resolve().parent
-    for folder in (base, base / "Scripts", base / "bin"):
+    for folder in (base, base / "Scripts", base / "bin", base / "tiddl"):
         for name in names:
             if (folder / name).is_file():
                 return str(folder / name)
@@ -137,7 +159,7 @@ def build_command(exe: str, url: str, quality: str = "high", base_dir: str = "",
     singles = singles if singles in TIDAL_SINGLES else "none"
     if resource_of(url).startswith("video/") and videos == "none":
         videos = "allow"
-    cmd = [exe, "download", "-q", quality, "-t", str(max(1, min(4, int(threads or 1)))),
+    cmd = command_prefix(exe) + ["download", "-q", quality, "-t", str(max(1, min(4, int(threads or 1)))),
            "-vq", video_quality, "--videos", videos, "--dolby-atmos", atmos]
     if resource_of(url).startswith("artist/"):
         cmd += ["--singles", singles]
@@ -460,7 +482,7 @@ class LoginFlow:
 
     def _run(self) -> None:
         try:
-            self._proc = _popen([self._exe, "auth", "login", "--no-browser"])
+            self._proc = _popen(command_prefix(self._exe) + ["auth", "login", "--no-browser"])
         except OSError as exc:
             self._on_done(False, f"tiddl could not be started: {exc}")
             return
@@ -478,7 +500,7 @@ class LoginFlow:
 def logout(exe: str) -> bool:
     """`tiddl auth logout --force`; True when no login remains."""
     try:
-        subprocess.run([exe, "auth", "logout", "--force"], capture_output=True, timeout=20, env=_env(),
+        subprocess.run(command_prefix(exe) + ["auth", "logout", "--force"], capture_output=True, timeout=20, env=_env(),
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except (OSError, subprocess.SubprocessError):
         return False

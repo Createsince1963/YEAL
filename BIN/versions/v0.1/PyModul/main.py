@@ -94,6 +94,11 @@ def _guard_window_size(engine) -> None:
 
 
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "--tiddl":     # the Tidal helper runs from inside this exe (no separate tiddl install needed)
+        sys.argv = ["tiddl"] + sys.argv[2:]
+        from tiddl.cli.app import app as tiddl_app
+        tiddl_app()
+        return 0
     if "--calibrate" in sys.argv:           # the sound check of Settings runs as a separate process (the player keeps playing / stays free)
         from yeal.ui import calibration
         return calibration.main(sys.argv[sys.argv.index("--calibrate") + 1:])

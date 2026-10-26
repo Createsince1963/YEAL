@@ -519,3 +519,27 @@ class ConvertToMp3Tests(unittest.TestCase):
             self.assertIn(b"mp3", probe.stderr)
             self.assertIn(b"320 kb/s", probe.stderr)
             self.assertEqual(tidal.convert_to_mp3(None, base, started), 0)
+
+
+class EmbeddedTiddlTests(unittest.TestCase):
+    """The exe carries tiddl and runs it as `Yeal.exe --tiddl ...`."""
+
+    def test_command_prefix(self):
+        self.assertEqual(tidal.command_prefix("C:/x/tiddl.exe"), ["C:/x/tiddl.exe"])
+        self.assertEqual(tidal.command_prefix(tidal.EMBEDDED), [sys.executable, "--tiddl"])
+        cmd = tidal.build_command(tidal.EMBEDDED, "https://tidal.com/browse/track/1", "normal", "D:/dl", 2)
+        self.assertEqual(cmd[:3], [sys.executable, "--tiddl", "download"])
+
+    def test_the_frozen_app_prefers_the_built_in_tiddl(self):
+        from unittest import mock
+        with mock.patch.object(sys, "frozen", True, create=True):
+            self.assertEqual(tidal.find_tiddl(), tidal.EMBEDDED)                  # tiddl is installed in the test python
+            self.assertEqual(tidal.find_tiddl("C:/does/not/exist/tiddl.exe"), "")    # a wrong choice of the user stays wrong
+        self.assertNotEqual(tidal.find_tiddl(), tidal.EMBEDDED)                    # not frozen: PATH / next to python
+
+    def test_main_runs_tiddl_when_asked(self):
+        import subprocess
+        main_py = Path(__file__).resolve().parent.parent / "BIN" / "versions" / "v0.1" / "PyModul" / "main.py"
+        out = subprocess.run([sys.executable, str(main_py), "--tiddl", "auth", "--help"], capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stderr[-300:])
+        self.assertIn("login", out.stdout.lower())
