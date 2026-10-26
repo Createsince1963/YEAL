@@ -28,7 +28,7 @@ ColumnLayout {
             AppField {
                 id: pw
                 Layout.fillWidth: true
-                echoMode: TextInput.Password
+                secret: true
                 placeholderText: qsTr("Password")
                 onAccepted: unlockBtn.clicked()
             }
@@ -91,7 +91,7 @@ ColumnLayout {
             Layout.fillWidth: true
             AppField { id: svc; Layout.fillWidth: true; placeholderText: qsTr("Service (YouTube, Chrome, Edge, Firefox…)") }
             AppField { id: usr; Layout.fillWidth: true; placeholderText: qsTr("User / e-mail") }
-            AppField { id: pass; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: qsTr("Password") }
+            AppField { id: pass; Layout.fillWidth: true; secret: true; placeholderText: qsTr("Password") }
             AppField { id: note; Layout.fillWidth: true; placeholderText: qsTr("Note (optional)") }
             Text { id: saveErr; color: Theme.danger; font.pixelSize: Theme.footnote; visible: text !== ""; wrapMode: Text.Wrap; Layout.fillWidth: true }
             RowLayout {
@@ -119,11 +119,11 @@ ColumnLayout {
         ColumnLayout {
             spacing: Theme.s2
             Layout.fillWidth: true
-            AppField { id: oldPw; Layout.fillWidth: true; echoMode: TextInput.Password
+            AppField { id: oldPw; Layout.fillWidth: true; secret: true
                        placeholderText: backend.vaultDefaultPassword
                            ? qsTr("Current password (%1)").arg(backend.vaultDefaultHint)
                            : qsTr("Current password") }
-            AppField { id: newPw; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: qsTr("New password") }
+            AppField { id: newPw; Layout.fillWidth: true; secret: true; placeholderText: qsTr("New password") }
             Text { id: pwMsg; font.pixelSize: Theme.footnote; visible: text !== ""; wrapMode: Text.Wrap; Layout.fillWidth: true
                    color: text === qsTr("Password changed.") ? Theme.textSecondary : Theme.danger }
             AppButton {
@@ -162,7 +162,7 @@ ColumnLayout {
         ColumnLayout {
             spacing: Theme.s2
             Layout.fillWidth: true
-            AppField { id: packPw; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: qsTr("Password of the pack") }
+            AppField { id: packPw; Layout.fillWidth: true; secret: true; placeholderText: qsTr("Password of the pack") }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.s1

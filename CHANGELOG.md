@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.31
+- **Fix: empty grey buttons** (Settings > Admin: "Change password", "Lock", "Delete everything"; the same in every settings row with a button on the right): the "never wider than its row" rule of 0.9.1.18 made a binding loop in a Row that sizes itself to its buttons, the text collapsed to nothing. `AppButton` now clamps its width only inside a Flow / Grid (where the card fixes the width) and keeps its natural width elsewhere. Test: buttons in a self-sizing row keep their width (`test_tidal_gui_qml.py`); `test_gui_clipping` stays green.
+- **Show / Hide for passwords:** `AppField` has `secret: true` - a password field with a "Show" / "Hide" switch at its right end; used for the admin password, the new password, the vault password and the login pack password. No EXE built.
+
 ## 0.9.1.30
 - **Cookie file for YouTube downloads** (Settings > Login & network): choose a `cookies.txt` (Netscape format) exported once from a normal browser; Yeal checks it (needs youtube.com / google.com cookies), keeps its own copy `youtube_cookies.txt` in the data folder and gives it to yt-dlp (`cookiefile`) before the browser cookies - it works with Chrome and Edge, whose own cookies Yeal cannot read. Setting `cookies_file`.
 - **The login pack carries it:** Tidal sign-in + YouTube cookie file + vault entries in one encrypted file, so a new PC needs no new logins for downloads. Only the sign-in inside the embedded browser view still has to be done once (its cookies are bound to the Windows account). No EXE built.

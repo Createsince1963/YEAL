@@ -299,6 +299,29 @@ class TidalGuiQmlTest(unittest.TestCase):
         self.assertEqual(len(player.upcoming(2)), 2)
         root.deleteLater()
 
+    def test_a_button_in_a_self_sizing_row_keeps_its_text_and_a_password_can_be_shown(self):
+        import time
+        comp = QQmlComponent(self.engine)
+        comp.setData(("import QtQuick" + chr(10) + "import QtQuick.Layouts" + chr(10) + "Item { width: 600; height: 300" + chr(10) +
+                      "RowLayout { x: 10; y: 10; AppButton { objectName: 'b'; text: 'Change password' }" + chr(10) +
+                      "AppButton { objectName: 'd'; text: 'Delete everything'; kind: 'danger' } }" + chr(10) +
+                      "AppField { objectName: 'f'; y: 100; width: 300; secret: true; text: 'abc' }" + chr(10) + "}" + chr(10)).encode(),
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_btnrow.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        end = time.time() + 0.4
+        while time.time() < end:
+            self.app.processEvents()
+            time.sleep(0.01)
+        for name in ("b", "d"):
+            btn = root.findChild(QObject, name)
+            self.assertGreater(btn.property("width"), 100, name)               # the text is there, not an empty 34 px box
+        field = root.findChild(QObject, "f")
+        self.assertTrue(field.property("masked"))                              # dots
+        field.setProperty("revealed", True)
+        self.assertFalse(field.property("masked"))                             # "Show" was pressed: the text is readable
+        root.deleteLater()
+
     def b_set_layout(self, layout):
         self.backend.setSetting("sun_layout", layout)
 

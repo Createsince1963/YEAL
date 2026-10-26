@@ -10,7 +10,10 @@ Button {
 
     implicitHeight: Theme.touch
     implicitWidth: Math.max(implicitHeight, row.implicitWidth + 2 * Theme.s4)
-    width: parent && parent.width > 0 ? Math.min(implicitWidth, parent.width) : implicitWidth
+    // never wider than its row - but only in a Flow / Grid (their width is fixed by the card). In a Row that sizes itself to its
+    // buttons the clamp was a binding loop: the text collapsed and an empty box was left.
+    readonly property bool clamped: !!parent && parent.flow !== undefined
+    width: clamped && parent.width > 0 ? Math.min(implicitWidth, parent.width) : implicitWidth
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
     font.pixelSize: Theme.body
@@ -52,7 +55,7 @@ Button {
             color: control.fg
             elide: Text.ElideRight
             Layout.alignment: Qt.AlignVCenter
-            Layout.maximumWidth: Math.max(10, control.width - 2 * Theme.s4 - (control.iconName !== "" ? 26 : 0))
+            Layout.maximumWidth: control.clamped ? Math.max(10, control.width - 2 * Theme.s4 - (control.iconName !== "" ? 26 : 0)) : 100000
         }
     }
     Accessible.role: Accessible.Button
