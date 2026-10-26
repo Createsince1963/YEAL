@@ -187,14 +187,16 @@ Item {
     // ---- the sky: the glow of the sun (one small picture, scaled and faded with the level) and the orbits
     Canvas {
         id: glow
+        // one 128 x 128 picture, painted once; it is stretched to the glow (an ellipse around the sun) and faded with the level
         readonly property real lv: view.player ? view.player.level : 0
         readonly property real r: Math.max(view.sunW, view.sunH) * (0.75 + 0.12 * lv)
-        canvasSize: Qt.size(128, 128)
+        readonly property real gw: 2 * r
+        readonly property real gh: 2 * r * (view.sunH / view.sunW * 1.05)
+        width: 128; height: 128
         renderTarget: Canvas.Image
-        width: 2 * r
-        height: 2 * r * (view.sunH / view.sunW * 1.05)
-        x: view.cx - width / 2
-        y: view.cy - height / 2
+        x: view.cx - 64
+        y: view.cy - 64
+        transform: Scale { origin.x: 64; origin.y: 64; xScale: glow.gw / 128; yScale: glow.gh / 128 }
         opacity: (0.22 + 0.30 * lv) / 0.52
         onPaint: {
             var ctx = getContext("2d")

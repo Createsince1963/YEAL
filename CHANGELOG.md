@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1.35
+- **Fix: the glow behind the sun is back as before 0.9.1.25:** the cheap glow of 0.9.1.25 was painted only in a 128 px corner of its item (a small blob beside the sun) instead of being stretched over the glow area. Now the one small picture is scaled with a transform (`Scale`) to the same ellipse as the old full-window painting and faded with the level - pixel comparison with 0.9.1.18: the same (difference of at most 1 level), without the repaint of the whole window 30 times a second. No EXE built.
+
 ## 0.9.1.34
 - **MediaOrbit logo redrawn as a vector** instead of the small picture: `BrandLogo.qml` draws the play mark (gradient, darker lobe, dark play triangle - `QtQuick.Shapes`, sharp at every size) and the name "MediaOrbit" with the slogan "Download. Play. Keep." as real text in the theme colours (top left of the Player view, no dark plaque any more). The Player button uses a mark rendered in 192 px (`docs/brand/make_mark.py`, same geometry); `logo_mediaorbit.png` is gone. No EXE built.
 
