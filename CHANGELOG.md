@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1.32
+- **Logos on the four player buttons** (top bar): YouTube = the YouTube logo, made smaller and blue instead of red; TIDAL Web = the TIDAL mark (white on the dark theme, dark on the light theme); TIDAL DIY = the TIDAL mark on a blue square; Player = the MediaOrbit mark only. In the Player view the MediaOrbit logo with name and slogan sits in the top left corner on a dark plaque (behind the cards). Files in `qml/assets/` (`logo_youtube.png`, `logo_tidal.png`, `logo_tidal_dark.png`, `logo_tidal_diy.png`, `logo_player.png`, `logo_mediaorbit.png`), made from the originals in `docs/brand/` (script: the scratch script `mk_logos.py`, PIL). The app is still called Yeal - only the logos were placed. No EXE built.
+
 ## 0.9.1.31
 - **Fix: empty grey buttons** (Settings > Admin: "Change password", "Lock", "Delete everything"; the same in every settings row with a button on the right): the "never wider than its row" rule of 0.9.1.18 made a binding loop in a Row that sizes itself to its buttons, the text collapsed to nothing. `AppButton` now clamps its width only inside a Flow / Grid (where the card fixes the width) and keeps its natural width elsewhere. Test: buttons in a self-sizing row keep their width (`test_tidal_gui_qml.py`); `test_gui_clipping` stays green.
 - **Show / Hide for passwords:** `AppField` has `secret: true` - a password field with a "Show" / "Hide" switch at its right end; used for the admin password, the new password, the vault password and the login pack password. No EXE built.

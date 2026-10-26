@@ -56,27 +56,28 @@ Rectangle {
                 Layout.leftMargin: Theme.s2
                 readonly property bool narrow: width < 430     // short labels "Web" / "DIY" in a narrow bar
                 PlayerButton {
-                    iconName: "play"; text: "YouTube"
+                    iconName: "play"; text: "YouTube"; logo: "logo_youtube.png"
+                    tip: qsTr("YouTube - the YouTube view")
                     selected: root.player === "youtube"
                     Layout.fillWidth: true; Layout.preferredWidth: 1
                     onClicked: root.playerSelected("youtube")
                 }
                 PlayerButton {
-                    iconName: "music"; text: playerRow.narrow ? "Web" : "TIDAL Web"
+                    iconName: "music"; text: playerRow.narrow ? "Web" : "TIDAL Web"; logo: "logo_tidal.png"; logoLight: "logo_tidal_dark.png"
                     tip: qsTr("TIDAL Web - the TIDAL web player")
                     selected: root.player === "tidal"
                     Layout.fillWidth: true; Layout.preferredWidth: 1
                     onClicked: root.playerSelected("tidal")
                 }
                 PlayerButton {
-                    iconName: "music"; text: playerRow.narrow ? "DIY" : "TIDAL DIY"
+                    iconName: "music"; text: playerRow.narrow ? "DIY" : "TIDAL DIY"; logo: "logo_tidal_diy.png"
                     tip: qsTr("TIDAL DIY - Yeal's own TIDAL view")
                     selected: root.player === "tidaldiy"
                     Layout.fillWidth: true; Layout.preferredWidth: 1
                     onClicked: root.playerSelected("tidaldiy")
                 }
                 PlayerButton {
-                    iconName: "volume"; text: qsTr("Player")
+                    iconName: "volume"; text: qsTr("Player"); logo: "logo_player.png"
                     tip: qsTr("Player - Yeal's own player for your downloaded songs (also plays on a speaker)")
                     selected: root.player === "local"
                     Layout.fillWidth: true; Layout.preferredWidth: 1

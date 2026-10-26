@@ -7,6 +7,7 @@ import QtQuick.Layouts
 Rectangle {
     id: root
     property string logo: ""            // file name inside assets/, e.g. "logo_youtube.png"
+    property string logoLight: ""       // the same for the light theme (e.g. a dark TIDAL mark); empty = the same file
     property string iconName
     property string text
     property string tip: ""             // tooltip (full name when the label is shortened)
@@ -28,10 +29,10 @@ Rectangle {
     Image {
         id: img
         anchors.centerIn: parent
-        source: root.logo !== "" ? "assets/" + root.logo : ""
-        sourceSize.height: 48
+        source: root.logo !== "" ? "assets/" + (!Theme.dark && root.logoLight !== "" ? root.logoLight : root.logo) : ""
+        sourceSize.height: 96
         fillMode: Image.PreserveAspectFit
-        height: root.height - 2 * Theme.s2
+        height: root.height - 2 * Theme.s2 + 2
         width: Math.min(implicitWidth * height / Math.max(1, implicitHeight), root.width - 2 * Theme.s3)
         smooth: true
         opacity: root.selected || mouse.hovered ? 1 : 0.7
