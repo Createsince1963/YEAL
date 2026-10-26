@@ -139,6 +139,7 @@ class Settings:
     tidal_opts_collapsed: bool = False   # workflow panel: the TIDAL options block is folded to one line
     tidal_player_style: str = "bar"      # TIDAL DIY player: bar (classic) | track (oval track player)
     local_volume: int = 80             # volume of the player for downloaded files
+    audio_output: str = ""             # the audio output of this computer the players use (Bluetooth headphones, speakers ...); "" = the system default
     sun_scale: float = 1.0             # sun views: size of the orbits (0.5 .. 3)
     sun_layout: dict = field(default_factory=dict)   # sun views: where the planets were dragged to (see _validate_sun_layout)
     tidal_sun: bool = False            # TIDAL DIY: the sun view (player as a sun with planets) instead of the pages
@@ -206,6 +207,7 @@ class Settings:
         self.tidal_volume = _clamp(self.tidal_volume, 0, 100, 80)
         self.tidal_tile_size = _clamp(self.tidal_tile_size, 90, 260, 140)
         self.local_volume = _clamp(self.local_volume, 0, 100, 80)
+        self.audio_output = str(self.audio_output or "")[:200]
         try:
             self.sun_scale = round(max(0.5, min(3.0, float(self.sun_scale))), 2)
         except (TypeError, ValueError):

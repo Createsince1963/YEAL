@@ -23,7 +23,7 @@ from ..core.models import DownloadJob, JobState
 from ..core.presets import compress_items, is_playlist_url, media_dir, normalize_proxy, sanitize_custom_options
 from ..core.queue import DownloadQueue
 from ..core import frames as framelib
-from ..core import audioprobe, history, localserve, mp3tags, streaming, tidal, updater, vault as vaultlib
+from ..core import audiodev, audioprobe, history, localserve, mp3tags, streaming, tidal, updater, vault as vaultlib
 from ..core.presets import build_ydl_opts
 from ..core.settings import DL_BUTTON_POSITIONS, DL_BUTTON_STYLES, HTML_CREATE_MODES, HTML_OPEN_MODES, THEMES, Settings
 
@@ -235,6 +235,7 @@ class Backend(QObject):
     _streamScanned = Signal(list, str)        # (renderer dicts, error) from the scan thread
     _streamResult = Signal(str, str, str)     # (status text, toast text, kind 'ok' | 'warn' | 'error' | 'idle')
     toast = Signal(str)
+    audioOutputsChanged = Signal()           # a headphone / speaker was plugged in or out, or the choice changed
     localPlayerRequested = Signal()          # a download should play in Yeal's own player -> QML shows that view
     tidalDiyPlaying = Signal()                # TIDAL DIY player starts -> QML pauses the web players (single playback)
 
@@ -284,6 +285,12 @@ class Backend(QObject):
         self._tidalLoginDone.connect(self._on_tidal_login_done)
         self._tidalLinkFound.connect(self._open_tidal_link)
         from .tidal_backend import TidalBackend      # TIDAL DIY (0.9.1): pages, library, player
+        try:                                          # outputs come and go (Bluetooth headphones are switched on and off)
+            from PySide6.QtMultimedia import QMediaDevices
+            self._media_devices = QMediaDevices(self)
+            self._media_devices.audioOutputsChanged.connect(self.audioOutputsChanged)
+        except ImportError:
+            self._media_devices = None
         self.tidal = TidalBackend(self)
         from .local_player import LocalPlayer        # player for downloaded files (oval design)
         self.localPlayer = LocalPlayer(self)
@@ -1357,7 +1364,7 @@ class Backend(QObject):
     def setSetting(self, key: str, value: Any) -> None:
         if isinstance(value, QJSValue):      # a JS object from QML (e.g. the TIDAL DIY layout)
             value = value.toVariant()
-        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout", "tidal_opts_collapsed", "tidal_player_style", "tidal_player_vis_mode", "local_volume", "local_orbit", "tidal_player_color", "sun_scale", "sun_layout", "tidal_sun"):
+        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout", "tidal_opts_collapsed", "tidal_player_style", "tidal_player_vis_mode", "local_volume", "local_orbit", "tidal_player_color", "sun_scale", "sun_layout", "tidal_sun", "audio_output"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1527,6 +1534,36 @@ class Backend(QObject):
         self.ytdlpChanged.emit()
         if message:
             self.toast.emit(message)
+
+    # ---- audio outputs of this computer (Bluetooth headphones, speakers, HDMI ...)
+    def _output_devices(self) -> list:
+        if self._media_devices is None:
+            return []
+        return [{"id": bytes(d.id()).decode("latin1"), "description": d.description(), "isDefault": d.isDefault(), "device": d}
+                for d in self._media_devices.audioOutputs()]
+
+    @Property("QVariantList", notify=audioOutputsChanged)
+    def audioOutputs(self) -> list:  # type: ignore[override]
+        devices = self._output_devices()
+        return audiodev.describe_outputs([{k: v for k, v in d.items() if k != "device"} for d in devices],
+                                         str(self._settings.audio_output or ""))
+
+    def audio_device(self):
+        """The Qt device the players play on: the chosen output while it exists, else the system default (None)."""
+        wanted = str(self._settings.audio_output or "")
+        devices = self._output_devices()
+        for d in devices:
+            if wanted and d["id"] == wanted:
+                return d["device"]
+        return next((d["device"] for d in devices if d["isDefault"]), None)
+
+    @Slot(str)
+    def selectAudioOutput(self, device_id: str) -> None:
+        """Play on this output (Bluetooth headphones ...); '' = the system default. Both players switch at once."""
+        self.setSetting("audio_output", device_id or "")
+        for player in (self.tidal.player, self.localPlayer):
+            player.applyOutput()
+        self.audioOutputsChanged.emit()
 
     @Property(QObject, constant=True)
     def localPlayerObject(self):  # type: ignore[override]

@@ -119,10 +119,12 @@ Item {
 
     // the place of the card of a planet
     function rectOf(p) {
-        if (p.zone === "left") return Qt.rect(margin, margin, sideW, height - 2 * margin)
-        if (p.zone === "right") return Qt.rect(width - margin - sideW, margin, sideW, height - 2 * margin)
         var group = inZone(p.zone), idx = 0
         for (var i = 0; i < group.length; ++i) if (group[i].key === p.key) idx = i
+        if (p.zone === "left" || p.zone === "right") {          // a tall column; two opened cards share it, one above the other
+            var h = (height - 2 * margin - (group.length - 1) * margin) / Math.max(1, group.length)
+            return Qt.rect(p.zone === "left" ? margin : width - margin - sideW, margin + idx * (h + margin), sideW, h)
+        }
         var both = group.length > 1
         var w = both ? (availW - margin) / 2 : Math.min(460, availW)
         var x = both ? availX0 + idx * (w + margin) : cx - w / 2
@@ -260,7 +262,8 @@ Item {
     }
     Row {                         // corner: size of the orbits, planets back to the main orbit, back to the pages, fold
         anchors.right: parent.right; anchors.bottom: parent.bottom
-        anchors.margins: Theme.s2
+        anchors.rightMargin: view.width - view.availX1 + Theme.s2        // left of the opened right cards, not on top of them
+        anchors.bottomMargin: view.height - view.availY1 + Theme.s2
         spacing: Theme.s1
         z: 8
         Text {
@@ -316,6 +319,7 @@ Item {
         delegate: PlanetCard {
             id: card
             required property var modelData
+            objectName: "card-" + modelData.key
             readonly property rect place: view.rectOf(modelData)
             title: (modelData.title || modelData.label || "").toUpperCase()
             tint: view.tint

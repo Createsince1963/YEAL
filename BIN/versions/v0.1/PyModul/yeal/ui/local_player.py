@@ -88,6 +88,9 @@ class LocalOwner(QObject):
         if tidal_backend is not None:
             tidal_backend.player.pause()
 
+    def audio_device(self):
+        return self._backend.audio_device()
+
     def submit(self, fn) -> None:
         fn()
 

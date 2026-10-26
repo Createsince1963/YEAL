@@ -262,6 +262,7 @@ class TidalPlayer(QObject):
             return False
         self._audio = QAudioOutput(self)
         self._audio.setVolume(self._volume / 100.0)
+        self._set_output_device()
         self._player = QMediaPlayer(self)
         self._player.setAudioOutput(self._audio)
         self._player.positionChanged.connect(lambda *_: self.positionChanged.emit())
@@ -289,6 +290,17 @@ class TidalPlayer(QObject):
         from PySide6.QtMultimedia import QMediaPlayer
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
             self._advance(auto=True)
+
+    def _set_output_device(self) -> None:
+        """Play on the output chosen in the Speaker planet (Bluetooth headphones ...); the system default otherwise."""
+        pick = getattr(self._owner, "audio_device", None)
+        device = pick() if callable(pick) else None
+        if device is not None and self._audio is not None:
+            self._audio.setDevice(device)
+
+    @Slot()
+    def applyOutput(self) -> None:
+        self._set_output_device()
 
     # -- properties
     @Property(bool, notify=changed)
@@ -728,6 +740,9 @@ class TidalBackend(QObject):
 
     def save_setting(self, key: str, value: Any) -> None:
         self._backend.setSetting(key, value)
+
+    def audio_device(self):
+        return self._backend.audio_device()
 
     def request_single_playback(self) -> None:
         """The own player starts: the embedded web players are paused (Settings: single playback)."""

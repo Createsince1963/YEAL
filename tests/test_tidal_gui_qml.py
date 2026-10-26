@@ -134,7 +134,7 @@ class TidalGuiQmlTest(unittest.TestCase):
         b = self.backend
         comp = QQmlComponent(self.engine)
         comp.setData(b"import QtQuick\nItem { objectName: 'r'; width: 460; height: 200\n"
-                     b"SunSpeaker { anchors.fill: parent; player: backend.localPlayerObject }\n}\n",
+                     b"SunSpeaker { anchors.fill: parent; group: \"wlan\"; player: backend.localPlayerObject }\n}\n",
                      QUrl.fromLocalFile(str(QML_DIR / "_test_moons.qml")))
         root = comp.create()
         self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
@@ -166,6 +166,68 @@ class TidalGuiQmlTest(unittest.TestCase):
         finally:
             b._stream_found = saved
             b.streamChanged.emit()
+        root.deleteLater()
+
+    def test_bluetooth_planet_shows_the_outputs_of_this_pc(self):
+        import time
+        b = self.backend
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { objectName: 'r'; width: 420; height: 200\n"
+                     b"SunSpeaker { anchors.fill: parent; mode: 'pc'; player: backend.tidal.playerObject }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_bt.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+
+        def moons(item, out):
+            if item.objectName() == "moon":
+                out.append(item)
+            for child in item.childItems():
+                moons(child, out)
+            return out
+        end = time.time() + 0.3
+        while time.time() < end:
+            self.app.processEvents()
+            time.sleep(0.01)
+        self.assertEqual(len(moons(root, [])), len(b.audioOutputs))         # one moon for every output Windows lists
+        root.deleteLater()
+
+    def test_tidal_sun_view_has_the_bluetooth_planet_and_two_cards_share_the_right_column(self):
+        import time
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { width: 1400; height: 900\nTidalSunView { objectName: 'v'; anchors.fill: parent }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_diysun.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        view = root.findChild(QObject, "v")
+        keys = [p["key"] for p in view.property("planets").toVariant()]
+        self.assertIn("bluetooth", keys)
+        self.assertEqual(len(keys), len(set(keys)))
+        view.setProperty("opened", {"queue": True, "bluetooth": True})
+        end = time.time() + 0.5
+        while time.time() < end:
+            self.app.processEvents()
+            time.sleep(0.01)
+        def card(item, name):
+            if item.objectName() == name:
+                return item
+            for child in item.childItems():
+                found = card(child, name)
+                if found is not None:
+                    return found
+            return None
+        queue, output = card(root, "card-queue"), card(root, "card-bluetooth")
+        self.assertIsNotNone(queue)
+        self.assertIsNotNone(output)
+        self.assertEqual(queue.x(), output.x())                              # the same column ...
+        self.assertLess(queue.y() + queue.height(), output.y())              # ... one above the other, not overlapping
+        self.assertAlmostEqual(queue.height(), output.height(), delta=1)
+        self.assertLessEqual(output.y() + output.height(), 900 - 10 + 1)
+        view.setProperty("opened", {"queue": True})                          # alone it takes the whole column again
+        end = time.time() + 0.5
+        while time.time() < end:
+            self.app.processEvents()
+            time.sleep(0.01)
+        self.assertGreater(queue.height(), 900 - 40)
         root.deleteLater()
 
     def test_sun_settings_are_validated(self):

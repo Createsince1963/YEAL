@@ -13,13 +13,14 @@ SunView {
     canExit: true
     planets: [
         { key: "playlists", icon: "library", label: qsTr("Playlists"), deg: 180, zone: "left" },
-        { key: "queue", icon: "queueList", label: qsTr("Queue"), deg: 0, zone: "right" },
+        { key: "queue", icon: "queueList", label: qsTr("Queue"), deg: 0, zone: "right", slot: 0 },
         { key: "played", icon: "clock", label: qsTr("Played"), deg: 135, zone: "bottom", slot: 0 },
         { key: "settings", icon: "sliders", label: qsTr("Settings"), deg: 45, zone: "bottom", slot: 1 },
         { key: "search", icon: "search", label: qsTr("Search"), deg: 225, zone: "top", slot: 0 },
-        { key: "lyrics", icon: "lyrics", label: qsTr("Lyrics"), deg: 315, zone: "top", slot: 1 }]
+        { key: "lyrics", icon: "lyrics", label: qsTr("Lyrics"), deg: 315, zone: "top", slot: 1 },
+        { key: "bluetooth", icon: "bluetooth", label: qsTr("Bluetooth"), title: qsTr("Audio output"), deg: 90, zone: "right", slot: 1 }]
     cards: ({ playlists: playlistsCard, queue: queueCard, played: playedCard, settings: settingsCard,
-              search: searchCard, lyrics: lyricsCard })
+              search: searchCard, lyrics: lyricsCard, bluetooth: outputCard })
 
     Component { id: playlistsCard
         TidalTrackPanel { ctl: view.ctl; tab: "playlists"; showTabs: false; showSearch: false; color: "transparent"; border.width: 0 } }
@@ -33,4 +34,6 @@ SunView {
         TidalTrackPanel { ctl: view.ctl; tab: "results"; showTabs: false; color: "transparent"; border.width: 0 } }
     Component { id: lyricsCard
         TidalTrackPanel { ctl: view.ctl; tab: "lyrics"; showTabs: false; showSearch: false; color: "transparent"; border.width: 0 } }
+    Component { id: outputCard
+        SunSpeaker { mode: "pc"; group: "pc"; player: view.player; tint: view.tint } }
 }

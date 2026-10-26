@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1.16
+- **Bluetooth (and every other output of this PC):** Windows lists Bluetooth headphones, HDMI monitors and wired speakers as audio outputs, so choosing one is enough - Windows keeps the Bluetooth connection. New list of the outputs (`Backend.audioOutputs`, follows plugging in / out and switching headphones on / off) and the choice `audio_output` (`selectAudioOutput`): both players (TIDAL DIY and the player for downloads) switch to the chosen output at once, also while a song plays; a device that is gone falls back to the system default.
+- **Speaker planet:** two groups above the moon system: **THIS PC** (the outputs of this computer, with a headphone / monitor / speaker symbol) and **WLAN** (the speakers and TVs of the network, as before). The network is only searched for the WLAN group.
+- **TIDAL DIY sun view: own planet "Bluetooth"** with the Bluetooth symbol (the outputs of this PC as moons, what plays where, a hint about the stereo entry). The right column of cards can hold two cards: Queue above, Bluetooth below. The corner buttons keep out of the way of the opened right cards.
+- Tests: kinds and list of outputs, saving the choice, switching of the players, moons of the outputs, the two cards in one column.
+- Next step discussed: a DSP chain (equalizer, crossfeed, ReplayGain, convolution, limiter in 32-bit float, ffmpeg as decoder, output through the chosen device); needs numpy (optional, not part of the exe yet).
+- No EXE built.
+
 ## 0.9.1.15
 - **Speaker planet as a moon system:** choosing the speaker is now a small solar system inside the Speaker card: the speaker planet is in the middle, the speakers and TVs found in the network circle around it as **moons** (up to six on the inner ring, more on rings further out). A click on a moon chooses it (the chosen one is filled, a green rim means "seen in the last search"); the tooltip shows name, make, model and address. The planet glows while a song plays on a speaker. Left of it: the song, "Play on speaker", pause / continue / stop and "search again".
 - Tests: the moons of 0 / 1 / 3 / 8 speakers are all there, inside the card and not on top of each other.
