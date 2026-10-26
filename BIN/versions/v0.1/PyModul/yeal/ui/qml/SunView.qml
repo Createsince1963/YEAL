@@ -319,10 +319,10 @@ Item {
     SunFan {
         id: nextFan
         dir: -1
-        width: Math.min(420, view.availW - 20)
+        width: Math.min(320, view.availW - 20)
         x: view.cx - width / 2
         y: view.sunTop - view.fanGap - height
-        z: 2.5
+        z: 6
         tint: view.tint
         songs: view.nextSongs
         shown: view.nextOpen && view.nextAllowed && songs.length > 0
@@ -332,10 +332,10 @@ Item {
     SunFan {
         id: pastFan
         dir: 1
-        width: Math.min(420, view.availW - 20)
+        width: Math.min(320, view.availW - 20)
         x: view.cx - width / 2
         y: view.sunBottom + view.fanGap
-        z: 2.5
+        z: 6
         tint: view.tint
         songs: view.pastSongs
         shown: view.pastOpen && view.pastAllowed && songs.length > 0
@@ -354,7 +354,7 @@ Item {
             width: 30; height: 22; radius: 11
             x: view.cx - width / 2
             y: up ? view.sunTop - 28 : view.sunBottom + 6
-            z: 4
+            z: 7
             visible: opacity > 0.01
             opacity: ready ? (hover.hovered || isOpen ? 1 : 0.55) : 0
             Behavior on opacity { NumberAnimation { duration: Theme.dur } }

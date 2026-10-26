@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.36
+- **Song lists above and below the player rebuilt** (`SunFan.qml`): no oval ring and no flying pills any more. Each list is a card like the library: a header (UP NEXT / PLAYED LAST) and a vertical list of rows with cover, title and artist, in the playing order. It sits in front of the planets (z above them, like the queue card) and only fades and slides in; a double click plays a song. The handle arrows are on top as well. This is far less to draw than the ring (a canvas with a gradient) and five animated pills.
+- The logo mark no longer uses an offscreen layer (smooth edges come from the curve renderer). The graphics load on a real GPU could not be measured here (offscreen software render: 17 / 11 ms per frame with the lists closed / open); `YEAL_PERF=1` shows the GUI lag on your PC. No EXE built.
+
 ## 0.9.1.35
 - **Fix: the glow behind the sun is back as before 0.9.1.25:** the cheap glow of 0.9.1.25 was painted only in a 128 px corner of its item (a small blob beside the sun) instead of being stretched over the glow area. Now the one small picture is scaled with a transform (`Scale`) to the same ellipse as the old full-window painting and faded with the level - pixel comparison with 0.9.1.18: the same (difference of at most 1 level), without the repaint of the whole window 30 times a second. No EXE built.
 

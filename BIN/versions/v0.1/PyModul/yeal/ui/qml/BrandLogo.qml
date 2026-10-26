@@ -33,9 +33,7 @@ Item {
         id: mark
         width: root.markSize; height: root.markSize
         anchors.verticalCenter: parent.verticalCenter
-        preferredRendererType: Shape.CurveRenderer
-        layer.enabled: true
-        layer.samples: 4
+        preferredRendererType: Shape.CurveRenderer          // smooth edges without an offscreen layer
         ShapePath {                          // the play shape in blue gradient
             strokeColor: "transparent"
             fillGradient: LinearGradient {
