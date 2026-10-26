@@ -203,21 +203,28 @@ Item {
                         }
                         var bandSong = !root.volActive && mode === "song"
                         var cut = bandSong ? Math.max(0, Math.min(n, Math.round(root.progress * n))) : n
-                        var drawBand = function (from, to, alpha) {
+                        // The glow is made of three wide, faint strokes around the band (no shadowBlur: Qt blurs the whole canvas
+                        // for every shadowed shape in software, that took about 1.3 s per paint and made the whole GUI crawl).
+                        var drawBand = function (from, to, alpha, glowW) {
                             if (to <= from) return
                             ctx.beginPath()
                             ctx.moveTo(base[from][0] + norm[from][0] * th[from], base[from][1] + norm[from][1] * th[from])
                             for (var a = from + 1; a <= to; ++a) ctx.lineTo(base[a][0] + norm[a][0] * th[a], base[a][1] + norm[a][1] * th[a])
                             for (var c = to; c >= from; --c) ctx.lineTo(base[c][0], base[c][1])
                             ctx.closePath()
+                            if (glowW > 0.5) {
+                                ctx.lineJoin = "round"
+                                for (var k = 0; k < 3; ++k) {
+                                    ctx.lineWidth = glowW * (2 - 0.65 * k)
+                                    ctx.strokeStyle = Qt.alpha(accent, Math.min(0.16, 0.05 + 0.03 * root.glow))
+                                    ctx.stroke()
+                                }
+                            }
                             ctx.fillStyle = Qt.alpha(accent, alpha)
                             ctx.fill()
                         }
-                        ctx.shadowColor = accent
-                        ctx.shadowBlur = (13.2 + 9 * Math.min(1, player.level)) * u * root.glow
-                        drawBand(0, cut, root.volActive ? 0.55 : 0.85)        // song: the part that was played
-                        ctx.shadowBlur = 0
-                        if (bandSong) drawBand(cut, n, 0.30)                  // song: what is still to come, quieter
+                        drawBand(0, cut, root.volActive ? 0.55 : 0.85, (13.2 + 9 * Math.min(1, player.level)) * u * root.glow)   // song: the part that was played
+                        if (bandSong) drawBand(cut, n, 0.30, 0)               // song: what is still to come, quieter
                     }
                     // outer ring: how far the whole list (playlist / album / folder / queue) has played
                     var lp = root.outerRing ? player.listProgress : -1
@@ -274,9 +281,14 @@ Item {
                         ctx.stroke()
                     }
                     var d = root.pt(p, lx, ly, lw, lh)
+                    var halo = ctx.createRadialGradient(d[0], d[1], 0, d[0], d[1], 10 * u)       // the glow of the dot (no shadowBlur, see above)
+                    halo.addColorStop(0, Qt.alpha(accent, 0.55))
+                    halo.addColorStop(1, Qt.alpha(accent, 0))
+                    ctx.fillStyle = halo
+                    ctx.beginPath()
+                    ctx.arc(d[0], d[1], 10 * u, 0, 2 * Math.PI)
+                    ctx.fill()
                     ctx.fillStyle = "#ffffff"
-                    ctx.shadowColor = accent
-                    ctx.shadowBlur = 8 * u
                     ctx.beginPath()
                     ctx.arc(d[0], d[1], 3.6 * u, 0, 2 * Math.PI)
                     ctx.fill()

@@ -17,6 +17,7 @@ Rectangle {
     property string filter: ""
     // the library list: a line for every album / download / folder (draggable as a whole), then its songs
     readonly property var libraryShown: {
+        if (panel.tab !== "library") return []                // only the library tab needs the list (and its work)
         var lib = player.library || [], f = filter.toLowerCase(), out = [], last = null
         for (var i = 0; i < lib.length; ++i) {
             if (f !== "" && ((lib[i].title || "") + " " + (lib[i].subtitle || "") + " " + (lib[i].source || "")).toLowerCase().indexOf(f) < 0)
@@ -35,7 +36,7 @@ Rectangle {
         return out
     }
     onTabChanged: if (local && tab === "library") player.refreshLibrary()
-    Component.onCompleted: if (local) player.refreshLibrary()
+    Component.onCompleted: if (local && tab === "library") player.refreshLibrary()      // the other tabs do not need the library
 
     radius: 26
     color: Theme.surface

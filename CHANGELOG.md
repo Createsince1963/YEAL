@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.37
+- **The real cause of the slow GUI found and fixed:** the oval of the player (canvas in `TidalTrackPlayer.qml`) painted its glow with `shadowBlur`; Qt blurs the whole canvas for every shadowed shape, in software, in the GUI thread: **1346 ms per paint** at 1800 px (measured per canvas with `tests/bench_open_cards.py`), and the oval is repainted up to 20 times a second while a song plays - that is why the window got slower and slower, sound stuttered and opening a card (which resizes the sun and repaints the oval) took 0.6-0.8 s. The glow is now three wide faint strokes around the band and a radial gradient around the dot: **9 ms per paint**, the look is the same.
+- Opening the Queue card: 780 ms -> 45 ms (Sound card 580 -> 33 ms, Library 590 -> 108 ms). Also the panel no longer reads the library (disk scan) and builds its list when a tab other than "Library" opens. No EXE built.
+
 ## 0.9.1.36
 - **Song lists above and below the player rebuilt** (`SunFan.qml`): no oval ring and no flying pills any more. Each list is a card like the library: a header (UP NEXT / PLAYED LAST) and a vertical list of rows with cover, title and artist, in the playing order. It sits in front of the planets (z above them, like the queue card) and only fades and slides in; a double click plays a song. The handle arrows are on top as well. This is far less to draw than the ring (a canvas with a gradient) and five animated pills.
 - The logo mark no longer uses an offscreen layer (smooth edges come from the curve renderer). The graphics load on a real GPU could not be measured here (offscreen software render: 17 / 11 ms per frame with the lists closed / open); `YEAL_PERF=1` shows the GUI lag on your PC. No EXE built.

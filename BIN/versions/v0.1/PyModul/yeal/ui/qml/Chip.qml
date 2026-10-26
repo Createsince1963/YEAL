@@ -9,7 +9,9 @@ Rectangle {
 
     implicitHeight: 32
     width: parent && parent.width > 0 ? Math.min(implicitWidth, parent.width) : implicitWidth     // never wider than its row
-    implicitWidth: row.implicitWidth + 2 * Theme.s3
+    // natural width from the metrics, not from the (elided) Text, so the width binding has no loop
+    implicitWidth: (root.checked ? 20 : 0) + Math.ceil(metrics.advanceWidth) + 2 * Theme.s3
+    TextMetrics { id: metrics; text: root.text; font.pixelSize: Theme.footnote }
     radius: height / 2
     color: checked ? Theme.accentSoft : Theme.field
     border.width: activeFocus ? 2 : (checked ? 1 : 0)
