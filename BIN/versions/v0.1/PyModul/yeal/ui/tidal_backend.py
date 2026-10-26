@@ -563,6 +563,22 @@ class TidalPlayer(QObject):
         self._history = [dict(track)] + [t for t in self._history if t.get("id") != track.get("id")][:49]
         self.historyChanged.emit()
 
+    @Slot(int, result="QVariantList")
+    def upcoming(self, count: int):
+        """The next songs of the queue after the playing one (the fan above the player in the sun view)."""
+        start = self.queue.current + 1
+        return [self.queue.item(r) for r in range(start, min(start + max(0, int(count)), self.queue.rowCount()))]
+
+    @Slot(int)
+    def replay(self, index: int) -> None:
+        """Play a song of the played list again at once; the queue stays, the song is put right behind the playing one."""
+        if not 0 <= index < len(self._history):
+            return
+        item = dict(self._history[index])
+        at = self.queue.current + 1 if self.queue.current >= 0 else self.queue.rowCount()
+        self.queue.insert(at, [item])
+        self.playIndex(at)
+
     @Slot(int)
     def playHistory(self, index: int) -> None:
         """Play a song of the list again; it becomes the queue (the rest of the list follows)."""

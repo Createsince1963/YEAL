@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.20
+- **Song fans around the sun** (`SunFan.qml`): a handle above the oval opens the **next songs** (hidden while the queue card is open), a handle below it the **last played songs** (up to 5, hidden while the played card is open). The songs fly out of the oval one after the other, an oval ring grows around them and the handle arrow turns. A double click plays a song (next: jumps to it; played: `TidalPlayer.replay` puts it right behind the playing song, the queue stays). New `TidalPlayer.upcoming(n)` and `replay(i)`.
+- Test: fans in `test_tidal_gui_qml.py`. No EXE built.
+
 ## 0.9.1.19
 - **Cards open where the planet stands:** a card (library, queue, played ...) opens on the side of the sun its planet is on now - left, right, above or below - also after the planet was dragged; the cards of one side share it in the order of their planets, a single band card sits under its planet.
 - **Folders planet (player for downloaded files):** your own music folders as a moon system (`SunSources.qml`, `core/music_sources.py`): folders of this PC and of the network (`\\server\share`, mapped drives), added with a dialog or a typed path, renamed, removed. A click on a moon fills the Library with that folder (read in the background), "Downloads" is the finished downloads. Settings `music_sources`, `library_source`.

@@ -262,6 +262,100 @@ Item {
         }
     }
 
+    // ---- the fans above and below the sun: the next songs (when the queue is not open) and the songs played last
+    property bool nextOpen: false
+    property bool pastOpen: false
+    property var nextSongs: []
+    property var pastSongs: []
+    readonly property bool nextAllowed: orbit && !isOpen("queue")
+    readonly property bool pastAllowed: orbit && !isOpen("played")
+    readonly property real sunTop: cy - sunH / 2
+    readonly property real sunBottom: cy + sunH / 2
+    readonly property real fanGap: 36
+    function refreshFans() {
+        if (!player) return
+        var up = Math.max(1, Math.min(5, Math.floor((sunTop - availY0 - fanGap - 60) / 38)))
+        var down = Math.max(1, Math.min(5, Math.floor((availY1 - sunBottom - fanGap - 60) / 38)))
+        nextSongs = player.upcoming(up)
+        pastSongs = (player.history || []).slice(1, 1 + down)          // the first entry is the song that plays now
+    }
+    Timer { id: fanTimer; interval: 60; onTriggered: view.refreshFans() }
+    Connections {
+        target: view.player
+        function onChanged() { fanTimer.restart() }
+        function onHistoryChanged() { fanTimer.restart() }
+    }
+    Connections {
+        target: view.player ? view.player.queueModel : null
+        function onRowsInserted() { fanTimer.restart() }
+        function onRowsRemoved() { fanTimer.restart() }
+        function onRowsMoved() { fanTimer.restart() }
+        function onModelReset() { fanTimer.restart() }
+        function onCurrentChanged() { fanTimer.restart() }
+    }
+    onSunHChanged: fanTimer.restart()
+    onHeightChanged: fanTimer.restart()
+    Component.onCompleted: refreshFans()
+
+    SunFan {
+        id: nextFan
+        dir: -1
+        width: Math.min(420, view.availW - 20)
+        x: view.cx - width / 2
+        y: view.sunTop - view.fanGap - height
+        z: 2.5
+        tint: view.tint
+        songs: view.nextSongs
+        shown: view.nextOpen && view.nextAllowed && songs.length > 0
+        caption: qsTr("UP NEXT")
+        onPlayed: (i) => view.player.playIndex(view.player.currentIndex + 1 + i)
+    }
+    SunFan {
+        id: pastFan
+        dir: 1
+        width: Math.min(420, view.availW - 20)
+        x: view.cx - width / 2
+        y: view.sunBottom + view.fanGap
+        z: 2.5
+        tint: view.tint
+        songs: view.pastSongs
+        shown: view.pastOpen && view.pastAllowed && songs.length > 0
+        caption: qsTr("PLAYED LAST")
+        onPlayed: (i) => view.player.replay(i + 1)
+    }
+    Repeater {                    // the two handles: they open / fold the fans
+        model: [{ up: true }, { up: false }]
+        delegate: Rectangle {
+            id: handle
+            required property var modelData
+            readonly property bool up: modelData.up
+            readonly property bool ready: view.orbit && (up ? view.nextAllowed && (view.nextSongs.length > 0 || view.nextOpen)
+                                                            : view.pastAllowed && (view.pastSongs.length > 0 || view.pastOpen))
+            readonly property bool isOpen: up ? view.nextOpen : view.pastOpen
+            width: 30; height: 22; radius: 11
+            x: view.cx - width / 2
+            y: up ? view.sunTop - 28 : view.sunBottom + 6
+            z: 4
+            visible: opacity > 0.01
+            opacity: ready ? (hover.hovered || isOpen ? 1 : 0.55) : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.dur } }
+            color: Qt.alpha(Theme.surface, 0.9)
+            border.width: 1
+            border.color: Qt.alpha(view.tint, isOpen || hover.hovered ? 0.9 : 0.4)
+            Icon {
+                anchors.centerIn: parent
+                name: "chevronDown"; size: 14; color: isOpen ? view.tint : Theme.text
+                rotation: (handle.up ? 180 : 0) + (handle.isOpen ? 180 : 0)
+                Behavior on rotation { NumberAnimation { duration: Theme.dur; easing.type: Easing.OutBack } }
+            }
+            HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: { if (handle.up) view.nextOpen = !view.nextOpen; else view.pastOpen = !view.pastOpen } }
+            ToolTip.visible: hover.hovered
+            ToolTip.delay: 500
+            ToolTip.text: handle.up ? qsTr("The next songs") : qsTr("The songs played last (double click plays one again)")
+        }
+    }
+
     // ---- the planets: a click opens / folds the card, dragging moves the planet to another place or orbit
     Repeater {
         model: view.orbit ? view.planets : []

@@ -274,6 +274,31 @@ class TidalGuiQmlTest(unittest.TestCase):
         self.assertAlmostEqual(folders.width(), small, delta=1)              # ... and is the normal size again
         root.deleteLater()
 
+    def test_fans_show_the_next_and_the_last_played_songs(self):
+        import time
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { width: 1400; height: 900\nLocalPlayerView { objectName: 'v'; anchors.fill: parent }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_fans.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        view = root.findChild(QObject, "v")
+        player = self.backend.localPlayer
+        songs = [{"kind": "track", "id": "t%d" % i, "title": "Song %d" % i, "subtitle": "A", "file": "", "cover": "", "duration": 0, "url": ""}
+                 for i in range(4)]
+        player.queue.reset(songs, 0)
+        player._history = list(reversed(songs[:3]))                         # what was played: newest first, the first one plays now
+        player.historyChanged.emit()
+        view.setProperty("nextOpen", True)
+        view.setProperty("pastOpen", True)
+        end = time.time() + 1.2
+        while time.time() < end:
+            self.app.processEvents()
+            time.sleep(0.01)
+        self.assertEqual([t["title"] for t in view.property("nextSongs")], ["Song 1", "Song 2", "Song 3"])
+        self.assertEqual(len(view.property("pastSongs").toVariant()), 2)
+        self.assertEqual(len(player.upcoming(2)), 2)
+        root.deleteLater()
+
     def b_set_layout(self, layout):
         self.backend.setSetting("sun_layout", layout)
 
