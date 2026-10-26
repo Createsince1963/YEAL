@@ -408,6 +408,13 @@ class Engine:
             return
         if code != 0:
             job.note = "Some Tidal items failed - see the log of tiddl (%s)." % ((home or tidal.app_path()) / "latest.log")
+        quality = str(job.options.tidal_quality or cfg.get("quality") or "high")
+        if quality in ("normal", "low") and self.ctx.ffmpeg:        # Normal = AAC 320 in .m4a: made MP3 320 kbps, the .m4a is not kept
+            def converting(path, n, total):
+                job.phase = ("Converting to MP3 320 kbps (%d / %d)" % (n, total))[:120]
+                job.progress = 0.95 + 0.04 * n / max(1, total)
+                notify(job)
+            tidal.convert_to_mp3(self.ctx.ffmpeg, base, started, cancel, converting)
         if cfg.get("html"):
             try:
                 tidal.write_html_pages(base, started, job.url, str(cfg.get("theme") or "auto"),

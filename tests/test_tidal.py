@@ -487,3 +487,35 @@ class DownloadTargetTests(unittest.TestCase):
         self.assertEqual(tidal.downloaded_target(self.base, self.since, meta), folder)
         self.assertEqual(tidal.downloaded_target(self.base, self.since, {"kind": "album", "title": "Nope", "artist": "x"}), self.base)
 
+
+
+class ConvertToMp3Tests(unittest.TestCase):
+    """Tidal Normal = AAC 320 in .m4a: converted to MP3 320, the .m4a is not kept, M3U lists follow."""
+
+    def test_aac_m4a_becomes_mp3_and_m3u_follows(self):
+        import subprocess
+        import tempfile
+        import time
+        from pathlib import Path
+        from yeal.platforms import desktop
+        ffmpeg = desktop.find_ffmpeg()
+        if not ffmpeg:
+            self.skipTest("ffmpeg not found")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            album = base / "Albums" / "Artist" / "Album"
+            album.mkdir(parents=True)
+            song = album / "01 - Song.m4a"
+            subprocess.run([str(ffmpeg), "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=1", "-c:a", "aac",
+                            "-b:a", "320k", "-metadata", "title=Song", str(song)], check=True)
+            (album / "Album.m3u").write_text("01 - Song.m4a\n", encoding="utf-8")
+            started = time.time() - 5
+            self.assertEqual(tidal.convert_to_mp3(ffmpeg, base, started), 1)
+            self.assertFalse(song.exists())
+            mp3 = album / "01 - Song.mp3"
+            self.assertTrue(mp3.is_file() and mp3.stat().st_size > 0)
+            self.assertEqual((album / "Album.m3u").read_text(encoding="utf-8").strip(), "01 - Song.mp3")
+            probe = subprocess.run([str(ffmpeg), "-hide_banner", "-i", str(mp3)], capture_output=True)
+            self.assertIn(b"mp3", probe.stderr)
+            self.assertIn(b"320 kb/s", probe.stderr)
+            self.assertEqual(tidal.convert_to_mp3(None, base, started), 0)

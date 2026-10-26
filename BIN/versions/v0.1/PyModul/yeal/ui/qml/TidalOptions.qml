@@ -15,7 +15,7 @@ ColumnLayout {
 
     readonly property var groups: [
         { key: "tidal_quality", caption: qsTr("Quality"), show: showQuality,
-          options: [{ text: qsTr("Normal · AAC 320 kbps"), sub: qsTr("M4A file"), icon: "music", value: "normal" },
+          options: [{ text: qsTr("Normal · MP3 320 kbps"), sub: qsTr("from AAC 320"), icon: "music", value: "normal" },
                     { text: qsTr("High · FLAC 1411 kbps"), sub: qsTr("16-bit / 44.1 kHz"), icon: "headphones", value: "high" },
                     { text: qsTr("Max · FLAC up to 9216 kbps"), sub: qsTr("24-bit / 192 kHz"), icon: "sparkle", value: "max" }] },
         { key: "tidal_videos", caption: qsTr("Videos"), show: true,

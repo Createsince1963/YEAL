@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.24
+- **TIDAL Normal is MP3 320 kbps:** after the download every new AAC `.m4a` is converted with ffmpeg to MP3 320 kbps (tags and cover kept), the `.m4a` is not kept, M3U lists point to the `.mp3` names, the HTML player page and the folder button see the MP3 files (`tidal.convert_to_mp3`, step "Converting to MP3 320 kbps (n / m)"). Dolby Atmos and other codecs are left alone; a file that fails stays `.m4a`. High and Max stay FLAC. Labels updated everywhere. Test with real ffmpeg in `test_tidal.py`. No EXE built.
+- Note: with "Overwrite existing" off, tiddl looks for the `.m4a` name, so an already converted song is fetched again on a repeat download.
+
 ## 0.9.1.23
 - **Format and bitrate everywhere:** the TIDAL pulldown shows an icon first, then the format with its bitrate (Normal - AAC 320 kbps / M4A, High - FLAC 1411 kbps, Max - FLAC up to 9216 kbps); the same labels in the profile menu and Settings. Audio choice dialog: "AAC (M4A, 320 kbps)", FLAC with the bitrate when known; profile editor: "MP3 320", "AAC 320 (M4A)". No EXE built.
 

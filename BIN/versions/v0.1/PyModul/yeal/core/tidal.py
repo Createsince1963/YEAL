@@ -22,7 +22,7 @@ from urllib.parse import urlparse
 
 TIDAL_QUALITIES = ("normal", "high", "max")   # tiddl: m4a 320 / FLAC 16-bit / FLAC up to 24-bit ("low", AAC 96, is gone)
 TIDAL_QUALITY_LABELS = {   # shown in the download options (same steps as Tidal's own audio quality setting)
-    "normal": "Tidal Normal (AAC 320 kbps, M4A)",
+    "normal": "Tidal Normal (MP3 320 kbps)",
     "high": "Tidal High (FLAC 1411 kbps, 16-bit / 44.1 kHz)", "max": "Tidal Max (FLAC up to 9216 kbps, 24-bit / 192 kHz)"}
 TIDAL_VIDEO_QUALITIES = ("sd", "hd", "fhd")           # tiddl --video-quality
 TIDAL_VIDEOS = ("none", "allow", "only")              # tiddl --videos: skip / include / only videos inside albums, playlists, artists
@@ -230,6 +230,61 @@ def new_audio_folders(base: Path, since: float) -> List[Path]:
         except OSError:
             continue
     return sorted(found, key=lambda p: (-len(p.parts), str(p)))
+
+
+def convert_to_mp3(ffmpeg, base: Path, since: float, cancel=None, on_file: Optional[Callable[[Path, int, int], None]] = None) -> int:
+    """Tidal "Normal" gives AAC 320 kbps in .m4a files: every new AAC .m4a below `base` is converted to MP3 320 kbps (tags and
+    cover are kept), the .m4a is removed, and .m3u lists written in this run point to the .mp3 names. Dolby Atmos / other
+    codecs are left alone. Returns the number of converted files; a file that fails to convert stays as .m4a."""
+    import tempfile
+    if not ffmpeg:
+        return 0
+    base = Path(base)
+    files = []
+    try:
+        for path in base.rglob("*.m4a"):
+            if path.is_file() and path.stat().st_mtime >= since - 2:
+                files.append(path)
+    except OSError:
+        return 0
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    done = 0
+    for n, src in enumerate(sorted(files), 1):
+        if cancel is not None and cancel.is_set():
+            break
+        try:
+            probe = subprocess.run([str(ffmpeg), "-hide_banner", "-i", str(src)], capture_output=True, timeout=60,
+                                   creationflags=flags)
+            if b"Audio: aac" not in (probe.stderr or b"") + (probe.stdout or b""):
+                continue
+            if on_file:
+                on_file(src, n, len(files))
+            fd, tmp_name = tempfile.mkstemp(suffix=".mp3", dir=str(src.parent))
+            os.close(fd)
+            tmp = Path(tmp_name)
+            try:
+                cmd = [str(ffmpeg), "-y", "-v", "error", "-i", str(src), "-map", "0:a:0", "-map", "0:v?", "-c:a", "libmp3lame",
+                       "-b:a", "320k", "-c:v", "copy", "-map_metadata", "0", "-id3v2_version", "3", str(tmp)]
+                if subprocess.run(cmd, capture_output=True, timeout=600, creationflags=flags).returncode != 0 or tmp.stat().st_size == 0:
+                    continue
+                os.replace(tmp, src.with_suffix(".mp3"))
+                src.unlink()
+                done += 1
+            finally:
+                if tmp.exists():
+                    tmp.unlink()
+        except (OSError, subprocess.SubprocessError):
+            continue
+    if done:
+        try:
+            for lst in base.rglob("*.m3u*"):
+                if lst.is_file() and lst.stat().st_mtime >= since - 2:
+                    text = lst.read_text(encoding="utf-8", errors="replace")
+                    if ".m4a" in text:
+                        lst.write_text(text.replace(".m4a", ".mp3"), encoding="utf-8")
+        except OSError:
+            pass
+    return done
 
 
 def downloaded_target(base: Path, since: float, meta: Optional[dict] = None) -> Path:
