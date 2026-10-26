@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1.21
+- **TIDAL options as pulldowns:** a click on a tile (Quality, Videos, Video quality, Dolby Atmos, Artist singles, Extras) opens a pulldown with its choices instead of a row of chips below; the extras can be ticked one after the other. Same look in the workflow panel and in Settings > Tidal (`TidalOptions.qml`).
+- **MP3 only at 320 kbps:** `DownloadOptions.normalized()` forces 320 kbps for MP3 (the other MP3 bitrates are gone; the choice dialog and the converter already used 320).
+- No EXE built.
+
 ## 0.9.1.20
 - **Song fans around the sun** (`SunFan.qml`): a handle above the oval opens the **next songs** (hidden while the queue card is open), a handle below it the **last played songs** (up to 5, hidden while the played card is open). The songs fly out of the oval one after the other, an oval ring grows around them and the handle arrow turns. A double click plays a song (next: jumps to it; played: `TidalPlayer.replay` puts it right behind the playing song, the queue stays). New `TidalPlayer.upcoming(n)` and `replay(i)`.
 - Test: fans in `test_tidal_gui_qml.py`. No EXE built.

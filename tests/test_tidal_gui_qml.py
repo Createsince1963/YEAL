@@ -490,11 +490,6 @@ class TidalGuiQmlTest(unittest.TestCase):
         for _ in range(5):
             self.app.processEvents()
         self.assertIn("tidal_video_quality", [g["key"] for g in js(opts.property("shown"))])
-        self.assertIsNone(js(opts.property("openGroup")))
-        opts.setProperty("openKey", "_extras")
-        self.assertEqual(js(opts.property("openGroup"))["key"], "_extras")
-        opts.setProperty("openKey", "tidal_atmos")
-        self.assertEqual(js(opts.property("openGroup"))["key"], "tidal_atmos")
         self.assertIn("High (FLAC)", opts.property("overview"))
         b.setSetting("tidal_opts_collapsed", True)
         self.assertIs(b.settings["tidal_opts_collapsed"], True)

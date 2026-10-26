@@ -88,6 +88,8 @@ class DownloadOptions:
             bitrate = 320
         if bitrate not in (128, 192, 256, 320):
             bitrate = 320
+        if fmt == "mp3":
+            bitrate = 320                  # MP3 only at 320 kbps, the other MP3 bitrates are gone
         try:
             live = max(0, min(int(self.live_minutes), 24 * 60))
         except (TypeError, ValueError):
