@@ -85,10 +85,16 @@ GridLayout {
         }
         Row {
             spacing: Theme.s1
-            IconButton { iconName: "pause"; tip: qsTr("Pause on the speaker"); enabled: backend.streamPlaying; onClicked: backend.pauseStream() }
-            IconButton { iconName: "play"; tip: qsTr("Continue on the speaker"); onClicked: backend.resumeStream() }
-            IconButton { iconName: "x"; tip: qsTr("Stop the speaker"); onClicked: backend.stopStream() }
-            IconButton { iconName: "retry"; tip: qsTr("Search for speakers again"); onClicked: backend.scanStreamDevices() }
+            // THIS PC: the buttons steer the player itself (it plays on the chosen output); WLAN: they steer the speaker in the network
+            IconButton { iconName: "pause"; tip: root.group === "pc" ? qsTr("Pause") : qsTr("Pause on the speaker")
+                         enabled: root.group === "pc" ? !!root.player.playing : backend.streamPlaying
+                         onClicked: root.group === "pc" ? root.player.pause() : backend.pauseStream() }
+            IconButton { iconName: "play"; tip: root.group === "pc" ? qsTr("Play") : qsTr("Continue on the speaker")
+                         enabled: root.group === "pc" ? !root.player.playing : true
+                         onClicked: root.group === "pc" ? root.player.toggle() : backend.resumeStream() }
+            IconButton { iconName: "x"; tip: root.group === "pc" ? qsTr("Stop") : qsTr("Stop the speaker")
+                         onClicked: root.group === "pc" ? root.player.stop() : backend.stopStream() }
+            IconButton { visible: root.group === "wlan"; iconName: "retry"; tip: qsTr("Search for speakers again"); onClicked: backend.scanStreamDevices() }
         }
         Text {
             Layout.fillWidth: true

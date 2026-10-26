@@ -138,7 +138,7 @@ Item {
         keys: ["text/plain", "text/uri-list"]
         onDropped: (drop) => {
             var text = drop.hasText ? drop.text : (drop.urls && drop.urls.length ? drop.urls.join("\n") : "")
-            if (text === "") return
+            if (text === "" || text.indexOf("yeal-local:") === 0) return      // a title of the own player, not a link
             drop.accept(Qt.CopyAction)
             var links = backend.extractLinks(text)
             var isTidal = function (l) { return /^https?:\/\/([a-z0-9-]+\.)?tidal\.com\//i.test(l) }

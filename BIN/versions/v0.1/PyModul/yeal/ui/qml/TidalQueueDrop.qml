@@ -5,6 +5,7 @@ import QtQuick
 DropArea {
     id: area
     property var list: null              // the ListView of the queue
+    property var player: tidal.playerObject   // the player whose queue this is (the player for downloaded files has its own)
     property int row: -1                 // where the titles will go (-1 = end)
     property real lineY: 0
     keys: ["text/plain"]
@@ -28,7 +29,7 @@ DropArea {
         var items = tidal.dragPayload
         if (items.length === 0) return
         drop.accept(Qt.CopyAction)
-        tidal.playerObject.enqueue(items, area.row)
+        area.player.enqueue(items, area.row)
         tidal.setDragPayload([])
         area.row = -1
     }

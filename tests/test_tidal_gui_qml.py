@@ -231,6 +231,52 @@ class TidalGuiQmlTest(unittest.TestCase):
         self.assertGreater(queue.height(), 900 - 40)
         root.deleteLater()
 
+    def test_card_opens_where_the_planet_stands_and_zooms_for_editing(self):
+        import time
+        comp = QQmlComponent(self.engine)
+        comp.setData(b"import QtQuick\nItem { width: 1400; height: 900\nLocalPlayerView { objectName: 'v'; anchors.fill: parent }\n}\n",
+                     QUrl.fromLocalFile(str(QML_DIR / "_test_localsun.qml")))
+        root = comp.create()
+        self.assertIsNotNone(root, "\n".join(e.toString() for e in comp.errors()))
+        view = root.findChild(QObject, "v")
+
+        def pump():
+            end = time.time() + 0.5
+            while time.time() < end:
+                self.app.processEvents()
+                time.sleep(0.01)
+
+        def card(item, name):
+            if item.objectName() == name:
+                return item
+            for child in item.childItems():
+                found = card(child, name)
+                if found is not None:
+                    return found
+            return None
+        view.setProperty("opened", {"library": True})
+        pump()
+        library = card(root, "card-library")
+        self.assertLess(library.x(), 100)                                    # the library planet stands on the left: left column
+        self.b_set_layout({"local.library": {"deg": 0, "r": 1}})
+        pump()
+        self.assertGreater(library.x(), 1000)                                # dragged to the right: the card follows it
+        self.b_set_layout({})
+        view.setProperty("opened", {"folders": True})
+        pump()
+        folders = card(root, "card-folders")
+        small = folders.width()
+        view.setProperty("zoomKey", "folders")
+        pump()
+        self.assertGreater(folders.width(), small * 2)                       # edit mode: the card grows ...
+        view.setProperty("zoomKey", "")
+        pump()
+        self.assertAlmostEqual(folders.width(), small, delta=1)              # ... and is the normal size again
+        root.deleteLater()
+
+    def b_set_layout(self, layout):
+        self.backend.setSetting("sun_layout", layout)
+
     def test_sun_settings_are_validated(self):
         b = self.backend
         b.setSetting("sun_scale", 9)

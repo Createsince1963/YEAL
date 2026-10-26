@@ -11,9 +11,12 @@ import QtQuick.Layouts
 // orbit of its own (it snaps onto an orbit that is already used). Everything is remembered (sun_scale, sun_layout).
 // The sun button folds all planets into the sun; the retry button puts the planets back on the main orbit.
 //
-// planets: [{ key, icon, label, title, deg, zone: left | right | top | bottom, slot: 0 | 1 }]  deg = the place on the main
-// orbit (0 right, 90 below, 180 left, 270 above). The cards of one zone share it: left / right are tall columns, top /
-// bottom are bands in which two opened cards sit side by side.
+// planets: [{ key, icon, label, title, deg, edit }]  deg = the place on the main orbit (0 right, 90 below, 180 left, 270
+// above). A card opens on the side where its planet stands NOW (also after the planet was dragged): planets on the left
+// open a card in the left column, on the right in the right column, above / below in a band at the top / bottom. The cards
+// of one side share it, in the order of their planets. left / right are tall columns, top / bottom are bands.
+// edit: true - the card has an edit mode: it zooms to a large card (pencil button, or the card asks for it) and goes back
+// to its normal size with "Done".
 // cards: { key: Component } - what a card shows (declared in the file that uses the sun view).
 Item {
     id: view
@@ -35,6 +38,7 @@ Item {
     readonly property real margin: 10
     readonly property real sideW: 260                  // width of the left / right card
     readonly property real bandH: 250                  // height of the top / bottom cards
+    property string zoomKey: ""                        // the planet whose card is zoomed for editing ("" = none)
     property string dragKey: ""                        // the planet that is being dragged ...
     property real dragDeg: 0                           // ... and where it is now
     property real dragR: 1
@@ -45,13 +49,31 @@ Item {
     }
     function isOpen(key) { return orbit && opened[key] === true && planetOf(key) !== null }
     function toggle(key) { var o = Object.assign({}, opened); o[key] = !o[key]; opened = o }
-    function fold(key) { var o = Object.assign({}, opened); o[key] = false; opened = o }
-    // the opened cards of a zone, in the order of their slots
+    function fold(key) { var o = Object.assign({}, opened); o[key] = false; opened = o; if (zoomKey === key) zoomKey = "" }
+    function setZoom(key, on) { if (on) { var o = Object.assign({}, opened); o[key] = true; opened = o; zoomKey = key } else if (zoomKey === key) zoomKey = "" }
+    // the saved place of a planet (a planet that is being dragged keeps its old side until it is dropped)
+    function savedPlace(p) {
+        var saved = layout[ns + "." + p.key]
+        return saved ? { deg: saved.deg, r: saved.r } : { deg: p.deg, r: 1 }
+    }
+    // the side of the sun a planet stands on = the side its card opens on
+    function zoneOf(p) {
+        var d = savedPlace(p).deg % 360
+        if (d >= 225 && d <= 315) return "top"
+        if (d >= 45 && d <= 135) return "bottom"
+        return d > 135 && d < 225 ? "left" : "right"
+    }
+    // along the side: where the planet stands (top to bottom for the columns, left to right for the bands)
+    function alongOf(p) {
+        var o = savedPlace(p), a = o.deg * Math.PI / 180, z = zoneOf(p)
+        return (z === "left" || z === "right") ? Math.sin(a) * o.r : Math.cos(a) * o.r
+    }
+    // the opened cards of a side, in the order of their planets
     function inZone(zone) {
         var out = []
         for (var i = 0; i < planets.length; ++i)
-            if (planets[i].zone === zone && isOpen(planets[i].key)) out.push(planets[i])
-        out.sort(function (a, b) { return (a.slot || 0) - (b.slot || 0) })
+            if (isOpen(planets[i].key) && zoneOf(planets[i]) === zone) out.push(planets[i])
+        out.sort(function (a, b) { return alongOf(a) - alongOf(b) })
         return out
     }
 
@@ -75,8 +97,7 @@ Item {
     // the place of a planet: its saved place, else its place on the main orbit; while it is dragged, the mouse decides
     function placeOf(p) {
         if (p.key === dragKey) return { deg: dragDeg, r: dragR }
-        var saved = layout[ns + "." + p.key]
-        return saved ? { deg: saved.deg, r: saved.r } : { deg: p.deg, r: 1 }
+        return savedPlace(p)
     }
     function planetX(p) {
         var o = placeOf(p)
@@ -117,18 +138,20 @@ Item {
     function setOrbitScale(v) { backend.setSetting("sun_scale", Math.round(Math.max(0.5, Math.min(3, v)) * 20) / 20) }
     function resetOrbits() { backend.setSetting("sun_layout", {}); backend.setSetting("sun_scale", 1) }
 
-    // the place of the card of a planet
+    // the place of the card of a planet: on the side where the planet stands; a zoomed card (edit mode) is large and central
     function rectOf(p) {
-        var group = inZone(p.zone), idx = 0
+        if (zoomKey === p.key)
+            return Qt.rect(margin * 2, margin * 2, Math.max(260, width - 4 * margin), Math.max(260, height - 4 * margin))
+        var zone = zoneOf(p), group = inZone(zone), idx = 0
         for (var i = 0; i < group.length; ++i) if (group[i].key === p.key) idx = i
-        if (p.zone === "left" || p.zone === "right") {          // a tall column; two opened cards share it, one above the other
-            var h = (height - 2 * margin - (group.length - 1) * margin) / Math.max(1, group.length)
-            return Qt.rect(p.zone === "left" ? margin : width - margin - sideW, margin + idx * (h + margin), sideW, h)
+        var n = Math.max(1, group.length)
+        if (zone === "left" || zone === "right") {              // a tall column; several opened cards share it, one above the other
+            var h = (height - 2 * margin - (n - 1) * margin) / n
+            return Qt.rect(zone === "left" ? margin : width - margin - sideW, margin + idx * (h + margin), sideW, h)
         }
-        var both = group.length > 1
-        var w = both ? (availW - margin) / 2 : Math.min(460, availW)
-        var x = both ? availX0 + idx * (w + margin) : cx - w / 2
-        var y = p.zone === "top" ? margin : height - margin - bandH
+        var w = n > 1 ? (availW - (n - 1) * margin) / n : Math.min(460, availW)
+        var x = n > 1 ? availX0 + idx * (w + margin) : Math.max(availX0, Math.min(availX1 - w, planetX(p) - w / 2))
+        var y = zone === "top" ? margin : height - margin - bandH
         return Qt.rect(x, y, w, bandH)
     }
 
@@ -314,6 +337,16 @@ Item {
     }
 
     // ---- the cards
+    Rectangle {                   // behind a zoomed card: the rest of the view is dimmed, a click on it ends the edit mode
+        anchors.fill: parent
+        radius: Theme.radius
+        color: Qt.alpha("#000000", 0.55)
+        opacity: view.zoomKey !== "" ? 1 : 0
+        visible: opacity > 0.01
+        z: 8.5
+        Behavior on opacity { NumberAnimation { duration: Theme.dur } }
+        MouseArea { anchors.fill: parent; onClicked: view.zoomKey = "" }
+    }
     Repeater {
         model: view.planets
         delegate: PlanetCard {
@@ -324,13 +357,24 @@ Item {
             title: (modelData.title || modelData.label || "").toUpperCase()
             tint: view.tint
             open: view.isOpen(modelData.key)
+            editable: modelData.edit === true
+            zoomed: view.zoomKey === modelData.key
             x: place.x; y: place.y; width: place.width; height: place.height
-            z: 5
+            z: zoomed ? 9 : 5
+            Behavior on x { enabled: card.open; NumberAnimation { duration: Theme.dur; easing.type: Easing.OutCubic } }
+            Behavior on y { enabled: card.open; NumberAnimation { duration: Theme.dur; easing.type: Easing.OutCubic } }
+            Behavior on width { enabled: card.open; NumberAnimation { duration: Theme.dur; easing.type: Easing.OutCubic } }
+            Behavior on height { enabled: card.open; NumberAnimation { duration: Theme.dur; easing.type: Easing.OutCubic } }
             onClosed: view.fold(modelData.key)
+            onZoomRequested: (on) => view.setZoom(modelData.key, on)
             Loader {
                 anchors.fill: parent
                 active: card.open || card.opacity > 0.01
                 sourceComponent: view.cards[card.modelData.key] || null
+                onLoaded: {           // cards with an edit mode: they know when they are zoomed and may ask for it (e.g. after "add")
+                    if (item && item.editing !== undefined) item.editing = Qt.binding(function () { return card.zoomed })
+                    if (item && item.editRequest) item.editRequest.connect(function (on) { card.zoomRequested(on) })
+                }
             }
         }
     }

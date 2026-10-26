@@ -13,9 +13,11 @@ import re
 from pathlib import Path
 from typing import Any, List
 
+import threading
+
 from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 
-from ..core import dsp, tidal
+from ..core import dsp, music_sources, tidal
 from ..core.models import JobState
 from .tidal_backend import LEVEL_BUCKET_US, TidalPlayer, pairs_of
 
@@ -110,11 +112,15 @@ class LocalOwner(QObject):
 
 class LocalPlayer(TidalPlayer):
     libraryChanged = Signal()
+    _folderScanned = Signal(str, object)      # (source id, items) - a folder was read in the background
 
     def __init__(self, backend):
         super().__init__(LocalOwner(backend))
         self._backend = backend
         self._library: List[dict] = []
+        self._library_busy = False
+        self._scan_token = 0
+        self._folderScanned.connect(self._on_folder_scanned)
         self._decoder = None
         self._scan_pairs: list = []
         self._scan_t = 0                  # microseconds decoded so far
@@ -125,10 +131,99 @@ class LocalPlayer(TidalPlayer):
     def library(self):  # type: ignore[override]
         return self._library
 
+    @Property(bool, notify=libraryChanged)
+    def libraryBusy(self):  # type: ignore[override]
+        return self._library_busy
+
+    def _library_source(self) -> dict:
+        wanted = str(self._backend.settings.get("library_source") or "")
+        return next((s for s in self._backend.settings.get("music_sources") or [] if s.get("id") == wanted), {})
+
     @Slot()
     def refreshLibrary(self) -> None:
-        self._library = library_items(self._backend._model.jobs())
+        """The library = the finished downloads, or the songs of the chosen music folder (read in the background)."""
+        source = self._library_source()
+        if not source:
+            self._scan_token += 1
+            self._library_busy = False
+            self._library = library_items(self._backend._model.jobs())
+            self.libraryChanged.emit()
+            return
+        self._scan_token += 1
+        token = self._scan_token
+        self._library_busy = True
+        self._library = []
         self.libraryChanged.emit()
+        path = source.get("path", "")
+        sid = source.get("id", "")
+
+        def work():
+            items = music_sources.scan_folder(path, cancel=lambda: token != self._scan_token)
+            if token == self._scan_token:
+                self._folderScanned.emit(sid, items)
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str, object)
+    def _on_folder_scanned(self, sid: str, items) -> None:
+        if sid != str(self._backend.settings.get("library_source") or ""):
+            return
+        self._library = list(items)
+        self._library_busy = False
+        self.libraryChanged.emit()
+
+    @Slot(str)
+    def playQueueList(self, name: str) -> None:
+        """A saved list replaces the queue and starts."""
+        for entry in self._backend.settings.get("queue_lists") or []:
+            if entry.get("name") == name:
+                self.playItems(list(entry.get("items") or []), 0, name)
+                return
+
+    @Slot(str)
+    def chooseSource(self, source_id: str) -> None:
+        """Moon of the Folders planet: '' = the downloads, else the id of a music folder."""
+        self._backend.setSetting("library_source", source_id or "")
+        self.refreshLibrary()
+
+    # -- albums / folders dragged into the queue
+    @Slot("QVariantList", int)
+    def enqueue(self, items, row: int = -1) -> None:  # type: ignore[override]
+        """Songs, groups of songs (an album / download of the library) and whole music folders go into the queue."""
+        self._expand(items, row, play=False)
+
+    @Slot("QVariantList")
+    def playNow(self, items) -> None:  # type: ignore[override]
+        self._expand(items, self.PLAY_NOW, play=True)
+
+    def _expand(self, items, row: int, play: bool) -> None:
+        items = [i for i in (items or []) if isinstance(i, dict)]
+        tracks: List[dict] = []
+        folders: List[str] = []
+        for it in items:
+            kind = it.get("kind")
+            if kind == "track":
+                tracks.append(it)
+            elif kind == "group":
+                tracks += [t for t in (it.get("tracks") or []) if isinstance(t, dict)]
+            elif kind == "folder" and it.get("path"):
+                folders.append(str(it["path"]))
+        if not folders:
+            self._deliver(tracks, row, play)
+            return
+
+        def work():
+            found = list(tracks)
+            for f in folders:
+                found += music_sources.scan_folder(f)
+            self._groupReady.emit(found, row)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _deliver(self, tracks: List[dict], row: int, play: bool) -> None:
+        if play:
+            if tracks:
+                self.playItems(tracks, 0, "")
+        else:
+            self._insert_tracks(tracks, row)
 
     @Slot(int)
     def playLibrary(self, index: int) -> None:

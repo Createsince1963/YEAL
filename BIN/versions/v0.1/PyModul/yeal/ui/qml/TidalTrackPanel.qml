@@ -15,11 +15,23 @@ Rectangle {
     property var player: tidal.playerObject
     property bool local: false                     // downloaded files: tabs Library and Queue, the field filters the library
     property string filter: ""
+    // the library list: a line for every album / download / folder (draggable as a whole), then its songs
     readonly property var libraryShown: {
-        var lib = player.library || [], f = filter.toLowerCase(), out = []
-        for (var i = 0; i < lib.length; ++i)
-            if (f === "" || ((lib[i].title || "") + " " + (lib[i].subtitle || "") + " " + (lib[i].source || "")).toLowerCase().indexOf(f) >= 0)
-                out.push({ item: lib[i], index: i })
+        var lib = player.library || [], f = filter.toLowerCase(), out = [], last = null
+        for (var i = 0; i < lib.length; ++i) {
+            if (f !== "" && ((lib[i].title || "") + " " + (lib[i].subtitle || "") + " " + (lib[i].source || "")).toLowerCase().indexOf(f) < 0)
+                continue
+            var src = lib[i].source || ""
+            if (f === "" && src !== "" && src !== last) {
+                var tracks = []
+                for (var j = i; j < lib.length && (lib[j].source || "") === src; ++j) tracks.push(lib[j])
+                if (tracks.length > 1)
+                    out.push({ group: { kind: "group", id: "grp:" + src + ":" + i, title: src, subtitle: qsTr("%1 songs").arg(tracks.length),
+                                        cover: tracks[0].cover || "", tracks: tracks, url: "" }, index: -1 })
+            }
+            last = src
+            out.push({ item: lib[i], index: i })
+        }
         return out
     }
     onTabChanged: if (local && tab === "library") player.refreshLibrary()
@@ -120,6 +132,53 @@ Rectangle {
             }
         }
 
+        // ---- queue tools: empty the queue, save it under a name (TIDAL: as a playlist; own files: as a list on the Folders planet)
+        Flow {
+            id: queueTools
+            visible: panel.tab === "queue"
+            Layout.fillWidth: true
+            spacing: Theme.s1
+            AppButton { text: qsTr("Clear all"); iconName: "trash"; enabled: queueList.count > 0
+                        onClicked: { saveRow.shown = false; panel.player.clearAll() } }
+            AppButton { text: qsTr("Save list"); iconName: "listAdd"; enabled: queueList.count > 0
+                        onClicked: { saveRow.shown = !saveRow.shown; if (saveRow.shown) saveName.forceActiveFocus() } }
+        }
+        ColumnLayout {
+            id: saveRow
+            property bool shown: false
+            visible: panel.tab === "queue" && shown
+            Layout.fillWidth: true
+            spacing: Theme.s1
+            function save() {
+                var name = saveName.text.trim()
+                if (name === "") { saveMsg.text = qsTr("Enter a name for the list."); return }
+                if (panel.local) {
+                    var err = backend.saveQueueList(name, panel.player.queueSnapshot())
+                    saveMsg.text = err
+                    if (err !== "") return
+                } else {
+                    var ids = []
+                    var items = panel.player.queueSnapshot()
+                    for (var i = 0; i < items.length; ++i) if (items[i].id) ids.push(String(items[i].id))
+                    tidal.createPlaylist(name, ids)
+                }
+                saveName.text = ""; saveMsg.text = ""; shown = false
+            }
+            AppField {
+                id: saveName
+                Layout.fillWidth: true
+                placeholderText: qsTr("Name of the list")
+                onAccepted: saveRow.save()
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.s1
+                AppButton { text: qsTr("Save"); kind: "primary"; iconName: "check"; onClicked: saveRow.save() }
+                AppButton { text: qsTr("Cancel"); onClicked: { saveRow.shown = false; saveMsg.text = "" } }
+            }
+            Text { Layout.fillWidth: true; visible: text !== ""; id: saveMsg; color: Theme.danger; font.pixelSize: Theme.caption; wrapMode: Text.Wrap }
+        }
+
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -146,7 +205,7 @@ Rectangle {
                     onActivated: panel.player.playIndex(index)
                     onRemoved: panel.player.removeAt(index)
                 }
-                TidalQueueDrop { anchors.fill: parent; list: queueList; z: 5 }
+                TidalQueueDrop { anchors.fill: parent; list: queueList; player: panel.player; z: 5 }
                 Text {
                     anchors.centerIn: parent
                     visible: queueList.count === 0
@@ -211,18 +270,22 @@ Rectangle {
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                 delegate: Row_ {
                     required property var modelData
-                    cover: modelData.item.cover || ""
-                    title: modelData.item.title || ""
-                    sub: (modelData.item.subtitle || "") + (modelData.item.source && modelData.item.source !== modelData.item.title ? "  ·  " + modelData.item.source : "")
-                    current: !!panel.player.current && panel.player.current.id === modelData.item.id
-                    onActivated: panel.player.playLibrary(modelData.index)
+                    readonly property bool isGroup: modelData.group !== undefined
+                    readonly property var entry: isGroup ? modelData.group : modelData.item
+                    cover: entry.cover || ""
+                    title: isGroup ? "▸ " + entry.title : (entry.title || "")
+                    sub: isGroup ? entry.subtitle : (entry.subtitle || "")
+                    current: !isGroup && !!panel.player.current && panel.player.current.id === entry.id
+                    onActivated: isGroup ? panel.player.playNow([entry]) : panel.player.playLibrary(modelData.index)
+                    TidalDragSource { item: entry }          // songs and whole albums / folders can be dragged into the queue
                 }
                 Text {
                     anchors.centerIn: parent
                     visible: libList.count === 0
                     width: parent.width - 2 * Theme.s4
                     horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
-                    text: panel.filter !== "" ? qsTr("Nothing found.") : qsTr("Finished audio downloads appear here.")
+                    text: panel.player.libraryBusy ? qsTr("Reading the folder ...")
+                                                   : panel.filter !== "" ? qsTr("Nothing found.") : qsTr("Finished audio downloads or the songs of the chosen music folder appear here. Drag songs, albums or folders into the queue.")
                     color: Theme.textTertiary; font.pixelSize: Theme.caption
                 }
             }

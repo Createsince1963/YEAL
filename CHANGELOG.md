@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.1.19
+- **Cards open where the planet stands:** a card (library, queue, played ...) opens on the side of the sun its planet is on now - left, right, above or below - also after the planet was dragged; the cards of one side share it in the order of their planets, a single band card sits under its planet.
+- **Folders planet (player for downloaded files):** your own music folders as a moon system (`SunSources.qml`, `core/music_sources.py`): folders of this PC and of the network (`\\server\share`, mapped drives), added with a dialog or a typed path, renamed, removed. A click on a moon fills the Library with that folder (read in the background), "Downloads" is the finished downloads. Settings `music_sources`, `library_source`.
+- **Edit mode:** Settings, Speaker, Bluetooth, Sound and Folders have a pencil button: the card grows to a large central card (the rest dims), "Done" (or a click outside) brings it back to its normal size. Adding a folder opens it by itself.
+- **Library is not the queue:** songs, whole albums / downloads (line above them) and whole music folders (the moon) can be dragged from the library or the folders planet into the queue; a drop on the sun plays them. Titles of own files travel as `yeal-local:` in the drag, the download panel ignores them.
+- **Queue card:** "Clear all" (stops and empties) and "Save list" with a name field: TIDAL saves a playlist, own files save a list that shows up as a moon on the Folders planet (click plays it, drag adds it, right click deletes it). Setting `queue_lists`.
+- **Fix:** the buttons of the Speaker card (pause / play / stop) did nothing in the THIS PC group; they now steer the player, the speaker buttons only work in the WLAN group.
+- Default places: TIDAL Bluetooth planet at 25 degrees and Sound at 335 degrees so their cards stay in the right column.
+- Tests: `test_music_sources.py` (validation, scan, source, folder / album into queue, clear all, saved lists), card side + zoom in `test_tidal_gui_qml.py`.
+- No EXE built.
+
 ## 0.9.1.18
 - **Seamless change** (Settings planet: off / 5 / 8 / 10 s): the next song fades in while the old one fades out (equal power), with Qt's player and with the own engine (`ui/crossfade.py`). The old song is handed over 1.5 s early because the stream of the next one has to be fetched. A second ring in its own lane (10.5 u) runs from 5 s before the fade to 5 s after it began, a dot marks the start. Only for songs longer than 3x the fade; not for "repeat single".
 - **Switching the engine no longer stops the song:** the new engine takes over at the same place (the time it needed to start is added), the old one fades out over 0.6 s; the song is not counted twice in "Played"; no ring for a plain switch. A paused song stays paused at its place.

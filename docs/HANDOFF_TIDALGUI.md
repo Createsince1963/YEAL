@@ -104,3 +104,8 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - Hand test needed: listen to a real crossfade (TIDAL: the next stream is fetched 1.5 s before the fade), the engine switch with real music, the look of band / glow / rings on a big window, the colour dialog and right click on own colours.
 - Rule for the GUI: rows of buttons are `Flow`, never a plain `Row` wider than the card; run `test_gui_clipping` after changing a card.
 - Open: glow follows the overall level (bass hits dominate it), not a separate bass filter; Windows volume stays separate from the player volume.
+
+## Update 0.9.1.19 (2026-10-26, local commit + tag v0.9.1.19, not pushed, NO EXE)
+- Done: cards open on the side of their planet, Folders planet (own music folders, network too), edit mode zoom, library/folders/albums draggable into the queue, Clear all + Save list in the queue card, Speaker card buttons steer the player in THIS PC.
+- Hand test needed: real drag from library rows / folder moon into the queue card (system drag), a UNC path on the network, the zoomed cards at real window sizes, saved lists after a restart.
+- Open: rename of a folder (field exists only when adding), saved lists have no own edit list, TIDAL library (playlists) not draggable as "folder" yet.

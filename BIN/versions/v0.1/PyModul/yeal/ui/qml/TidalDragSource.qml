@@ -11,7 +11,9 @@ Item {
     property var item: ({})
     property var provider: null          // function returning the items to carry (e.g. the selection); asked when the mouse goes down
     property var carried: item && item.kind ? [item] : []
-    readonly property string payload: carried.map(function (i) { return i.url || "" })
+    // titles, groups and folders of the player for downloaded files have no link: "yeal-local:<id>" travels in the drag
+    // (the real items go through tidal.dragPayload); the download panel ignores it
+    readonly property string payload: carried.map(function (i) { return i.url || (i.id ? "yeal-local:" + i.id : "") })
                                              .filter(function (u) { return u !== "" }).join("\n")
     anchors.fill: parent
 

@@ -1368,7 +1368,7 @@ class Backend(QObject):
     def setSetting(self, key: str, value: Any) -> None:
         if isinstance(value, QJSValue):      # a JS object from QML (e.g. the TIDAL DIY layout)
             value = value.toVariant()
-        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout", "tidal_opts_collapsed", "tidal_player_style", "tidal_player_vis_mode", "crossfade", "level_amp", "glow_amp", "outer_ring", "custom_colors", "local_volume", "local_orbit", "tidal_player_color", "sun_scale", "sun_layout", "tidal_sun", "audio_output", "audio_engine", "dsp"):
+        if key not in ("tidal_quality", "tidal_threads", "theme", "max_parallel", "auto_update", "rate_limit_kbps", "show_browser", "gentle_mode", "panel_width", "panel_right", "adblock_experimental", "ask_mp3_tags", "html_open_mode", "html_create", "single_playback", "dl_button_style", "dl_button_pos", "stream_volume", "stream_scan_seconds", "stream_port", "ask_drive_dialog", "tidal_video_quality", "tidal_videos", "tidal_atmos", "tidal_singles", "tidal_lyrics", "tidal_lrc", "tidal_cover_embed", "tidal_cover_file", "tidal_m3u", "tidal_html", "tidal_no_skip", "tidal_rewrite", "tidal_volume", "tidal_tile_size", "tidal_layout", "tidal_opts_collapsed", "tidal_player_style", "tidal_player_vis_mode", "crossfade", "level_amp", "glow_amp", "outer_ring", "custom_colors", "local_volume", "local_orbit", "library_source", "tidal_player_color", "sun_scale", "sun_layout", "tidal_sun", "audio_output", "audio_engine", "dsp"):
             return
         current = getattr(self._settings, key)
         try:
@@ -1400,6 +1400,69 @@ class Backend(QObject):
         if key == "html_open_mode" and self._settings.html_open_mode == "file":
             localserve.shutdown_all()
         self._queue.set_max_parallel(self._settings.max_parallel)
+        self._save()
+
+    @Slot(str, str, result=str)
+    def addMusicSource(self, value: str, name: str = "") -> str:
+        """Adds a music folder (a file:// URL from FolderDialog, a path, or a network path like \\\\server\\share).
+        Returns an error message, or '' on success."""
+        from ..core import music_sources
+        value = (value or "").strip().strip('"')
+        if not value:
+            return "No folder given."
+        path = QUrl(value).toLocalFile() if value.startswith("file:") else value
+        if path.startswith("file:"):
+            path = path[5:]
+        error = music_sources.check_folder(path)
+        if error:
+            return error
+        current = list(self._settings.music_sources)
+        if len(current) >= music_sources.MAX_SOURCES:
+            return "At most %d music folders." % music_sources.MAX_SOURCES
+        entries = music_sources.validate_sources(current + [{"path": path, "name": name}])
+        if len(entries) == len(current):
+            return "This folder is already a source."
+        self._settings.music_sources = entries
+        self._settings.validate()
+        self._save()
+        return ""
+
+    @Slot(str, "QVariantList", result=str)
+    def saveQueueList(self, name: str, items) -> str:
+        """Saves the queue of the player for downloaded files under a name (the same name replaces the list).
+        Returns an error message, or '' on success."""
+        name = (name or "").strip()[:60]
+        if not name:
+            return "Enter a name for the list."
+        songs = [dict(i) for i in (items or []) if isinstance(i, dict) and i.get("file")]
+        if not songs:
+            return "The queue has no songs of your own files to save."
+        lists = [l for l in self._settings.queue_lists if l.get("name", "").lower() != name.lower()]
+        lists.append({"name": name, "items": songs})
+        self._settings.queue_lists = lists
+        self._settings.validate()
+        if not any(l["name"] == name for l in self._settings.queue_lists):
+            return "At most 30 lists."
+        self._save()
+        return ""
+
+    @Slot(str)
+    def deleteQueueList(self, name: str) -> None:
+        self._settings.queue_lists = [l for l in self._settings.queue_lists if l.get("name") != name]
+        self._save()
+
+    @Slot(str)
+    def removeMusicSource(self, source_id: str) -> None:
+        self._settings.music_sources = [s for s in self._settings.music_sources if s.get("id") != source_id]
+        self._settings.validate()
+        self._save()
+
+    @Slot(str, str)
+    def renameMusicSource(self, source_id: str, name: str) -> None:
+        for s in self._settings.music_sources:
+            if s.get("id") == source_id and name.strip():
+                s["name"] = name.strip()[:60]
+        self._settings.validate()
         self._save()
 
     @Slot(str)

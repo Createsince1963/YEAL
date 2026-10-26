@@ -9,8 +9,11 @@ Rectangle {
     property string title
     property bool open: false
     property color tint: Theme.accent
+    property bool editable: false                      // the card has an edit mode: a pencil button zooms it
+    property bool zoomed: false                        // edit mode: the card is large; "Done" brings it back to its normal size
     default property alias content: body.data
     signal closed()
+    signal zoomRequested(bool on)
 
     radius: 22
     color: Qt.alpha(Theme.surface, 0.97)
@@ -31,6 +34,16 @@ Rectangle {
             Layout.fillWidth: true
             Text { text: card.title; color: card.tint; font.pixelSize: Theme.footnote; font.weight: Font.Bold
                    font.letterSpacing: 1; Layout.fillWidth: true; elide: Text.ElideRight }
+            AppButton {
+                visible: card.editable && card.zoomed
+                text: qsTr("Done"); kind: "primary"; iconName: "check"
+                onClicked: card.zoomRequested(false)
+            }
+            IconButton {
+                visible: card.editable && !card.zoomed
+                implicitWidth: 26; implicitHeight: 26; iconName: "pencil"; tip: qsTr("Edit (the card grows)")
+                onClicked: card.zoomRequested(true)
+            }
             IconButton { implicitWidth: 26; implicitHeight: 26; iconName: "x"; tip: qsTr("Fold away"); onClicked: card.closed() }
         }
         Item { id: body; Layout.fillWidth: true; Layout.fillHeight: true }

@@ -709,6 +709,17 @@ class TidalPlayer(QObject):
                 self.stop()
 
     @Slot()
+    def clearAll(self) -> None:
+        """Stops the music and empties the whole queue."""
+        self.stop()
+        self.queue.reset([], -1)
+        self._original = []
+
+    @Slot(result="QVariantList")
+    def queueSnapshot(self):
+        return self.queue.items()
+
+    @Slot()
     def clearUpcoming(self) -> None:
         self.queue.replace_tail([])
         self._original = []

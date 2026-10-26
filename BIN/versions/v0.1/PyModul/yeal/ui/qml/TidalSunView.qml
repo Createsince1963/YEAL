@@ -15,11 +15,11 @@ SunView {
         { key: "playlists", icon: "library", label: qsTr("Playlists"), deg: 180, zone: "left" },
         { key: "queue", icon: "queueList", label: qsTr("Queue"), deg: 0, zone: "right", slot: 0 },
         { key: "played", icon: "clock", label: qsTr("Played"), deg: 135, zone: "bottom", slot: 0 },
-        { key: "settings", icon: "sliders", label: qsTr("Settings"), deg: 45, zone: "bottom", slot: 1 },
+        { key: "settings", icon: "sliders", label: qsTr("Settings"), deg: 45, zone: "bottom", slot: 1, edit: true },
         { key: "search", icon: "search", label: qsTr("Search"), deg: 225, zone: "top", slot: 0 },
         { key: "lyrics", icon: "lyrics", label: qsTr("Lyrics"), deg: 315, zone: "top", slot: 1 },
-        { key: "bluetooth", icon: "bluetooth", label: qsTr("Bluetooth"), title: qsTr("Audio output"), deg: 90, zone: "right", slot: 1 },
-        { key: "sound", icon: "equalizer", label: qsTr("Sound"), title: qsTr("Sound"), deg: 270, zone: "right", slot: 2 }]
+        { key: "bluetooth", icon: "bluetooth", label: qsTr("Bluetooth"), title: qsTr("Audio output"), deg: 25, zone: "right", slot: 1, edit: true },
+        { key: "sound", icon: "equalizer", label: qsTr("Sound"), title: qsTr("Sound"), deg: 335, zone: "right", slot: 2, edit: true }]
     cards: ({ playlists: playlistsCard, queue: queueCard, played: playedCard, settings: settingsCard,
               search: searchCard, lyrics: lyricsCard, bluetooth: outputCard, sound: soundCard })
 

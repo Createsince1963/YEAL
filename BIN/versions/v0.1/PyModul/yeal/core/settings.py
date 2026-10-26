@@ -86,6 +86,37 @@ def _validate_sun_layout(raw) -> dict:
     return out
 
 
+MAX_QUEUE_LISTS = 30
+MAX_LIST_ITEMS = 2000
+
+
+def _validate_queue_lists(raw) -> list:
+    """Saved queues: [{name, items: [{id, title, subtitle, file, cover}]}] - names unique, at most 30 lists of 2000 songs."""
+    out, names = [], set()
+    if not isinstance(raw, list):
+        return out
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()[:60]
+        if not name or name.lower() in names:
+            continue
+        items = []
+        for it in entry.get("items") or []:
+            if isinstance(it, dict) and it.get("file"):
+                items.append({"kind": "track", "id": str(it.get("id") or it["file"])[:500], "title": str(it.get("title") or "")[:200],
+                              "subtitle": str(it.get("subtitle") or "")[:200], "file": str(it["file"])[:500],
+                              "cover": str(it.get("cover") or "")[:500], "duration": 0, "url": "", "source": name})
+            if len(items) >= MAX_LIST_ITEMS:
+                break
+        if items:
+            names.add(name.lower())
+            out.append({"name": name, "items": items})
+        if len(out) >= MAX_QUEUE_LISTS:
+            break
+    return out
+
+
 def _clamp(value, low: int, high: int, default: int) -> int:
     try:
         return max(low, min(high, int(value)))
@@ -151,6 +182,9 @@ class Settings:
     custom_colors: List[str] = field(default_factory=list)   # colours the user made for the player (#rrggbb, at most 5)
     crossfade: int = 0                 # seamless change from song to song: 0 = off, otherwise 3..10 seconds of overlap
     level_amp: int = 100               # strength of the level band around the oval in percent (50..300)
+    music_sources: List[dict] = field(default_factory=list)   # music folders of the user: [{id, name, path, kind}] (core/music_sources.py)
+    queue_lists: List[dict] = field(default_factory=list)     # saved queues of the player for downloaded files: [{name, items: [...]}]
+    library_source: str = ""           # player for downloaded files: "" = the downloads, else the id of a music source
     local_orbit: bool = True           # player for downloaded files: the planets (library, queue, played ...) are shown around the sun
     tidal_player_color: str = "green"  # track player colour: a name of PLAYER_COLORS or #rrggbb
     tidal_player_vis_mode: str = "song"  # track player band around the oval: song (loudness of the whole song) | flow (running level) | off
@@ -226,6 +260,12 @@ class Settings:
             self.sun_scale = 1.0
         self.sun_layout = _validate_sun_layout(self.sun_layout)
         self.local_orbit = bool(self.local_orbit)
+        from . import music_sources as _ms
+        self.music_sources = _ms.validate_sources(self.music_sources)
+        self.queue_lists = _validate_queue_lists(self.queue_lists)
+        self.library_source = str(self.library_source or "")[:40]
+        if self.library_source and not any(s["id"] == self.library_source for s in self.music_sources):
+            self.library_source = ""
         try:
             self.glow_amp = max(0, min(300, int(self.glow_amp)))
         except (TypeError, ValueError):
