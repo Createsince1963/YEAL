@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import QObject, QTimer, QUrl, Signal
-from PySide6.QtMultimedia import QAudioFormat, QAudioSink, QMediaDevices, QMediaPlayer
+from PySide6.QtMultimedia import QAudio, QAudioFormat, QAudioSink, QMediaDevices, QMediaPlayer
 
 from ..core import dsp
 
@@ -148,6 +148,10 @@ class DspMedia(QObject):
         self._in_frames = 0                    # frames taken from ffmpeg since the start (song time of the next block)
         self._last_pos = -1
         self._last_emit = 0.0
+        self._buffer_ms = 600                  # size of the sound card buffer (Settings: audio_buffer_ms)
+        self.underruns = 0                     # the card ran dry while a song was playing (counted since this object was made)
+        self.tick_peak_ms = 0.0                # the longest time one _tick took (the chain runs in the GUI thread)
+        self._starved = False
         self._timer = QTimer(self)
         self._timer.setInterval(15)
         self._timer.timeout.connect(self._tick)
@@ -158,6 +162,14 @@ class DspMedia(QObject):
         self._volume = max(0.0, min(1.0, float(volume)))
         if self._chain is not None:
             self._chain.volume = self._volume ** 2
+
+    def setBufferMs(self, ms: int) -> None:
+        self._buffer_ms = max(100, min(3000, int(ms)))
+
+    def stats(self) -> dict:
+        feed = self._feed
+        return {"underruns": self.underruns, "tick_peak_ms": round(self.tick_peak_ms, 2), "buffer_ms": self._buffer_ms,
+                "queue_chunks": feed.chunks.qsize() if feed is not None else 0}
 
     def setDevice(self, device) -> None:
         """Another output (Bluetooth headphones ...): the song goes on from the same place."""
@@ -284,7 +296,7 @@ class DspMedia(QObject):
             self._fail("ffmpeg could not be started.")
             return
         self._sink = QAudioSink(device, fmt, self)
-        self._sink.setBufferSize(int(rate * 8 * 0.6))                  # 0.6 s: rides out a busy GUI thread (the chain runs in it) and Bluetooth, still feels direct
+        self._sink.setBufferSize(int(rate * 8 * self._buffer_ms / 1000.0))      # default 0.6 s: rides out a busy GUI thread (the chain runs in it) and Bluetooth
         self._io = self._sink.start()
         self._set_state(PLAYING)
         self._timer.start()
@@ -341,6 +353,13 @@ class DspMedia(QObject):
             self.levels.emit(pairs)
 
     def _tick(self) -> None:
+        t0 = time.perf_counter()
+        try:
+            self._tick_inner()
+        finally:
+            self.tick_peak_ms = max(self.tick_peak_ms, (time.perf_counter() - t0) * 1000.0)
+
+    def _tick_inner(self) -> None:
         feed = self._feed
         if self._state == STOPPED or self._sink is None or feed is None:
             return
@@ -348,6 +367,10 @@ class DspMedia(QObject):
             self._duration_ms = feed.duration_ms
             self.durationChanged.emit(self._duration_ms)
         self._pump()
+        idle = self._sink.state() == QAudio.State.IdleState and self._state == PLAYING and self._in_frames > 0 and not self._eof
+        if idle and not self._starved:
+            self.underruns += 1                                              # the card ran dry: a dropout
+        self._starved = idle
         if self._eof and self._in_frames == 0 and not self._raw:               # ffmpeg ended without any audio: it is an error
             code = feed.exit_code()
             if code != 0:

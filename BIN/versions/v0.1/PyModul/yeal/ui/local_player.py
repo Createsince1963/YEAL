@@ -101,6 +101,9 @@ class LocalOwner(QObject):
     def crossfade_seconds(self) -> int:
         return int(self.settings_value("crossfade", 0) or 0)
 
+    def audio_buffer_ms(self) -> int:
+        return self._backend.audio_buffer_ms()
+
     def dsp_config(self) -> dict:
         return self._backend.dsp_config()
 

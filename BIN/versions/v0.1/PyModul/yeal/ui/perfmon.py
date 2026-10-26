@@ -32,6 +32,7 @@ class PerfMonitor(QObject):
         self._proc = psutil.Process(os.getpid()) if psutil else None
         if self._proc:
             self._proc.cpu_percent(None)
+        self.extra = None                 # optional callable -> dict with more numbers (dropouts, longest chain tick of the own engine)
         self._last = time.monotonic()
         self._lag = 0.0
         self._beat = QTimer(self)
@@ -60,5 +61,10 @@ class PerfMonitor(QObject):
                 pass
         parts.append("threads=%3d" % threading.active_count())
         parts.append("GUI lag=%5.0f ms" % max(0.0, self._lag))
+        if self.extra is not None:
+            try:
+                parts += ["%s=%s" % (k, v) for k, v in (self.extra() or {}).items()]
+            except Exception:  # noqa: BLE001 - a monitor never breaks the player
+                pass
         self._lag = 0.0
         print("[perf] " + " | ".join(parts), flush=True)

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1.26
+- **Audio performance & stability calibration** (`ui/calibration.py`, `Calibrate_Yeal.bat`): tests the real chain (ffmpeg, Python buffer, filter chain, sound card buffer) on the chosen output with a synthetic busy GUI: lists the outputs and their formats (float32 per rate, Bluetooth hands-free warning), finds the smallest sound card buffer without a dropout (200 ... 1500 ms) and recommends one step above it, picks the repaint rate (20 / 15 Hz) from the GUI lag, and with `--stress` (`--minutes N` for a long run) changes songs 40 times with pause / seek and checks threads, ffmpeg processes, memory, dropouts and GUI lag: PASS / WARN / FAIL list, `audio_profile.json` and `audio_report.json` in the data folder, `--apply` writes the values into the settings. `--list` shows only the outputs, `--device Kopf` tests the Bluetooth headphones.
+- New settings `audio_buffer_ms` (200-2000, default 600) and `ui_refresh_hz` (10-30, default 20); the own engine counts dropouts (`underruns`) and its longest chain tick; `YEAL_PERF=1` shows them as well.
+- First measurement here (Bluetooth headphones, quick + stress): no dropout from 200 ms, 40 song changes: threads +0, no ffmpeg left, memory flat, GUI lag max 113 ms under the synthetic load. The default stays 600 ms; a real listening test with `YEAL_PERF=1` is still to do. No EXE built.
+- Known: TIDAL Normal repeats a download that was converted before (tiddl only knows the `.m4a` name before it starts; a check for the `.mp3` needs the file names in advance - not solved).
+
 ## 0.9.1.25
 - **Speed / dropouts (analysis + fixes):** the own engine runs its chain in the GUI thread, so anything that blocks the GUI starves the 0.4 s sound buffer. Measured with a script (sun view, level ticks, offscreen software render): the full-window sky canvas was repainted 30 times a second with a gradient - 94 ms per tick at 1000x700 and about 800 ms at 1920x1000. Now the glow of the sun is one small picture painted once and only scaled / faded with the level, the orbit canvas repaints only when its geometry changes: 7.5 ms / 75 ms (the rest is the software render of the test).
 - The oval (track player) is repainted at most 20 times a second (level 30 Hz + position 25 Hz both asked for a paint with shadows) and not while hidden.

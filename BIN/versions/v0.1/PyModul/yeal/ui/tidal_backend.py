@@ -423,6 +423,7 @@ class TidalPlayer(QObject):
             return None
         media = dsp_media.DspMedia(ffmpeg, self)
         media.setConfig(dsp.config_from(getattr(self._owner, "dsp_config", lambda: {})()))
+        media.setBufferMs(getattr(self._owner, "audio_buffer_ms", lambda: 600)())
         return media
 
     @Slot()

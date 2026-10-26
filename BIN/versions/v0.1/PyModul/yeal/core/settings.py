@@ -173,6 +173,8 @@ class Settings:
     local_volume: int = 80             # volume of the player for downloaded files
     audio_engine: str = "qt"           # qt: the Qt media player | dsp: Yeal's own engine (ffmpeg -> float32 chain -> sound card; needs numpy and ffmpeg)
     dsp: dict = field(default_factory=dict)          # settings of the own engine (equalizer, crossfeed ... see core/dsp.py validate_config)
+    audio_buffer_ms: int = 600         # own engine: size of the sound card buffer (200..2000 ms); bigger rides out a busy GUI, smaller reacts faster (see ui/calibration.py)
+    ui_refresh_hz: int = 20            # how often the player picture (oval, level band) is repainted (10..30)
     audio_output: str = ""             # the audio output of this computer the players use (Bluetooth headphones, speakers ...); "" = the system default
     sun_scale: float = 1.0             # sun views: size of the orbits (0.5 .. 3)
     sun_layout: dict = field(default_factory=dict)   # sun views: where the planets were dragged to (see _validate_sun_layout)
@@ -252,6 +254,8 @@ class Settings:
         self.tidal_tile_size = _clamp(self.tidal_tile_size, 90, 260, 140)
         self.local_volume = _clamp(self.local_volume, 0, 100, 80)
         self.audio_output = str(self.audio_output or "")[:200]
+        self.audio_buffer_ms = _clamp(self.audio_buffer_ms, 200, 2000, 600)
+        self.ui_refresh_hz = _clamp(self.ui_refresh_hz, 10, 30, 20)
         if self.audio_engine not in ("qt", "dsp"):
             self.audio_engine = "qt"
         from . import dsp as _dsp

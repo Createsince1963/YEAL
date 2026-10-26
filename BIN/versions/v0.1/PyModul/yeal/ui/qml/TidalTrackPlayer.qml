@@ -94,7 +94,7 @@ Item {
     }
     Timer {
         id: paintGate
-        interval: 50
+        interval: Math.round(1000 / Math.max(10, Math.min(30, backend.settings.ui_refresh_hz || 20)))
         onTriggered: if (root.repaintPending) { root.repaintPending = false; art.requestPaint(); paintGate.start() }
     }
     Connections {

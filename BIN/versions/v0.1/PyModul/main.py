@@ -149,6 +149,11 @@ def main() -> int:
     if perfmon.enabled():                                       # YEAL_PERF=1: CPU / RAM / threads / GUI lag every 2 s on the console
         backend._perf = perfmon.PerfMonitor(backend)
 
+        def _engine_stats():                                    # dropouts and the longest chain tick of the own engine
+            media = getattr(backend.localPlayer, "_player", None)
+            return media.stats() if media is not None and hasattr(media, "stats") else {}
+        backend._perf.extra = _engine_stats
+
     engine = QQmlApplicationEngine()
     context = engine.rootContext()
     context.setContextProperty("backend", backend)
