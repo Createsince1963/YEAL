@@ -84,30 +84,43 @@ Item {
         return [best, Math.sqrt(bd)]
     }
 
+    // the oval is repainted at most 20 times a second: the level (30 Hz) and the position (25 Hz) both ask for it, and a paint
+    // with shadows is the most expensive thing the GUI thread does; a slow GUI thread is what makes the sound stutter
+    property bool repaintPending: false
+    function repaint() {
+        if (!visible) return
+        if (paintGate.running) repaintPending = true
+        else { art.requestPaint(); paintGate.start() }
+    }
+    Timer {
+        id: paintGate
+        interval: 50
+        onTriggered: if (root.repaintPending) { root.repaintPending = false; art.requestPaint(); paintGate.start() }
+    }
     Connections {
         target: player
         function onLevelChanged() {
             var h = root.hist.slice(-159)
             h.push(player.level)
             root.hist = h
-            art.requestPaint()
+            root.repaint()
         }
-        function onPositionChanged() { art.requestPaint() }
-        function onProfileChanged() { art.requestPaint() }
-        function onFadeChanged() { art.requestPaint() }
-        function onChanged() { art.requestPaint() }
+        function onPositionChanged() { root.repaint() }
+        function onProfileChanged() { root.repaint() }
+        function onFadeChanged() { root.repaint() }
+        function onChanged() { root.repaint() }
     }
-    onVisModeChanged: art.requestPaint()
+    onVisModeChanged: root.repaint()
     readonly property real amp: Math.max(0.5, Math.min(3, (backend.settings.level_amp || 100) / 100))
-    onAmpChanged: art.requestPaint()
+    onAmpChanged: root.repaint()
     readonly property real glow: Math.max(0, Math.min(3, (backend.settings.glow_amp === undefined ? 100 : backend.settings.glow_amp) / 100))
-    onGlowChanged: art.requestPaint()
+    onGlowChanged: root.repaint()
     readonly property bool outerRing: (backend.settings.outer_ring || "list") === "list"
-    onOuterRingChanged: art.requestPaint()
-    onGreenChanged: art.requestPaint()
-    onVolActiveChanged: art.requestPaint()
-    onWidthChanged: art.requestPaint()
-    Connections { target: Theme; function onDarkChanged() { art.requestPaint() } }
+    onOuterRingChanged: root.repaint()
+    onGreenChanged: root.repaint()
+    onVolActiveChanged: root.repaint()
+    onWidthChanged: root.repaint()
+    Connections { target: Theme; function onDarkChanged() { root.repaint() } }
 
     implicitHeight: col.implicitHeight + Theme.s2
 

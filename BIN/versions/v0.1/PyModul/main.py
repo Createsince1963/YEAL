@@ -145,6 +145,9 @@ def main() -> int:
         app.setFont(font)
     app.setWindowIcon(QIcon(str(HERE / "yeal" / "ui" / "qml" / "assets" / "icon.png")))
     backend = Backend(ctx)
+    from yeal.ui import perfmon
+    if perfmon.enabled():                                       # YEAL_PERF=1: CPU / RAM / threads / GUI lag every 2 s on the console
+        backend._perf = perfmon.PerfMonitor(backend)
 
     engine = QQmlApplicationEngine()
     context = engine.rootContext()

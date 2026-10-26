@@ -155,20 +155,18 @@ Item {
         return Qt.rect(x, y, w, bandH)
     }
 
+    // the orbits are painted only when their geometry changes (not with the music); the glow of the sun is a small picture
+    // that is painted once and then only scaled and faded with the level - that costs the GPU a texture, not the CPU a repaint
     onCxChanged: space.requestPaint()
     onCyChanged: space.requestPaint()
     onRxChanged: space.requestPaint()
     onRyChanged: space.requestPaint()
-    onTintChanged: space.requestPaint()
+    onTintChanged: { space.requestPaint(); glow.requestPaint() }
     onOrbitChanged: space.requestPaint()
     onLayoutChanged: space.requestPaint()
     onDragRChanged: space.requestPaint()
     onDragKeyChanged: space.requestPaint()
     onPlanetsChanged: space.requestPaint()
-    Connections {
-        target: view.player
-        function onLevelChanged() { space.requestPaint() }
-    }
 
     Rectangle {
         anchors.fill: parent
@@ -178,7 +176,32 @@ Item {
         border.color: Theme.separator
     }
 
-    // ---- the sky: the glow of the sun and the orbits
+    // ---- the sky: the glow of the sun (one small picture, scaled and faded with the level) and the orbits
+    Canvas {
+        id: glow
+        readonly property real lv: view.player ? view.player.level : 0
+        readonly property real r: Math.max(view.sunW, view.sunH) * (0.75 + 0.12 * lv)
+        canvasSize: Qt.size(128, 128)
+        renderTarget: Canvas.Image
+        width: 2 * r
+        height: 2 * r * (view.sunH / view.sunW * 1.05)
+        x: view.cx - width / 2
+        y: view.cy - height / 2
+        opacity: (0.22 + 0.30 * lv) / 0.52
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.reset()
+            var g = ctx.createRadialGradient(64, 64, 64 * 0.24, 64, 64, 64)
+            g.addColorStop(0, Qt.alpha(view.tint, 0.52))
+            g.addColorStop(0.55, Qt.alpha(view.tint, 0.17))
+            g.addColorStop(1, Qt.alpha(view.tint, 0))
+            ctx.fillStyle = g
+            ctx.beginPath()
+            ctx.arc(64, 64, 64, 0, 2 * Math.PI)
+            ctx.fill()
+        }
+        Component.onCompleted: requestPaint()
+    }
     Canvas {
         id: space
         anchors.fill: parent
@@ -186,20 +209,6 @@ Item {
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
-            var lv = view.player ? view.player.level : 0
-            var r = Math.max(view.sunW, view.sunH) * (0.75 + 0.12 * lv)
-            ctx.save()
-            ctx.translate(view.cx, view.cy)
-            ctx.scale(1, view.sunH / view.sunW * 1.05)
-            var g = ctx.createRadialGradient(0, 0, view.sunW * 0.18, 0, 0, r)
-            g.addColorStop(0, Qt.alpha(view.tint, 0.22 + 0.30 * lv))
-            g.addColorStop(0.55, Qt.alpha(view.tint, 0.07 + 0.08 * lv))
-            g.addColorStop(1, Qt.alpha(view.tint, 0))
-            ctx.fillStyle = g
-            ctx.beginPath()
-            ctx.arc(0, 0, r, 0, 2 * Math.PI)
-            ctx.fill()
-            ctx.restore()
             if (!view.orbit) return
             ctx.lineWidth = 1
             var rings = view.ringList()

@@ -14,8 +14,9 @@ from pathlib import Path
 from typing import Any, List
 
 import threading
+import time
 
-from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 
 from ..core import dsp, music_sources, tidal
 from ..core.models import JobState
@@ -292,15 +293,26 @@ class LocalPlayer(TidalPlayer):
                 pass
             dec.deleteLater()
 
+    SCAN_SLICE_S = 0.006                  # the scan takes at most 6 ms of the GUI thread at a time (a long file must not stall sound and GUI)
+
     def _on_scan_buffer(self) -> None:
+        self._drain(self.SCAN_SLICE_S)
+
+    def _drain(self, budget) -> None:
         dec = self._decoder
+        started = time.monotonic()
         while dec is not None and dec.bufferAvailable():
             buf = dec.read()
             self._scan_pairs += pairs_of(buf, self._scan_t)
             rate = max(1, buf.format().sampleRate())
             self._scan_t += int(buf.frameCount() * 1_000_000 / rate)
+            if budget is not None and time.monotonic() - started > budget:
+                if dec.bufferAvailable():                 # the rest follows after the GUI had time for other things
+                    QTimer.singleShot(8, self._on_scan_buffer)
+                return
 
     def _on_scan_done(self) -> None:
+        self._drain(None)                                 # the decoder is finished: take what is left at once
         pairs, path = self._scan_pairs, self._scan_path
         self._stop_scan()
         current = self.queue.item(self.queue.current) or {}

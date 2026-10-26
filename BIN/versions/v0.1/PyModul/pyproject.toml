@@ -1,6 +1,6 @@
 [project]
 name = "yeal"
-version = "0.9.1.24"
+version = "0.9.1.25"
 requires-python = ">=3.11"
 dependencies = ["PySide6", "yt-dlp", "mutagen"]
 

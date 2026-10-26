@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.1.25
+- **Speed / dropouts (analysis + fixes):** the own engine runs its chain in the GUI thread, so anything that blocks the GUI starves the 0.4 s sound buffer. Measured with a script (sun view, level ticks, offscreen software render): the full-window sky canvas was repainted 30 times a second with a gradient - 94 ms per tick at 1000x700 and about 800 ms at 1920x1000. Now the glow of the sun is one small picture painted once and only scaled / faded with the level, the orbit canvas repaints only when its geometry changes: 7.5 ms / 75 ms (the rest is the software render of the test).
+- The oval (track player) is repainted at most 20 times a second (level 30 Hz + position 25 Hz both asked for a paint with shadows) and not while hidden.
+- The loudness scan of a local file (QAudioDecoder) takes at most 6 ms of the GUI thread at a time (a long mix used to stall GUI and sound for seconds right after the song started); the engine's sound buffer is 0.6 s.
+- **No leak found:** 30 song changes with the own engine: threads, ffmpeg processes, RSS (140 MB) and Python objects stay flat; every ffmpeg is stopped; the queues are bounded (160 chunks). The DSP chain costs 0.4 ms per 85 ms block, the level calculation 0.1 ms.
+- **Monitor:** `YEAL_PERF=1` prints every 2 s `[perf] CPU | RAM | ffmpeg | threads | GUI lag` (psutil optional) - `ui/perfmon.py`, test `test_perfmon.py`. No EXE built.
+
 ## 0.9.1.24
 - **TIDAL Normal is MP3 320 kbps:** after the download every new AAC `.m4a` is converted with ffmpeg to MP3 320 kbps (tags and cover kept), the `.m4a` is not kept, M3U lists point to the `.mp3` names, the HTML player page and the folder button see the MP3 files (`tidal.convert_to_mp3`, step "Converting to MP3 320 kbps (n / m)"). Dolby Atmos and other codecs are left alone; a file that fails stays `.m4a`. High and Max stay FLAC. Labels updated everywhere. Test with real ffmpeg in `test_tidal.py`. No EXE built.
 - Note: with "Overwrite existing" off, tiddl looks for the `.m4a` name, so an already converted song is fetched again on a repeat download.

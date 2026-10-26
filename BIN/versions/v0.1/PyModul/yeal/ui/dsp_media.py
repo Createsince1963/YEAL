@@ -284,7 +284,7 @@ class DspMedia(QObject):
             self._fail("ffmpeg could not be started.")
             return
         self._sink = QAudioSink(device, fmt, self)
-        self._sink.setBufferSize(int(rate * 8 * 0.4))                  # 0.4 s: stable on Bluetooth, short enough to feel direct
+        self._sink.setBufferSize(int(rate * 8 * 0.6))                  # 0.6 s: rides out a busy GUI thread (the chain runs in it) and Bluetooth, still feels direct
         self._io = self._sink.start()
         self._set_state(PLAYING)
         self._timer.start()
