@@ -20,6 +20,7 @@ MAX_PROFILE_NAME = 40
 MAX_STREAM_HOSTS = 10
 TIDAL_DOCKS = ("left", "right", "float", "hidden")   # TIDAL DIY side areas: docked left/right, own window, hidden
 TIDAL_PANES = ("playlists", "queue")
+MAX_CUSTOM_COLORS = 5
 PLAYER_COLORS = ("green", "blue", "red", "yellow", "purple", "orange", "pink", "cyan", "white")   # track player (QML: Theme.playerColor)
 
 
@@ -145,6 +146,11 @@ class Settings:
     sun_scale: float = 1.0             # sun views: size of the orbits (0.5 .. 3)
     sun_layout: dict = field(default_factory=dict)   # sun views: where the planets were dragged to (see _validate_sun_layout)
     tidal_sun: bool = False            # TIDAL DIY: the sun view (player as a sun with planets) instead of the pages
+    glow_amp: int = 100                # glow around the inner lane of the player in percent (0 = none, 100 = normal, 300 = strong)
+    outer_ring: str = "list"           # outer ring of the oval: list (progress through the playlist / album / folder / queue) | off
+    custom_colors: List[str] = field(default_factory=list)   # colours the user made for the player (#rrggbb, at most 5)
+    crossfade: int = 0                 # seamless change from song to song: 0 = off, otherwise 3..10 seconds of overlap
+    level_amp: int = 100               # strength of the level band around the oval in percent (50..300)
     local_orbit: bool = True           # player for downloaded files: the planets (library, queue, played ...) are shown around the sun
     tidal_player_color: str = "green"  # track player colour: a name of PLAYER_COLORS or #rrggbb
     tidal_player_vis_mode: str = "song"  # track player band around the oval: song (loudness of the whole song) | flow (running level) | off
@@ -220,6 +226,27 @@ class Settings:
             self.sun_scale = 1.0
         self.sun_layout = _validate_sun_layout(self.sun_layout)
         self.local_orbit = bool(self.local_orbit)
+        try:
+            self.glow_amp = max(0, min(300, int(self.glow_amp)))
+        except (TypeError, ValueError):
+            self.glow_amp = 100
+        if self.outer_ring not in ("list", "off"):
+            self.outer_ring = "list"
+        seen: List[str] = []
+        for c in (self.custom_colors if isinstance(self.custom_colors, list) else []):
+            c = str(c).strip().lower()
+            if re.fullmatch(r"#[0-9a-f]{6}", c) and c not in seen:
+                seen.append(c)
+        self.custom_colors = seen[:MAX_CUSTOM_COLORS]
+        try:
+            fade = int(self.crossfade)
+        except (TypeError, ValueError):
+            fade = 0
+        self.crossfade = 0 if fade < 3 else min(10, fade)
+        try:
+            self.level_amp = max(50, min(300, int(self.level_amp)))
+        except (TypeError, ValueError):
+            self.level_amp = 100
         self.tidal_sun = bool(self.tidal_sun)
         color = str(self.tidal_player_color or "").strip().lower()
         self.tidal_player_color = color if color in PLAYER_COLORS or re.fullmatch(r"#[0-9a-f]{6}", color) else "green"

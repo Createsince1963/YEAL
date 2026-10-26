@@ -94,9 +94,16 @@ Item {
         }
         function onPositionChanged() { art.requestPaint() }
         function onProfileChanged() { art.requestPaint() }
+        function onFadeChanged() { art.requestPaint() }
         function onChanged() { art.requestPaint() }
     }
     onVisModeChanged: art.requestPaint()
+    readonly property real amp: Math.max(0.5, Math.min(3, (backend.settings.level_amp || 100) / 100))
+    onAmpChanged: art.requestPaint()
+    readonly property real glow: Math.max(0, Math.min(3, (backend.settings.glow_amp === undefined ? 100 : backend.settings.glow_amp) / 100))
+    onGlowChanged: art.requestPaint()
+    readonly property bool outerRing: (backend.settings.outer_ring || "list") === "list"
+    onOuterRingChanged: art.requestPaint()
     onGreenChanged: art.requestPaint()
     onVolActiveChanged: art.requestPaint()
     onWidthChanged: art.requestPaint()
@@ -158,6 +165,9 @@ Item {
                         var n = 160, base = [], norm = [], th = []
                         var vol = player.volume / 100
                         var prof = player.profile, pn = prof ? prof.length : 0
+                        var lo = 1, hi = 0, amp = root.amp
+                        for (var k = 0; k < pn; ++k) { var q0 = prof[k]; if (q0 >= 0) { if (q0 < lo) lo = q0; if (q0 > hi) hi = q0 } }
+                        var span = hi - lo
                         var hist = root.hist, hn = hist.length
                         for (var i = 0; i <= n; ++i) {
                             var s = i / n
@@ -166,16 +176,17 @@ Item {
                             else if (mode === "song") {
                                 // the loudness of the whole song, laid around the oval from the start (bottom centre) on
                                 var pv = pn ? prof[Math.min(pn - 1, Math.floor(s * pn))] : -1
-                                t = 1.5 + (pv > 0 ? 9 * Math.pow(pv, 1.5) : 0)
+                                var nv = pv < 0 ? 0 : (span > 0.04 ? (pv - lo) / span : pv)     // quiet parts flat, loud parts high
+                                t = 1.5 + 13 * amp * Math.pow(nv, 1.3)
                             } else {
                                 // the running level: mirrored left / right, so the band is continuous where the loop closes
                                 var lv = hn ? hist[Math.min(hn - 1, Math.floor(Math.abs(2 * s - 1) * hn))] : 0
-                                t = 1.5 + 8 * lv
+                                t = 1.5 + 13 * amp * Math.pow(lv, 0.8)
                             }
                             var b = root.pt(s, px, py, pw, ph)
                             base.push([b[0], b[1]])
                             norm.push([b[2], b[3]])
-                            th.push(t * u)
+                            th.push(Math.min(t, 17) * u)
                         }
                         var bandSong = !root.volActive && mode === "song"
                         var cut = bandSong ? Math.max(0, Math.min(n, Math.round(root.progress * n))) : n
@@ -190,10 +201,49 @@ Item {
                             ctx.fill()
                         }
                         ctx.shadowColor = accent
-                        ctx.shadowBlur = 12 * u
+                        ctx.shadowBlur = (13.2 + 9 * Math.min(1, player.level)) * u * root.glow
                         drawBand(0, cut, root.volActive ? 0.55 : 0.85)        // song: the part that was played
                         ctx.shadowBlur = 0
                         if (bandSong) drawBand(cut, n, 0.30)                  // song: what is still to come, quieter
+                    }
+                    // outer ring: how far the whole list (playlist / album / folder / queue) has played
+                    var lp = root.outerRing ? player.listProgress : -1
+                    if (lp !== undefined && lp >= 0) {
+                        var ox = 4.5 * u, ow = W - 9 * u, oh = H - 9 * u
+                        var osteps = Math.max(2, Math.ceil(lp * 240))
+                        ctx.lineCap = "round"
+                        ctx.lineWidth = 2 * u
+                        ctx.strokeStyle = Qt.alpha(line, 0.14)
+                        ctx.beginPath()
+                        for (var o0 = 0; o0 <= 240; ++o0) { var h0 = root.pt(o0 / 240, ox, ox, ow, oh); if (o0 === 0) ctx.moveTo(h0[0], h0[1]); else ctx.lineTo(h0[0], h0[1]) }
+                        ctx.stroke()
+                        if (lp > 0.002) {
+                            ctx.strokeStyle = Qt.alpha(accent, 0.75)
+                            ctx.beginPath()
+                            for (var o1 = 0; o1 <= osteps; ++o1) { var h1 = root.pt(lp * o1 / osteps, ox, ox, ow, oh); if (o1 === 0) ctx.moveTo(h1[0], h1[1]); else ctx.lineTo(h1[0], h1[1]) }
+                            ctx.stroke()
+                        }
+                    }
+                    // seamless change: an extra ring in its own lane, from 5 s before the fade to 5 s after it began
+                    var fp = player.fade
+                    if (fp !== undefined && fp >= 0) {
+                        var fx = 10.5 * u, fw = W - 21 * u, fh = H - 21 * u
+                        var fsteps = Math.max(2, Math.ceil(fp * 200))
+                        ctx.lineCap = "round"
+                        ctx.lineWidth = 2 * u
+                        ctx.strokeStyle = Qt.alpha(line, 0.18)
+                        ctx.beginPath()
+                        for (var f0 = 0; f0 <= 200; ++f0) { var g0 = root.pt(f0 / 200, fx, fx, fw, fh); if (f0 === 0) ctx.moveTo(g0[0], g0[1]); else ctx.lineTo(g0[0], g0[1]) }
+                        ctx.stroke()
+                        ctx.strokeStyle = fp < 0.5 ? root.yellow : root.green
+                        ctx.beginPath()
+                        for (var f1 = 0; f1 <= fsteps; ++f1) { var g1 = root.pt(fp * f1 / fsteps, fx, fx, fw, fh); if (f1 === 0) ctx.moveTo(g1[0], g1[1]); else ctx.lineTo(g1[0], g1[1]) }
+                        ctx.stroke()
+                        var mk = root.pt(0.5, fx, fx, fw, fh)                  // where the fade starts
+                        ctx.fillStyle = Theme.text
+                        ctx.beginPath()
+                        ctx.arc(mk[0], mk[1], 2.4 * u, 0, 2 * Math.PI)
+                        ctx.fill()
                     }
                     // progress loop: the played part and the dot
                     var lx = 20 * u, ly = 20 * u, lw = W - 40 * u, lh = H - 40 * u
@@ -325,7 +375,8 @@ Item {
         // ---- volume and jumping in the song: always visible
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: root.ovalW - 36 * root.u
+            Layout.preferredWidth: root.ovalW
+            Layout.maximumWidth: root.ovalW
             Layout.row: 2
             spacing: Theme.s3
 
@@ -345,14 +396,16 @@ Item {
                 TapHandler { onTapped: tb.clicked() }
             }
 
-            TextBtn { text: "\u00AB 10 s"; Accessible.name: qsTr("10 seconds back")
+            TextBtn { text: "\u00AB 10 s"; Accessible.name: qsTr("10 seconds back"); Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                       onClicked: player.seek(Math.max(0, player.position - 10000)) }
+            Item { Layout.fillWidth: true; Layout.preferredWidth: 1 }
             Icon { name: player.volume === 0 ? "mute" : "volume"; size: 16; color: root.volActive ? root.yellow : Theme.textSecondary
                    TapHandler { onTapped: root.setVolume(player.volume > 0 ? 0 : 80) }
                    HoverHandler { cursorShape: Qt.PointingHandCursor } }
             Slider {
                 id: volSlider
                 Layout.fillWidth: true
+                Layout.preferredWidth: 160
                 Layout.maximumWidth: 220
                 implicitHeight: 18
                 from: 0; to: 100; stepSize: 1
@@ -374,7 +427,8 @@ Item {
             }
             Text { text: player.volume + "%"; color: Theme.textSecondary; font.family: "Consolas"; font.pixelSize: 11
                    Layout.preferredWidth: 34; horizontalAlignment: Text.AlignRight }
-            TextBtn { text: "10 s \u00BB"; Accessible.name: qsTr("10 seconds ahead")
+            Item { Layout.fillWidth: true; Layout.preferredWidth: 1 }
+            TextBtn { text: "10 s \u00BB"; Accessible.name: qsTr("10 seconds ahead"); Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                       onClicked: player.seek(Math.min(player.duration, player.position + 10000)) }
         }
 

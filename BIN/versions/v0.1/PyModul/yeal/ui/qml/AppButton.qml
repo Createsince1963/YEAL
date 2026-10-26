@@ -10,6 +10,7 @@ Button {
 
     implicitHeight: Theme.touch
     implicitWidth: Math.max(implicitHeight, row.implicitWidth + 2 * Theme.s4)
+    width: parent && parent.width > 0 ? Math.min(implicitWidth, parent.width) : implicitWidth
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
     font.pixelSize: Theme.body
@@ -51,6 +52,7 @@ Button {
             color: control.fg
             elide: Text.ElideRight
             Layout.alignment: Qt.AlignVCenter
+            Layout.maximumWidth: Math.max(10, control.width - 2 * Theme.s4 - (control.iconName !== "" ? 26 : 0))
         }
     }
     Accessible.role: Accessible.Button

@@ -8,6 +8,7 @@ Rectangle {
     signal toggled(bool checked)
 
     implicitHeight: 32
+    width: parent && parent.width > 0 ? Math.min(implicitWidth, parent.width) : implicitWidth     // never wider than its row
     implicitWidth: row.implicitWidth + 2 * Theme.s3
     radius: height / 2
     color: checked ? Theme.accentSoft : Theme.field
@@ -34,6 +35,8 @@ Rectangle {
         }
         Text {
             text: root.text
+            width: Math.min(implicitWidth, Math.max(10, root.width - 2 * Theme.s3 - (root.checked ? 20 : 0)))
+            elide: Text.ElideRight
             font.pixelSize: Theme.footnote
             color: root.checked ? Theme.accent : Theme.textSecondary
             anchors.verticalCenter: parent.verticalCenter

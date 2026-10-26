@@ -98,3 +98,9 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - Done: audio output choice (0.9.1.16), own audio engine (`core/dsp.py`, `ui/dsp_media.py`, `SunSound.qml`, settings `audio_engine` / `dsp`).
 - Hand test needed: listen with Bluetooth headphones (A2DP stereo entry), EQ sliders while a song plays (350 ms pause, small gap when the filter is rebuilt), ReplayGain jump for a local file (the gain is set when the scan ends), crossfeed taste, an impulse response, seeking in a long mix, TIDAL songs through the own engine (stream URL via ffmpeg, hi-res DASH still falls back to CD quality).
 - Open: bundle numpy in the exe (size!) or leave the engine as an optional extra; live filter change without the gap; ReplayGain before the first sound; DASH hi-res through ffmpeg; the same chain for Stream to box is not possible (the speaker plays the file itself).
+
+## Update 0.9.1.18 (2026-10-26, local commit + tag v0.9.1.18, not pushed, NO EXE)
+- Done: seamless change + transition ring, engine switch without a stop, band strength, glow, outer list ring, own colours, no cut-off buttons (test).
+- Hand test needed: listen to a real crossfade (TIDAL: the next stream is fetched 1.5 s before the fade), the engine switch with real music, the look of band / glow / rings on a big window, the colour dialog and right click on own colours.
+- Rule for the GUI: rows of buttons are `Flow`, never a plain `Row` wider than the card; run `test_gui_clipping` after changing a card.
+- Open: glow follows the overall level (bass hits dominate it), not a separate bass filter; Windows volume stays separate from the player volume.

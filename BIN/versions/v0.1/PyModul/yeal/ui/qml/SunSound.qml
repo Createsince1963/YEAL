@@ -67,6 +67,8 @@ Flickable {
 
         ColumnLayout {
             Layout.fillWidth: true
+            Layout.preferredWidth: col.width
+            Layout.maximumWidth: col.width
             visible: root.own
             spacing: Theme.s2
 
@@ -88,8 +90,12 @@ Flickable {
                 }
             }
             Row {
+                id: bandRow
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 4
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: col.width
+                readonly property real bandW: Math.max(14, Math.min(26, (col.width - 9 * spacing) / 10))
+                spacing: 2
                 Repeater {
                     model: root.bands
                     delegate: Column {
@@ -101,7 +107,7 @@ Flickable {
                             orientation: Qt.Vertical
                             from: -12; to: 12; stepSize: 0.5
                             value: root.eq[index]
-                            width: 26; height: 96
+                            width: bandRow.bandW; height: 96
                             enabled: !!root.cfg.eq_on
                             onMoved: root.setBand(index, value)
                             Accessible.name: root.label(modelData) + " Hz"
@@ -142,7 +148,7 @@ Flickable {
                        color: Theme.textSecondary; font.pixelSize: Theme.caption; Layout.preferredWidth: 52 }
             }
 
-            Text { text: qsTr("Crossfeed (for headphones)"); color: Theme.textSecondary; font.pixelSize: Theme.caption }
+            Text { text: qsTr("Crossfeed (for headphones)"); color: Theme.textSecondary; font.pixelSize: Theme.caption; Layout.fillWidth: true; wrapMode: Text.Wrap }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.s2
@@ -157,7 +163,7 @@ Flickable {
                 }
             }
 
-            Text { text: qsTr("Loudness (ReplayGain)"); color: Theme.textSecondary; font.pixelSize: Theme.caption }
+            Text { text: qsTr("Loudness (ReplayGain)"); color: Theme.textSecondary; font.pixelSize: Theme.caption; Layout.fillWidth: true; wrapMode: Text.Wrap }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.s2
@@ -165,7 +171,7 @@ Flickable {
                 Chip { text: qsTr("Every song the same"); checked: root.cfg.replaygain === "track"; onToggled: backend.setDsp({ replaygain: "track" }) }
             }
 
-            Text { text: qsTr("Impulse response (room / headphone correction)"); color: Theme.textSecondary; font.pixelSize: Theme.caption }
+            Text { text: qsTr("Impulse response (room / headphone correction)"); color: Theme.textSecondary; font.pixelSize: Theme.caption; Layout.fillWidth: true; wrapMode: Text.Wrap }
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.s2
@@ -189,6 +195,7 @@ Flickable {
                 Chip { text: qsTr("On"); checked: root.cfg.limiter !== false; onToggled: (c) => backend.setDsp({ limiter: c }) }
             }
             AppButton {
+                Layout.minimumWidth: 0; Layout.maximumWidth: col.width
                 text: qsTr("Reset all filters"); kind: "plain"; implicitHeight: 30
                 onClicked: backend.setDsp({ eq_on: false, eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], preamp: 0, crossfeed: "off",
                                             replaygain: "off", convolution_on: false, limiter: true })

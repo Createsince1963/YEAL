@@ -20,7 +20,9 @@ from PySide6.QtCore import (Property, QAbstractListModel, QModelIndex, QObject, 
 from PySide6.QtGui import QGuiApplication
 
 from ..core import dsp, extras, tidal, tidal_api
+from .crossfade import HANDOVER_MS, Crossfader, phase_after, phase_before
 
+ENGINE_SWITCH_FADE_S = 0.6    # the old engine fades out while the new one takes over
 LEVEL_BUCKET_US = 20000      # the level of the music is kept in 20 ms steps (matches the 30 Hz picture of the track player)
 
 
@@ -214,6 +216,7 @@ class TidalPlayer(QObject):
     levelChanged = Signal()       # level of the music (about 30 times a second while playing)
     profileChanged = Signal()     # the loudness profile of the song grew
     historyChanged = Signal()     # the list of played songs
+    fadeChanged = Signal()        # the ring of the seamless change (0..1, -1 = none)
     error = Signal(str)
     _streamReady = Signal(str, object, str)     # (track id, stream info or None, error)
     _lyricsReady = Signal(str, object)
@@ -244,6 +247,13 @@ class TidalPlayer(QObject):
         self._last_buf = 0.0         # time of the last audio buffer (is the level real?)
         self._profile = SongProfile()
         self._history: list = []     # songs played in this session, newest first
+        self._fader = Crossfader(self)
+        self._fade_state = ""        # "" | "wait" (old song handed over, next one loading) | "run" (both are audible)
+        self._fade_wait_t = 0.0
+        self._fade_phase = -1.0
+        self._ring = True            # show the ring of the seamless change (not when only the engine is switched)
+        self._seek_later = None
+        self._resume = None          # (position ms, was playing, time) after switching the engine: go on at that place
         self._tick_timer = QTimer(self)
         self._tick_timer.setInterval(33)
         self._tick_timer.timeout.connect(self._tick)
@@ -290,6 +300,114 @@ class TidalPlayer(QObject):
                 self._abuf = None
         return True
 
+    # -- seamless change: the song that ends keeps playing and fades out while the next one fades in
+    def _fade_ms(self) -> float:
+        pick = getattr(self._owner, "crossfade_seconds", None)
+        try:
+            return float(pick() if callable(pick) else 0) * 1000.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _can_fade(self, fade_ms: float, duration: float) -> bool:
+        n, cur = self.queue.rowCount(), self.queue.current
+        return (fade_ms > 0 and duration > 3 * fade_ms + 2000 and self._repeat != "one"
+                and (cur + 1 < n or (self._repeat == "all" and n > 0)))
+
+    @Property(float, notify=positionChanged)
+    def listProgress(self) -> float:  # type: ignore[override]
+        """How far the whole list (playlist, album, folder, queue) is played, 0..1; -1 when there is only one song or none.
+        Weighted by the lengths of the songs when all are known, otherwise every song counts the same."""
+        items = self.queue.items()
+        n, cur = len(items), self.queue.current
+        if n < 2 or cur < 0:
+            return -1.0
+        dur = float(self.duration or 0)
+        song = max(0.0, min(1.0, float(self.position) / dur)) if dur > 0 else 0.0
+        lengths = [float(t.get("duration") or 0) for t in items]
+        if all(v > 0 for v in lengths):
+            return max(0.0, min(1.0, (sum(lengths[:cur]) + lengths[cur] * song) / sum(lengths)))
+        return max(0.0, min(1.0, (cur + song) / n))
+
+    @Property(float, notify=fadeChanged)
+    def fade(self) -> float:  # type: ignore[override]
+        return self._fade_phase
+
+    def _set_fade_phase(self, phase: float) -> None:
+        if abs(phase - self._fade_phase) > 0.002 or (phase < 0) != (self._fade_phase < 0):
+            self._fade_phase = phase
+            self.fadeChanged.emit()
+
+    def _detach(self, player, abuf) -> None:
+        """The old media object no longer talks to this player."""
+        signals = [getattr(player, name, None) for name in
+                   ("positionChanged", "durationChanged", "playbackStateChanged", "mediaStatusChanged", "errorOccurred", "levels")]
+        if abuf is not None:
+            signals.append(abuf.audioBufferReceived)
+        for sig in signals:
+            if sig is not None:
+                try:
+                    sig.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+
+    def _check_fade(self) -> None:
+        phase = -1.0
+        if self._fade_state == "run":
+            phase = phase_after(self._fader.elapsed_ms()) if self._ring else -1.0
+            if phase < 0:
+                self._fade_state = ""
+        elif self._fade_state == "wait":
+            phase = 0.5 if self._ring else -1.0
+            if time.monotonic() - self._fade_wait_t > 8.0:          # the next song never started: the old one just ends
+                self._finish_fade()
+        elif self._player is not None and self._playing and not self._loading:
+            fade = self._fade_ms()
+            duration = float(self._player.duration()) if fade > 0 else 0.0
+            if fade > 0 and self._can_fade(fade, duration):
+                remaining = duration - float(self._player.position())
+                phase = phase_before(remaining, fade)
+                if remaining <= fade + HANDOVER_MS:
+                    self._handover()
+                    phase = 0.5
+        self._set_fade_phase(phase)
+
+    def _handover(self) -> None:
+        old, audio, abuf = self._player, self._audio, self._abuf
+        self._detach(old, abuf)
+        self._fader.hold(audio, old, self._volume / 100.0, audio, abuf)
+        self._player = self._audio = self._abuf = None
+        self._fade_state = "wait"
+        self._ring = True
+        self._fade_wait_t = time.monotonic()
+        self._advance(auto=True)
+
+    def _start_fade_in(self) -> None:
+        """The next song is about to play: if it follows a handed over one, both volumes start to move."""
+        if self._fade_state != "wait" or self._player is None:
+            return
+        self._fade_state = "run"
+        seconds = ENGINE_SWITCH_FADE_S if self._resume is not None else self._fade_ms() / 1000.0
+        self._fader.begin(self._audio, lambda: self._volume / 100.0, seconds)
+
+    def _begin_play(self) -> None:
+        """The source is set: start (after a switch of the engine at the place where the old engine was)."""
+        self._start_fade_in()
+        resume, self._resume = self._resume, None
+        if resume is not None:
+            pos, was_playing, t0 = resume
+            if was_playing:
+                pos += int((time.monotonic() - t0) * 1000)             # the old engine played on while this one started
+            self._player.setPosition(pos)
+            self._seek_later = (pos, t0, was_playing)               # Qt's player takes a position only when the file is loaded
+            if not was_playing:
+                self.changed.emit()
+                return
+        self._player.play()
+
+    def _finish_fade(self) -> None:
+        self._fade_state = ""
+        self._fader.finish()
+
     # -- the engine: Qt's media player or Yeal's own (DspMedia)
     def _wanted_engine(self) -> str:
         pick = getattr(self._owner, "audio_engine", None)
@@ -318,9 +436,44 @@ class TidalPlayer(QObject):
         """Another engine was chosen: playback stops; the next song starts with the new engine."""
         if self._player is None or self._wanted_engine() == self._engine_in_use:
             return
+        track = self.queue.item(self.queue.current)
+        old_player = self._player
+        if track is not None and old_player.duration() > 0 and self._can_resume(track):
+            self._switch_engine(track)
+            return
         self.stop()
         old, self._player, self._audio, self._abuf = self._player, None, None, None
         old.deleteLater()
+        self.changed.emit()
+
+    def _can_resume(self, track: dict) -> bool:
+        return True
+
+    def _switch_engine(self, track: dict) -> None:
+        """Another engine was chosen while a song is loaded: the new engine takes the song over at the same place. The old
+        engine keeps playing (and fades out) until the new one is ready, so the sound does not stop."""
+        pos, was_playing = int(self._player.position()), self._playing
+        self._fader.cancel()
+        old, audio, abuf = self._player, self._audio, self._abuf
+        self._detach(old, abuf)
+        if was_playing:
+            self._fader.hold(audio, old, self._volume / 100.0, audio, abuf)
+            self._fade_state = "wait"
+            self._fade_wait_t = time.monotonic()
+        else:
+            old.stop()
+            old.deleteLater()
+            for extra in (audio, abuf):
+                if extra is not None and extra is not old:
+                    extra.deleteLater()
+        self._player = self._audio = self._abuf = None
+        self._ring = False
+        self._resume = (pos, was_playing, time.monotonic())
+        self._engine_in_use = ""
+        self._play_current()
+        if self._player is None:                                   # the new engine could not be made
+            self._resume = None
+            self._finish_fade()
         self.changed.emit()
 
     def _on_state(self, state) -> None:
@@ -334,6 +487,12 @@ class TidalPlayer(QObject):
         from PySide6.QtMultimedia import QMediaPlayer
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
             self._advance(auto=True)
+        elif status in (QMediaPlayer.MediaStatus.LoadedMedia, QMediaPlayer.MediaStatus.BufferedMedia) and self._seek_later:
+            pos, t0, was_playing = self._seek_later
+            self._seek_later = None
+            if was_playing:
+                pos += int((time.monotonic() - t0) * 1000)
+            self._player.setPosition(pos)
 
     def _set_output_device(self) -> None:
         """Play on the output chosen in the Speaker planet (Bluetooth headphones ...); the system default otherwise."""
@@ -579,6 +738,10 @@ class TidalPlayer(QObject):
 
     @Slot()
     def stop(self) -> None:
+        self._fader.cancel()
+        self._fade_state = ""
+        self._seek_later = None
+        self._set_fade_phase(-1.0)
         if self._player:
             self._player.stop()
         self._playing = False
@@ -668,7 +831,8 @@ class TidalPlayer(QObject):
         self._levels.clear()
         self._profile.reset()
         self.profileChanged.emit()
-        self._note_played(track)
+        if self._resume is None:
+            self._note_played(track)
         self._loading = True
         self._badge, self._badge_tip = "", ""
         self._lyrics = {"text": "", "synced": []}
@@ -714,6 +878,7 @@ class TidalPlayer(QObject):
         if self._profile.dirty:
             self._profile.dirty = False
             self.profileChanged.emit()
+        self._check_fade()
         new = max(target, self._level * 0.85)
         if new < 0.01:
             new = 0.0
@@ -728,6 +893,7 @@ class TidalPlayer(QObject):
             return
         self._loading = False
         if not info:
+            self._finish_fade()
             self.changed.emit()
             self.error.emit(err or "This track cannot be played.")
             return
@@ -738,7 +904,7 @@ class TidalPlayer(QObject):
         self._player.setSource(QUrl(info["url"]))
         if self._engine_in_use == "dsp":                       # Tidal's own loudness value of the song (for ReplayGain)
             self._player.setReplayGain(info.get("replayGain") or 0.0)
-        self._player.play()
+        self._begin_play()
         self.changed.emit()
 
     def _on_lyrics(self, track_id: str, data) -> None:
@@ -795,6 +961,9 @@ class TidalBackend(QObject):
 
     def audio_engine(self) -> str:
         return self._backend.audio_engine()
+
+    def crossfade_seconds(self) -> int:
+        return int(self.settings_value("crossfade", 0) or 0)
 
     def dsp_config(self) -> dict:
         return self._backend.dsp_config()

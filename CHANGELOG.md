@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.1.18
+- **Seamless change** (Settings planet: off / 5 / 8 / 10 s): the next song fades in while the old one fades out (equal power), with Qt's player and with the own engine (`ui/crossfade.py`). The old song is handed over 1.5 s early because the stream of the next one has to be fetched. A second ring in its own lane (10.5 u) runs from 5 s before the fade to 5 s after it began, a dot marks the start. Only for songs longer than 3x the fade; not for "repeat single".
+- **Switching the engine no longer stops the song:** the new engine takes over at the same place (the time it needed to start is added), the old one fades out over 0.6 s; the song is not counted twice in "Played"; no ring for a plain switch. A paused song stays paused at its place.
+- **Level band:** the loudness of the song is stretched over its whole range (it was squeezed into an even ring) and **Band strength** 50-300 % is a setting (`level_amp`). **Glow** around the inner lane is 10 % stronger, swells with the level and is a setting 0-300 % (`glow_amp`).
+- **Outer ring** shows the progress of the whole list (playlist / album / folder / queue; weighted by song length when all lengths are known) - setting `outer_ring` (list / off).
+- **Own colours:** up to 5 colours of your own (+ button, colour dialog; right click or long press removes) - setting `custom_colors`.
+- **No cut-off buttons:** the Sound card wraps its rows and the ten equalizer sliders fit the card; `Chip` and `AppButton` are never wider than their row (text is shortened with ...). `tests/test_gui_clipping.py` checks the cards at 230 / 270 / 320 px.
+- "10 s" buttons under the oval sit on the left / right tangent of the oval.
+- Tests: `test_crossfade.py` (11: settings, ring phases, fader maths, real fade between two files, engine switch both ways, list progress), `test_gui_clipping.py`.
+- No EXE built.
+
 ## 0.9.1.17
 - **Own audio engine** (desktop, optional): `Python -> 32-bit float chain -> WASAPI -> Windows / Bluetooth -> headphones`. ffmpeg decodes every file or stream, resamples to the rate of the chosen output and can jump to a place; the chain (`core/dsp.py`, numpy only) filters in float; Qt's audio sink plays on the output chosen in the Speaker / Bluetooth planet. Windows keeps the Bluetooth connection. It looks like a media player to the two players (`ui/dsp_media.py`), so the queue, shuffle, repeat, history, level band and loudness profile work as before. ffmpeg's output is read by a thread into a small queue, so ffmpeg waits when we are a few seconds ahead (a 2 hour mix never fills the memory).
 - **Chain:** 10 band equalizer + pre-amp (linear-phase FIR from the exact response of RBJ peaking filters, 4096 taps, delay 2048 frames, the position display is corrected), crossfeed (light / medium / strong, Bauer-like, centred bass keeps its level), ReplayGain (TIDAL's `trackReplayGain`, downloaded files are measured while the loudness profile is scanned; limited to +- 12 dB), convolution with a WAV impulse response (resampled to the output rate, up to 1.5 s, FFT overlap-add), soft limiter (tanh above 0.92). Without any filter the sound passes untouched with no delay.

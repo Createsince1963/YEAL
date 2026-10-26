@@ -95,6 +95,9 @@ class LocalOwner(QObject):
     def audio_engine(self) -> str:
         return self._backend.audio_engine()
 
+    def crossfade_seconds(self) -> int:
+        return int(self.settings_value("crossfade", 0) or 0)
+
     def dsp_config(self) -> dict:
         return self._backend.dsp_config()
 
@@ -156,14 +159,15 @@ class LocalPlayer(TidalPlayer):
         self._levels.clear()
         self._profile.reset()
         self.profileChanged.emit()
-        self._note_played(track)
+        if self._resume is None:
+            self._note_played(track)
         self._loading = False
         self._badge = path.suffix.lstrip(".").upper()
         self._badge_tip = str(path)
         self._lyrics = {"text": "", "synced": []}
         self.lyricsChanged.emit()
         self._player.setSource(QUrl.fromLocalFile(str(path)))
-        self._player.play()
+        self._begin_play()
         self.changed.emit()
         self._scan(str(path))
 
