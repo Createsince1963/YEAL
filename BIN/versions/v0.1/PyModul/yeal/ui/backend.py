@@ -985,6 +985,82 @@ class Backend(QObject):
         self.vaultChanged.emit()
         return err
 
+    # ---- login pack: the logins in one encrypted file that can be carried to another PC (core/loginpack.py)
+    def _tidal_auth_file(self) -> Path:
+        """The newest Tidal sign-in file: tiddl's own folder or Yeal's copy of it."""
+        candidates = [tidal.app_path() / "auth.json", Path(self._ctx.data_dir) / "tiddl" / "auth.json"]
+        return max(candidates, key=lambda p: tidal._expires(p))
+
+    @Slot(str, str, result=str)
+    def exportLogins(self, target: str, pack_password: str) -> str:
+        """Writes the Tidal sign-in and the vault entries into one file encrypted with `pack_password`. '' = done, else the reason."""
+        from ..core import loginpack
+        v = self._vault()
+        if not (v and v.unlocked) or v.uses_default_password():
+            return "Unlock the admin area with your own password first."
+        path = Path(QUrl(target).toLocalFile() if target.startswith("file:") else target)
+        auth = self._tidal_auth_file()
+        try:
+            auth_text = auth.read_text(encoding="utf-8-sig") if auth.is_file() else ""
+            payload = loginpack.build_payload(auth_text, v.entries(with_secret=True))
+            blob = loginpack.seal(payload, pack_password)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(blob)
+        except loginpack.PackError as exc:
+            return str(exc)
+        except OSError as exc:
+            return "The file could not be written: %s" % (exc.strerror or exc)
+        self.toast.emit("Login pack saved (%d vault entries%s)." % (len(payload["vault"]), ", Tidal sign-in" if auth_text else ", no Tidal sign-in"))
+        return ""
+
+    @Slot(str, str, result=str)
+    def importLogins(self, source: str, pack_password: str) -> str:
+        """Opens a login pack: the Tidal sign-in is taken when it is newer than the one here, vault entries that are not there yet
+        are added. '' = done, else the reason."""
+        from ..core import loginpack
+        v = self._vault()
+        if not (v and v.unlocked) or v.uses_default_password():
+            return "Unlock the admin area with your own password first."
+        path = Path(QUrl(source).toLocalFile() if source.startswith("file:") else source)
+        try:
+            payload = loginpack.open_pack(path.read_bytes(), pack_password)
+        except loginpack.PackError as exc:
+            return str(exc)
+        except OSError as exc:
+            return "The file could not be read: %s" % (exc.strerror or exc)
+        notes = []
+        text = str(payload.get("tidal_auth") or "")
+        if text:
+            dst = tidal.app_path() / "auth.json"
+            try:
+                new_expires = float(json.loads(text).get("expires_at") or 0)
+            except (ValueError, TypeError, AttributeError):
+                new_expires = 0.0
+            if new_expires > tidal._expires(dst) or not dst.is_file():
+                try:
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    dst.write_text(text, encoding="utf-8")
+                    notes.append("Tidal sign-in taken")
+                except OSError as exc:
+                    return "The Tidal sign-in could not be saved: %s" % (exc.strerror or exc)
+            else:
+                notes.append("the Tidal sign-in here is newer and stays")
+            self.tidalChanged.emit()
+        have = {(e.get("service", ""), e.get("user", "")) for e in v.entries()}
+        added = 0
+        for e in payload.get("vault") or []:
+            if (e.get("service", ""), e.get("user", "")) in have:
+                continue
+            try:
+                v.save_entry(dict(e))
+                added += 1
+            except ValueError:
+                break
+        notes.append("%d vault entries added" % added)
+        self.vaultChanged.emit()
+        self.toast.emit("Login pack opened: " + ", ".join(notes) + ".")
+        return ""
+
     @Slot(result=bool)
     def wipeLogins(self) -> bool:
         """Delete the vault now and the browser sign-in (YouTube profile) at the next start."""

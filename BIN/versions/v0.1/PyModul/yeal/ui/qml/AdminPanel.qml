@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 // Settings > Admin: stored logins, locked with the admin password. Content is only requested while unlocked.
@@ -133,6 +134,43 @@ ColumnLayout {
                     if (e === "") { oldPw.clear(); newPw.clear() }
                 }
             }
+        }
+    }
+    // ---- unlocked: take the logins to another PC, in one encrypted file
+    FileDialog {
+        id: exportDialog
+        title: qsTr("Save the login pack")
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "yealpack"
+        nameFilters: [qsTr("Yeal login pack (*.yealpack)"), qsTr("All files (*)")]
+        onAccepted: { packMsg.ok = false; packMsg.text = backend.exportLogins(selectedFile.toString(), packPw.text)
+                      if (packMsg.text === "") { packMsg.ok = true; packMsg.text = qsTr("The login pack was saved."); packPw.clear() } }
+    }
+    FileDialog {
+        id: importDialog
+        title: qsTr("Open a login pack")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTr("Yeal login pack (*.yealpack)"), qsTr("All files (*)")]
+        onAccepted: { packMsg.ok = false; packMsg.text = backend.importLogins(selectedFile.toString(), packPw.text)
+                      if (packMsg.text === "") { packMsg.ok = true; packMsg.text = qsTr("The login pack was opened."); packPw.clear() } }
+    }
+    SettingsRow {
+        visible: backend.vaultUnlocked && !backend.vaultDefaultPassword
+        label: qsTr("Take the logins with you")
+        hint: qsTr("Packs the Tidal sign-in and the entries above into ONE file, encrypted with a password of your own (at least 10 characters; it is not stored anywhere - keep it). Open the file on another PC with the same password. The YouTube / Google sign-in is not part of it: sign in once in the browser view there.")
+        stacked: true
+        ColumnLayout {
+            spacing: Theme.s2
+            Layout.fillWidth: true
+            AppField { id: packPw; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: qsTr("Password of the pack") }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.s1
+                AppButton { text: qsTr("Save pack ..."); iconName: "download"; enabled: packPw.text.length >= 10; onClicked: exportDialog.open() }
+                AppButton { text: qsTr("Open pack ..."); iconName: "open"; enabled: packPw.text.length > 0; onClicked: importDialog.open() }
+            }
+            Text { id: packMsg; property bool ok: false; visible: text !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap
+                   font.pixelSize: Theme.footnote; color: ok ? Theme.textSecondary : Theme.danger }
         }
     }
     SettingsRow {
