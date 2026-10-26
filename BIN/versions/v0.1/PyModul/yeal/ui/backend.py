@@ -297,6 +297,7 @@ class Backend(QObject):
         self._dsp_timer.timeout.connect(lambda: [p.applyDsp() for p in (self.tidal.player, self.localPlayer)])
         self.tidal = TidalBackend(self)
         from .local_player import LocalPlayer        # player for downloaded files (oval design)
+        self._calibration = None                 # the sound check of Settings (made when first asked for)
         self.localPlayer = LocalPlayer(self)
         self._queue = DownloadQueue(
             self._engine.run, self._settings.max_parallel,
@@ -1671,6 +1672,13 @@ class Backend(QObject):
     @Property(QObject, constant=True)
     def localPlayerObject(self):  # type: ignore[override]
         return self.localPlayer
+
+    @Property(QObject, constant=True)
+    def calibration(self):  # type: ignore[override]
+        if self._calibration is None:
+            from .calibration_runner import CalibrationRunner
+            self._calibration = CalibrationRunner(self)
+        return self._calibration
 
     @Slot(int)
     def playInYeal(self, job_id: int) -> None:

@@ -173,5 +173,60 @@ Flickable {
             }
             Text { text: root.player.volume + "%"; color: Theme.textSecondary; font.pixelSize: Theme.caption }
         }
+
+        // ---- the sound check: finds the smallest sound buffer without dropouts and checks for slowing down (runs as its own process)
+        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.separator }
+        Text { text: qsTr("Sound check"); color: Theme.textSecondary; font.pixelSize: Theme.caption; font.weight: Font.Bold }
+        Text {
+            Layout.fillWidth: true
+            text: qsTr("Tests the real playback chain on the chosen output while the window is busy, finds the smallest sound buffer without dropouts and, in the long test, checks that nothing grows with every song. The music is paused meanwhile; the test is silent.")
+            color: Theme.textTertiary; font.pixelSize: Theme.caption; wrapMode: Text.Wrap
+        }
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.s1
+            AppButton { text: qsTr("Quick check (1 min)"); iconName: "gauge"; enabled: !backend.calibration.running
+                        onClicked: backend.calibration.start("quick") }
+            AppButton { text: qsTr("Long check (4 min)"); iconName: "gauge"; enabled: !backend.calibration.running
+                        onClicked: backend.calibration.start("stress") }
+            AppButton { visible: backend.calibration.running; text: qsTr("Cancel"); iconName: "x"; onClicked: backend.calibration.cancel() }
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: backend.calibration.status !== ""
+            text: backend.calibration.status
+            color: backend.calibration.running ? Theme.accent : Theme.text
+            font.pixelSize: Theme.footnote; wrapMode: Text.Wrap
+        }
+        Repeater {
+            model: backend.calibration.verdicts
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: Theme.s2
+                Rectangle {
+                    implicitWidth: 44; implicitHeight: 20; radius: 10
+                    Layout.alignment: Qt.AlignTop
+                    color: modelData.level === "PASS" ? Theme.successSoft : modelData.level === "WARN" ? Theme.warningSoft : Theme.dangerSoft
+                    Text { anchors.centerIn: parent; text: modelData.level; font.pixelSize: 10; font.weight: Font.Bold
+                           color: modelData.level === "PASS" ? Theme.success : modelData.level === "WARN" ? Theme.warning : Theme.danger }
+                }
+                Text { Layout.fillWidth: true; text: modelData.text; color: Theme.textSecondary; font.pixelSize: Theme.caption; wrapMode: Text.Wrap }
+            }
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: backend.calibration.hasResult
+            text: qsTr("Recommended: sound buffer %1 ms, picture %2 times a second. Now: %3 ms, %4 Hz.")
+                  .arg(backend.calibration.profile.audio_buffer_ms).arg(backend.calibration.profile.ui_refresh_hz)
+                  .arg(backend.settings.audio_buffer_ms).arg(backend.settings.ui_refresh_hz)
+            color: Theme.text; font.pixelSize: Theme.caption; wrapMode: Text.Wrap
+        }
+        Flow {
+            Layout.fillWidth: true
+            visible: backend.calibration.hasResult
+            spacing: Theme.s1
+            AppButton { text: qsTr("Use the recommended values"); kind: "primary"; iconName: "check"; onClicked: backend.calibration.apply() }
+        }
     }
 }

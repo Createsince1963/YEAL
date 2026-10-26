@@ -92,3 +92,52 @@ class JudgeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
+class RunnerTests(unittest.TestCase):
+    def test_command_line_of_the_child(self):
+        from yeal.ui import calibration_runner as r
+        program, args = r.child_command("stress", 5.0, "Kopf")
+        self.assertEqual(program, sys.executable)
+        self.assertTrue(args[0].endswith("main.py"))
+        self.assertEqual(args[1:], ["--calibrate", "--json", "--stress", "--minutes", "5.0", "--device", "Kopf"])
+        self.assertIn("--quick", r.child_command("quick")[1])
+
+    def test_the_sound_check_runs_as_a_process_and_applies_its_values(self):
+        import time
+        from test_core import FakeYDL, make_ctx
+        from yeal.core.engine import Engine
+        from yeal.platforms import desktop
+        from yeal.ui import dsp_media
+        from yeal.ui.backend import Backend
+        if not dsp_media.usable(desktop.find_ffmpeg()):
+            self.skipTest("the own engine needs numpy and ffmpeg")
+        app = QGuiApplication.instance() or QGuiApplication(sys.argv)
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            old = os.environ.get("YEAL_DATA_DIR")
+            os.environ["YEAL_DATA_DIR"] = tmp                     # the child writes its files here, not into the real data folder
+            try:
+                ctx = make_ctx(tmp)
+                backend = Backend(ctx, engine=Engine(ctx, ydl_class=FakeYDL), check_updates=False)
+                run = backend.calibration
+                self.assertFalse(run.running)
+                run.start("quick")
+                self.assertTrue(run.running)
+                end = time.time() + 150
+                while run.running and time.time() < end:
+                    app.processEvents()
+                    time.sleep(0.02)
+                self.assertFalse(run.running, "the sound check did not finish")
+                self.assertTrue(run.hasResult, run.status)
+                self.assertGreaterEqual(len(run.verdicts), 2)
+                self.assertTrue(run.status.startswith("Ready"))
+                run.apply()
+                self.assertEqual(backend.settings["audio_buffer_ms"], run.profile["audio_buffer_ms"])
+                self.assertEqual(backend.settings["ui_refresh_hz"], run.profile["ui_refresh_hz"])
+                backend.shutdown()
+            finally:
+                if old is None:
+                    os.environ.pop("YEAL_DATA_DIR", None)
+                else:
+                    os.environ["YEAL_DATA_DIR"] = old

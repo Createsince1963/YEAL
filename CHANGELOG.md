@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.27
+- **Sound check in the Settings planet:** "Quick check (1 min)" and "Long check (4 min)" start the calibration as its own process (`ui/calibration_runner.py`; `main.py --calibrate --json`, in the exe `Yeal.exe --calibrate --json`), so the window stays free. The card shows the progress line, then the PASS / WARN / FAIL list and the recommended sound buffer and repaint rate next to the current ones; "Use the recommended values" writes `audio_buffer_ms` and `ui_refresh_hz`. Music is paused while it runs (the test is silent); Cancel stops it. The Settings card has the pencil (edit) zoom like the others.
+- Tests: the child command line, and a real run of the quick check through the runner (`test_calibration.py`). No EXE built.
+
 ## 0.9.1.26
 - **Audio performance & stability calibration** (`ui/calibration.py`, `Calibrate_Yeal.bat`): tests the real chain (ffmpeg, Python buffer, filter chain, sound card buffer) on the chosen output with a synthetic busy GUI: lists the outputs and their formats (float32 per rate, Bluetooth hands-free warning), finds the smallest sound card buffer without a dropout (200 ... 1500 ms) and recommends one step above it, picks the repaint rate (20 / 15 Hz) from the GUI lag, and with `--stress` (`--minutes N` for a long run) changes songs 40 times with pause / seek and checks threads, ffmpeg processes, memory, dropouts and GUI lag: PASS / WARN / FAIL list, `audio_profile.json` and `audio_report.json` in the data folder, `--apply` writes the values into the settings. `--list` shows only the outputs, `--device Kopf` tests the Bluetooth headphones.
 - New settings `audio_buffer_ms` (200-2000, default 600) and `ui_refresh_hz` (10-30, default 20); the own engine counts dropouts (`underruns`) and its longest chain tick; `YEAL_PERF=1` shows them as well.

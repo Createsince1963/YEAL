@@ -359,6 +359,7 @@ def main(argv=None) -> int:
     ap.add_argument("--device", default="", help="part of the name of the output (default: the system default)")
     ap.add_argument("--apply", action="store_true", help="write the measured values into the settings")
     ap.add_argument("--list", action="store_true", help="only list the outputs and their formats")
+    ap.add_argument("--json", action="store_true", help="for the app: lines 'PROGRESS text' and one line 'RESULT {json}'")
     args = ap.parse_args(argv)
     from PySide6.QtGui import QGuiApplication
     app = QGuiApplication.instance() or QGuiApplication(sys.argv)
@@ -369,11 +370,15 @@ def main(argv=None) -> int:
     from .. import platforms
     ctx = platforms.detect()
     level = "stress" if args.stress or args.minutes else "quick"
+    progress = (lambda text: print("PROGRESS " + text, flush=True)) if args.json else print
     try:
-        report = run(ctx.ffmpeg, level, args.device, args.minutes, print, ctx.data_dir)
+        report = run(ctx.ffmpeg, level, args.device, args.minutes, progress, ctx.data_dir)
     except RuntimeError as exc:
-        print("Calibration not possible:", exc)
+        print(("ERROR " if args.json else "Calibration not possible: ") + str(exc), flush=True)
         return 2
+    if args.json:
+        print("RESULT " + json.dumps(report), flush=True)
+        return 0
     print()
     for v in report["verdicts"]:
         print("%-5s %s" % (v["level"], v["text"]))

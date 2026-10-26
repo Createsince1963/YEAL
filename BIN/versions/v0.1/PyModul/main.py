@@ -94,6 +94,9 @@ def _guard_window_size(engine) -> None:
 
 
 def main() -> int:
+    if "--calibrate" in sys.argv:           # the sound check of Settings runs as a separate process (the player keeps playing / stays free)
+        from yeal.ui import calibration
+        return calibration.main(sys.argv[sys.argv.index("--calibrate") + 1:])
     from PySide6.QtCore import QCoreApplication, QUrl
     from PySide6.QtGui import QGuiApplication, QIcon
     from PySide6.QtQml import QQmlApplicationEngine
