@@ -277,7 +277,7 @@ class DspMedia(QObject):
         args = [self._ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "info"]
         if pos_ms > 0:
             args += ["-ss", "%.3f" % (pos_ms / 1000.0)]
-        args += ["-i", self._source, "-vn", "-sn", "-dn", "-map", "0:a:0", "-f", "f32le", "-ac", "2", "-ar", str(rate), "pipe:1"]
+        args += ["-readrate", "1.05", "-i", self._source, "-vn", "-sn", "-dn", "-map", "0:a:0", "-f", "f32le", "-ac", "2", "-ar", str(rate), "pipe:1"]
         try:
             self._feed = _Feed(args)
         except OSError:
