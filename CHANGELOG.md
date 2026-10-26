@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.38
+- `Chip` caps its natural width at 200 px (long labels elide instead of widening a narrow card) - this also fixes `test_gui_clipping`, which failed at 0.9.1.37 in a clean checkout (a Chip of 240 px in the 230 px Settings card). The change was made by a parallel session and is committed here.
+- **`CLAUDE.md`** in the project root: rules of the owner, paths, test commands, technical facts, the current state and open points, and how to switch the Claude account (a new session reads this file instead of the personal memory). `docs/HANDOFF_TIDALGUI.md` has a summary of 0.9.1.19-0.9.1.38. No EXE built.
+
 ## 0.9.1.37
 - **The real cause of the slow GUI found and fixed:** the oval of the player (canvas in `TidalTrackPlayer.qml`) painted its glow with `shadowBlur`; Qt blurs the whole canvas for every shadowed shape, in software, in the GUI thread: **1346 ms per paint** at 1800 px (measured per canvas with `tests/bench_open_cards.py`), and the oval is repainted up to 20 times a second while a song plays - that is why the window got slower and slower, sound stuttered and opening a card (which resizes the sun and repaints the oval) took 0.6-0.8 s. The glow is now three wide faint strokes around the band and a radial gradient around the dot: **9 ms per paint**, the look is the same.
 - Opening the Queue card: 780 ms -> 45 ms (Sound card 580 -> 33 ms, Library 590 -> 108 ms). Also the panel no longer reads the library (disk scan) and builds its list when a tab other than "Library" opens. No EXE built.

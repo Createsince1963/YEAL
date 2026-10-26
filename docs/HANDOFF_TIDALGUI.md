@@ -109,3 +109,13 @@ Neu geschrieben, aber **noch nicht geladen/getestet**:
 - Done: cards open on the side of their planet, Folders planet (own music folders, network too), edit mode zoom, library/folders/albums draggable into the queue, Clear all + Save list in the queue card, Speaker card buttons steer the player in THIS PC.
 - Hand test needed: real drag from library rows / folder moon into the queue card (system drag), a UNC path on the network, the zoomed cards at real window sizes, saved lists after a restart.
 - Open: rename of a folder (field exists only when adding), saved lists have no own edit list, TIDAL library (playlists) not draggable as "folder" yet.
+
+## Updates 0.9.1.19 - 0.9.1.38 (2026-10-26, local commits + tags, not pushed, NO EXE)
+Details of every version are in `CHANGELOG.md`; the rules, paths and open points for a new session are in `CLAUDE.md` (read it first).
+- 0.9.1.19 cards at their planets, Folders planet, edit-mode zoom, drag into the queue, Clear all / Save list. 0.9.1.20 song lists above / below the sun.
+- 0.9.1.21-24 TIDAL options as pulldowns, "Low" removed, icon + format + bitrate, TIDAL Normal converted to MP3 320 after the download.
+- 0.9.1.25 GUI load fixes + `YEAL_PERF`; 0.9.1.26-27 audio calibration (`Calibrate_Yeal.bat`, sound check button); 0.9.1.28 tiddl inside the exe (untested build).
+- 0.9.1.29-31 login pack (encrypted file), cookie file for YouTube, empty-button fix, Show / Hide for passwords.
+- 0.9.1.32-35 logos (player buttons, new Yeal tile, MediaOrbit vector logo), sun glow restored. 0.9.1.36 song lists as vertical cards in front.
+- 0.9.1.37 the real cause of the slow GUI: Canvas `shadowBlur` (1.3 s per paint) removed; cards open in about 45 ms. 0.9.1.38 Chip width cap + CLAUDE.md hand-over.
+- Hand tests still needed: see the "Open" list in `CLAUDE.md`.
