@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1.33
+- **New Yeal logo** (blue play button with the download arrow on a dark rounded tile): `icon.png` (window, task bar, sidebar), `docs/Logo.ico` (exe icon, 16-256 px) and the tile inside the splash, card and mark pictures (the old red tile is wiped and replaced; the text below stays). Sources and the script are in `docs/brand/` (`make_yeal_logo.py`, the old pictures as `old_*.png`). The exe icon appears with the next EXE build. No EXE built.
+
 ## 0.9.1.32
 - **Logos on the four player buttons** (top bar): YouTube = the YouTube logo, made smaller and blue instead of red; TIDAL Web = the TIDAL mark (white on the dark theme, dark on the light theme); TIDAL DIY = the TIDAL mark on a blue square; Player = the MediaOrbit mark only. In the Player view the MediaOrbit logo with name and slogan sits in the top left corner on a dark plaque (behind the cards). Files in `qml/assets/` (`logo_youtube.png`, `logo_tidal.png`, `logo_tidal_dark.png`, `logo_tidal_diy.png`, `logo_player.png`, `logo_mediaorbit.png`), made from the originals in `docs/brand/` (script: the scratch script `mk_logos.py`, PIL). The app is still called Yeal - only the logos were placed. No EXE built.
 
