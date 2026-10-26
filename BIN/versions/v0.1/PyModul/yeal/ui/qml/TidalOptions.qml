@@ -15,8 +15,9 @@ ColumnLayout {
 
     readonly property var groups: [
         { key: "tidal_quality", caption: qsTr("Quality"), show: showQuality,
-          options: [{ text: qsTr("Normal (AAC 320)"), value: "normal" },
-                    { text: qsTr("High (FLAC)"), value: "high" }, { text: qsTr("Max (Hi-Res)"), value: "max" }] },
+          options: [{ text: qsTr("Normal · AAC 320 kbps"), sub: qsTr("M4A file"), icon: "music", value: "normal" },
+                    { text: qsTr("High · FLAC 1411 kbps"), sub: qsTr("16-bit / 44.1 kHz"), icon: "headphones", value: "high" },
+                    { text: qsTr("Max · FLAC up to 9216 kbps"), sub: qsTr("24-bit / 192 kHz"), icon: "sparkle", value: "max" }] },
         { key: "tidal_videos", caption: qsTr("Videos"), show: true,
           options: [{ text: qsTr("None"), value: "none" }, { text: qsTr("With videos"), value: "allow" },
                     { text: qsTr("Only videos"), value: "only" }] },
@@ -35,6 +36,10 @@ ColumnLayout {
                     { text: qsTr("Overwrite existing"), key: "tidal_no_skip" }, { text: qsTr("Rewrite tags"), key: "tidal_rewrite" }] }
     ]
     readonly property var shown: groups.filter(function (g) { return g.show })
+    function iconOf(g) {
+        for (var i = 0; i < g.options.length; ++i) if (g.options[i].icon && s[g.key] === g.options[i].value) return g.options[i].icon
+        return ""
+    }
     function summary(g) {
         if (g.key === "_extras") {
             var on = g.options.filter(function (o) { return !!s[o.key] }).map(function (o) { return o.text })
@@ -85,9 +90,15 @@ ColumnLayout {
                         spacing: 0
                         Text { text: tile.modelData.caption; color: Theme.textSecondary; font.pixelSize: Theme.caption
                                elide: Text.ElideRight; Layout.fillWidth: true }
-                        Text { text: root.summary(tile.modelData); color: tile.open ? Theme.accent : Theme.text
-                               font.pixelSize: Theme.footnote; font.weight: Font.Medium
-                               elide: Text.ElideRight; Layout.fillWidth: true }
+                        RowLayout {              // the icon first, then the format with its bitrate
+                            Layout.fillWidth: true
+                            spacing: 5
+                            Icon { visible: root.iconOf(tile.modelData) !== ""; name: root.iconOf(tile.modelData); size: 14
+                                   color: tile.open ? Theme.accent : Theme.textSecondary }
+                            Text { text: root.summary(tile.modelData); color: tile.open ? Theme.accent : Theme.text
+                                   font.pixelSize: Theme.footnote; font.weight: Font.Medium
+                                   elide: Text.ElideRight; Layout.fillWidth: true }
+                        }
                     }
                     Icon { name: "chevronDown"; size: 14; color: Theme.textSecondary; rotation: tile.open ? 180 : 0 }
                 }
@@ -116,8 +127,12 @@ ColumnLayout {
                                     anchors.fill: parent
                                     anchors.leftMargin: Theme.s3; anchors.rightMargin: Theme.s3
                                     spacing: Theme.s2
+                                    Icon { visible: !!choice.modelData.icon; name: choice.modelData.icon || "music"; size: 16
+                                           color: choice.on ? Theme.accent : Theme.textSecondary }
                                     Text { text: choice.modelData.text; Layout.fillWidth: true; elide: Text.ElideRight
                                            color: choice.on ? Theme.accent : Theme.text; font.pixelSize: Theme.body }
+                                    Text { visible: !!choice.modelData.sub; text: choice.modelData.sub || ""
+                                           color: Theme.textTertiary; font.pixelSize: Theme.caption }
                                     Icon { visible: choice.on; name: "check"; size: 16; color: Theme.accent }
                                 }
                                 HoverHandler { id: ch; cursorShape: Qt.PointingHandCursor }

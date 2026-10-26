@@ -544,8 +544,8 @@ Flickable {
             SettingsItem {
                 label: qsTr("Audio quality")
                 icon: "music"
-                summary: page.s.tidal_quality === "max" ? qsTr("Max (up to 24-bit, 192 kHz)")
-                         : page.s.tidal_quality === "high" ? qsTr("High (16-bit, 44.1 kHz)")
+                summary: page.s.tidal_quality === "max" ? qsTr("Max (FLAC up to 9216 kbps)")
+                         : page.s.tidal_quality === "high" ? qsTr("High (FLAC 1411 kbps)")
                          : qsTr("Normal (AAC 320 kbps)")
                 hint: qsTr("The same choices as in the TIDAL app. Adaptive streaming does not apply to downloads: Yeal asks Tidal for exactly the quality chosen here (what your subscription offers is used; Max needs a HiFi Plus / Max plan).")
                 stacked: true
@@ -556,9 +556,9 @@ Flickable {
                     readonly property string q: page.s.tidal_quality
                     Repeater {
                         model: [
-                            { id: "normal", title: qsTr("Normal"), sub: qsTr("AAC 320 kbps: balance between audio quality and data use") },
-                            { id: "high", title: qsTr("High"), sub: qsTr("16-bit, 44.1 kHz (FLAC)") },
-                            { id: "max", title: qsTr("Max"), sub: qsTr("Up to 24-bit, 192 kHz (FLAC)") }
+                            { id: "normal", title: qsTr("Normal"), sub: qsTr("AAC 320 kbps (M4A): balance between audio quality and data use") },
+                            { id: "high", title: qsTr("High"), sub: qsTr("FLAC 1411 kbps, 16-bit, 44.1 kHz") },
+                            { id: "max", title: qsTr("Max"), sub: qsTr("FLAC up to 9216 kbps, 24-bit, 192 kHz") }
                         ]
                         delegate: RowLayout {
                             id: qRow

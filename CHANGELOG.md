@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1.23
+- **Format and bitrate everywhere:** the TIDAL pulldown shows an icon first, then the format with its bitrate (Normal - AAC 320 kbps / M4A, High - FLAC 1411 kbps, Max - FLAC up to 9216 kbps); the same labels in the profile menu and Settings. Audio choice dialog: "AAC (M4A, 320 kbps)", FLAC with the bitrate when known; profile editor: "MP3 320", "AAC 320 (M4A)". No EXE built.
+
 ## 0.9.1.22
 - **TIDAL "Low" (AAC 96 kbps) is gone:** the choices are Normal (AAC 320), High (FLAC 16-bit) and Max (FLAC up to 24-bit). A saved "low" becomes "normal"; the Settings > Tidal item has three entries and no 96 / 320 switch. No EXE built.
 

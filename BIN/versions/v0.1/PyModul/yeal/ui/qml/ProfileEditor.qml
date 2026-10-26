@@ -134,7 +134,7 @@ Popup {
                 Segmented {
                     Layout.fillWidth: true
                     current: dlg.audioFormat
-                    options: [{ text: "MP3", value: "mp3" }, { text: "AAC (M4A)", value: "m4a" },
+                    options: [{ text: "MP3 320", value: "mp3" }, { text: "AAC 320 (M4A)", value: "m4a" },
                               { text: "Opus", value: "opus" }, { text: "FLAC", value: "flac" },
                               { text: qsTr("Original"), value: "best" }]
                     onActivated: (v) => dlg.audioFormat = v

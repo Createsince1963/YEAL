@@ -22,8 +22,8 @@ from urllib.parse import urlparse
 
 TIDAL_QUALITIES = ("normal", "high", "max")   # tiddl: m4a 320 / FLAC 16-bit / FLAC up to 24-bit ("low", AAC 96, is gone)
 TIDAL_QUALITY_LABELS = {   # shown in the download options (same steps as Tidal's own audio quality setting)
-    "normal": "Tidal Normal (AAC 320 kbps)",
-    "high": "Tidal High (FLAC 16-bit / 44.1 kHz)", "max": "Tidal Max (FLAC up to 24-bit / 192 kHz)"}
+    "normal": "Tidal Normal (AAC 320 kbps, M4A)",
+    "high": "Tidal High (FLAC 1411 kbps, 16-bit / 44.1 kHz)", "max": "Tidal Max (FLAC up to 9216 kbps, 24-bit / 192 kHz)"}
 TIDAL_VIDEO_QUALITIES = ("sd", "hd", "fhd")           # tiddl --video-quality
 TIDAL_VIDEOS = ("none", "allow", "only")              # tiddl --videos: skip / include / only videos inside albums, playlists, artists
 TIDAL_ATMOS = ("none", "allow", "only")               # tiddl --dolby-atmos: skip / include / only Dolby Atmos versions

@@ -51,13 +51,13 @@ def choices(best: dict) -> list:
             "title": "MP3 (%d kbps)" % MP3_MIN_KBPS,
             "detail": "Works everywhere. Always %d kbps (never lower), converted from the %s source. A lossy copy of a lossy file: it cannot sound better than the source." % (MP3_MIN_KBPS, codec)},
            {"id": "m4a", "format": "m4a", "bitrate": 320,
-            "title": "AAC (M4A)",
+            "title": "AAC (M4A, 320 kbps)",
             "detail": "Better sound than MP3 at the same size. Plays on phones, Apple devices and most players."},
            {"id": "best", "format": "best", "bitrate": 0,
             "title": "Original (%s, %s kbps)" % (codec, abr) if abr else "Original (%s)" % codec,
             "detail": "The unchanged source stream, no conversion, best possible quality."}]
     if best.get("lossless"):
-        out.append({"id": "flac", "format": "flac", "bitrate": 0, "title": "FLAC (lossless)",
+        out.append({"id": "flac", "format": "flac", "bitrate": 0, "title": "FLAC (lossless%s)" % (", %d kbps" % abr if abr else ""),
                     "detail": "Keeps the full quality of the %s source. Large file." % codec})
     return out
 

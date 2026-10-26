@@ -490,7 +490,7 @@ class TidalGuiQmlTest(unittest.TestCase):
         for _ in range(5):
             self.app.processEvents()
         self.assertIn("tidal_video_quality", [g["key"] for g in js(opts.property("shown"))])
-        self.assertIn("High (FLAC)", opts.property("overview"))
+        self.assertIn("FLAC 1411 kbps", opts.property("overview"))
         b.setSetting("tidal_opts_collapsed", True)
         self.assertIs(b.settings["tidal_opts_collapsed"], True)
         b.setSetting("tidal_opts_collapsed", False)
