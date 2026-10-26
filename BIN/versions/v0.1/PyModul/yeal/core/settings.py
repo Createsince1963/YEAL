@@ -149,6 +149,7 @@ class Settings:
     max_parallel: int = 2
     gentle_mode: bool = True          # pauses between requests/downloads, back-off on errors
     cookies_browser: str = ""         # reuse the YouTube login of firefox/edge/chrome for downloads
+    cookies_file: str = ""            # a cookies.txt with the YouTube login (Yeal keeps its own copy in the data folder); wins over cookies_browser
     ffmpeg_path: str = ""             # optional user-selected helper; empty = automatic lookup
     node_path: str = ""               # optional user-selected helper; empty = automatic lookup
     tidal_path: str = ""              # optional user-selected tiddl executable (Tidal helper); empty = automatic lookup
@@ -228,6 +229,7 @@ class Settings:
             self.theme = "system"
         if self.cookies_browser not in COOKIE_BROWSERS:
             self.cookies_browser = ""
+        self.cookies_file = str(self.cookies_file or "")[:500]
         self.ffmpeg_path = str(self.ffmpeg_path or "")[:1000]
         self.node_path = str(self.node_path or "")[:1000]
         self.tidal_path = str(self.tidal_path or "")[:1000]
@@ -415,7 +417,7 @@ class Settings:
             keep_whole=prof["keep_whole"],
             rate_limit_kbps=self.rate_limit_kbps, proxy=self.proxy,
             profile=prof["name"], custom=dict(self.custom_options),
-            cookies_browser=self.cookies_browser, gentle=self.gentle_mode,
+            cookies_browser=self.cookies_browser, cookies_file=self.cookies_file, gentle=self.gentle_mode,
             html_create=self.html_create, single_playback=self.single_playback).normalized()
 
     # ---- persistence ----------------------------------------------------

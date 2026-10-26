@@ -68,6 +68,7 @@ class DownloadOptions:
     html_create: str = "both"      # description pages: "server" (online player) | "file" (standalone) | "both" (linked)
     single_playback: bool = True   # description pages: local and online player never play at the same time
     tidal_quality: str = ""        # Tidal links: low | normal | high | max chosen in the download options ("" = Settings > Tidal)
+    cookies_file: str = ""         # a cookies.txt (Netscape format) with the YouTube login: used before the browser cookies
 
     def normalized(self) -> "DownloadOptions":
         mode = self.mode if self.mode in MODES else "video"
@@ -106,7 +107,8 @@ class DownloadOptions:
                                live, bool(self.playlist_dir), items,
                                self.html_create if self.html_create in ("server", "file", "both") else "both",
                                bool(self.single_playback),
-                               ("normal" if self.tidal_quality == "low" else self.tidal_quality) if self.tidal_quality in ("low", "normal", "high", "max") else "")
+                               ("normal" if self.tidal_quality == "low" else self.tidal_quality) if self.tidal_quality in ("low", "normal", "high", "max") else "",
+                               str(self.cookies_file or "")[:500])
 
 
 @dataclass

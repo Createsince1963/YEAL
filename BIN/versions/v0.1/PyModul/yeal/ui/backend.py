@@ -1002,7 +1002,9 @@ class Backend(QObject):
         auth = self._tidal_auth_file()
         try:
             auth_text = auth.read_text(encoding="utf-8-sig") if auth.is_file() else ""
-            payload = loginpack.build_payload(auth_text, v.entries(with_secret=True))
+            cookies = Path(self._settings.cookies_file) if self._settings.cookies_file else None
+            cookies_text = cookies.read_text(encoding="utf-8") if cookies and cookies.is_file() else ""
+            payload = loginpack.build_payload(auth_text, v.entries(with_secret=True), cookies_text)
             blob = loginpack.seal(payload, pack_password)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(blob)
@@ -1010,7 +1012,8 @@ class Backend(QObject):
             return str(exc)
         except OSError as exc:
             return "The file could not be written: %s" % (exc.strerror or exc)
-        self.toast.emit("Login pack saved (%d vault entries%s)." % (len(payload["vault"]), ", Tidal sign-in" if auth_text else ", no Tidal sign-in"))
+        self.toast.emit("Login pack saved (%d vault entries%s%s)." % (len(payload["vault"]), ", Tidal sign-in" if auth_text else "",
+                                                                  ", YouTube cookies" if cookies_text else ""))
         return ""
 
     @Slot(str, str, result=str)
@@ -1046,6 +1049,17 @@ class Backend(QObject):
             else:
                 notes.append("the Tidal sign-in here is newer and stays")
             self.tidalChanged.emit()
+        cookies_text = str(payload.get("yt_cookies") or "")
+        if cookies_text and not self._check_cookies_text(cookies_text):
+            copy = Path(self._ctx.data_dir) / self.COOKIES_COPY
+            try:
+                copy.parent.mkdir(parents=True, exist_ok=True)
+                copy.write_text(cookies_text, encoding="utf-8")
+                self._settings.cookies_file = str(copy)
+                self._save()
+                notes.append("YouTube cookies taken")
+            except OSError:
+                notes.append("the YouTube cookies could not be saved")
         have = {(e.get("service", ""), e.get("user", "")) for e in v.entries()}
         added = 0
         for e in payload.get("vault") or []:
@@ -1548,6 +1562,51 @@ class Backend(QObject):
         self._settings.cookies_browser = name
         self._settings.validate()
         self._save()
+
+    COOKIES_COPY = "youtube_cookies.txt"
+
+    @Slot(str, result=str)
+    def setCookiesFile(self, value: str) -> str:
+        """A cookies.txt (Netscape format) with the YouTube login, exported from a normal browser. Yeal keeps its own copy in the data
+        folder and uses it for downloads (it works with Chrome and Edge, whose own cookies cannot be read). '' removes it.
+        Returns an error text or ''."""
+        value = (value or "").strip()
+        copy = Path(self._ctx.data_dir) / self.COOKIES_COPY
+        if not value:
+            copy.unlink(missing_ok=True)
+            self._settings.cookies_file = ""
+            self._save()
+            return ""
+        path = Path(QUrl(value).toLocalFile() if value.startswith("file:") else value)
+        try:
+            if not path.is_file() or path.stat().st_size > 5 * 1024 * 1024:
+                return "Please choose a cookies.txt (a text file, at most 5 MB)."
+            text = path.read_text(encoding="utf-8-sig", errors="replace")
+        except OSError as exc:
+            return "The file could not be read: %s" % (exc.strerror or exc)
+        err = self._check_cookies_text(text)
+        if err:
+            return err
+        try:
+            copy.parent.mkdir(parents=True, exist_ok=True)
+            copy.write_text(text, encoding="utf-8")
+        except OSError as exc:
+            return "The file could not be saved: %s" % (exc.strerror or exc)
+        self._settings.cookies_file = str(copy)
+        self._save()
+        return ""
+
+    @staticmethod
+    def _check_cookies_text(text: str) -> str:
+        """Netscape cookie file with a Google / YouTube login: 7 tab separated fields per line."""
+        lines = [l for l in text.splitlines() if l.strip() and not l.startswith("#") or l.startswith("#HttpOnly_")]
+        rows = [l.lstrip("#").replace("HttpOnly_", "", 1).split("\t") for l in lines]
+        rows = [r for r in rows if len(r) >= 7]
+        if not rows:
+            return "This is not a cookies.txt in the Netscape format (seven columns separated by tabs)."
+        if not any(("youtube.com" in r[0] or "google.com" in r[0]) for r in rows):
+            return "The file has no cookies for youtube.com or google.com - sign in to YouTube first, then export again."
+        return ""
 
     @Slot(int, int, int, int, bool)
     def saveWindow(self, x: int, y: int, w: int, h: int, maximized: bool) -> None:

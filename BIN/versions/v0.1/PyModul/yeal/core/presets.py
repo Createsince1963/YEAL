@@ -1,6 +1,7 @@
 """Translate Yeal options + platform capabilities into yt-dlp option dicts."""
 from __future__ import annotations
 
+import os
 from typing import Dict, Tuple
 
 from .models import DownloadOptions
@@ -118,7 +119,9 @@ def build_ydl_opts(options: DownloadOptions, ctx) -> dict:
         if opt.playlist:
             out["sleep_interval"] = 3
             out["max_sleep_interval"] = 8
-    if opt.cookies_browser:
+    if opt.cookies_file and os.path.isfile(opt.cookies_file):      # a cookies.txt works with every browser (Chrome / Edge lock their own cookies)
+        out["cookiefile"] = opt.cookies_file
+    elif opt.cookies_browser:
         out["cookiesfrombrowser"] = (opt.cookies_browser,)
     if ctx.ffmpeg:
         out["ffmpeg_location"] = str(ctx.ffmpeg)

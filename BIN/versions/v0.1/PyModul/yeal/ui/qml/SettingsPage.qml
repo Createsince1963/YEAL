@@ -55,6 +55,19 @@ Flickable {
     }
 
     Loader {
+        id: cookiesLoader
+        active: !backend.isMobile
+        sourceComponent: FileDialog {
+            title: qsTr("Choose cookies.txt")
+            nameFilters: [qsTr("Cookie file (*.txt)"), qsTr("All files (*)")]
+            onAccepted: {
+                var err = backend.setCookiesFile(selectedFile.toString())
+                page.toastRequest(err || qsTr("Cookie file saved"))
+            }
+        }
+    }
+
+    Loader {
         id: tiddlLoader
         active: !backend.isMobile
         sourceComponent: FileDialog {
@@ -288,6 +301,20 @@ Flickable {
                               { text: "Edge", value: "edge" }, { text: "Chrome", value: "chrome" }]
                     Layout.preferredWidth: 300
                     onActivated: (v) => backend.setCookiesBrowser(v)
+                }
+            }
+            SettingsItem {
+                label: qsTr("Cookie file for YouTube downloads")
+                icon: "lock"
+                summary: page.s.cookies_file !== "" ? qsTr("In use") : qsTr("None")
+                hint: qsTr("A cookies.txt with your YouTube login, exported once from a normal browser (for example with a \"cookies.txt\" extension while you are signed in to YouTube). It works with Chrome and Edge as well and is used before the browser login above. Keep it private: it is a key to your account. The login pack of the admin area carries it to another PC.")
+                stacked: true
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Theme.s1
+                    AppButton { text: qsTr("Choose cookies.txt ..."); iconName: "folder"; onClicked: cookiesLoader.item.open() }
+                    AppButton { visible: page.s.cookies_file !== ""; text: qsTr("Remove"); iconName: "trash"
+                                onClicked: { backend.setCookiesFile(""); page.toastRequest(qsTr("Cookie file removed")) } }
                 }
             }
             SettingsItem {

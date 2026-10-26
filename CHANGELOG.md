@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1.30
+- **Cookie file for YouTube downloads** (Settings > Login & network): choose a `cookies.txt` (Netscape format) exported once from a normal browser; Yeal checks it (needs youtube.com / google.com cookies), keeps its own copy `youtube_cookies.txt` in the data folder and gives it to yt-dlp (`cookiefile`) before the browser cookies - it works with Chrome and Edge, whose own cookies Yeal cannot read. Setting `cookies_file`.
+- **The login pack carries it:** Tidal sign-in + YouTube cookie file + vault entries in one encrypted file, so a new PC needs no new logins for downloads. Only the sign-in inside the embedded browser view still has to be done once (its cookies are bound to the Windows account). No EXE built.
+
 ## 0.9.1.29
 - **Login pack (Settings > Admin):** "Take the logins with you" packs the Tidal sign-in (tiddl `auth.json`) and the entries of the admin vault into ONE file `*.yealpack`, encrypted with a pack password of your own (at least 10 characters, stored nowhere). "Open pack ..." on another PC with the same password brings the Tidal sign-in (only when it is newer than the one there) and adds the vault entries that are missing. Crypto in `core/loginpack.py`, standard library only: PBKDF2-HMAC-SHA256 (400,000 rounds, random salt), HMAC-SHA256 counter-mode stream, encrypt-then-MAC (a wrong password or a changed file is refused before anything is decrypted). Needs the admin area unlocked with a private password. The YouTube / Google sign-in is NOT in the pack (browser profile, locked while Yeal runs, Google may ask again on a new PC). Tests: `test_loginpack.py`. No EXE built.
 

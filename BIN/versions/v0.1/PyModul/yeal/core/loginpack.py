@@ -1,9 +1,10 @@
 """Login pack (0.9.1.29): the logins of the admin area packed into ONE file that is encrypted with a password of your choice, so
 it can be carried to another PC (on a stick, next to the exe) and opened there. No Qt, standard library only.
 
-What is inside: the Tidal sign-in (tiddl's auth.json) and the entries of the admin vault (service, user, password, note).
-NOT inside: the YouTube / Google sign-in - it lives in the browser profile of the embedded browser (locked while Yeal runs,
-and Google may ask again on a new PC); sign in there once on the new PC.
+What is inside: the Tidal sign-in (tiddl's auth.json), the YouTube cookie file for downloads (cookies.txt, if one was chosen
+in Settings) and the entries of the admin vault (service, user, password, note).
+NOT inside: the sign-in of the embedded browser view - its cookies are locked to the Windows account of this PC (DPAPI) and
+cannot be used on another one; sign in there once on the new PC.
 
 Protection: the key is made from the password with PBKDF2-HMAC-SHA256 (random salt, 400,000 rounds) and split into an
 encryption key and a MAC key. The data is encrypted with a stream made from HMAC-SHA256 in counter mode (random nonce) and
@@ -82,6 +83,6 @@ def open_pack(blob: bytes, password: str) -> dict:
     return payload
 
 
-def build_payload(tidal_auth_text: str, vault_entries: List[dict]) -> dict:
-    return {"version": 1, "created": int(time.time()), "tidal_auth": tidal_auth_text or "",
+def build_payload(tidal_auth_text: str, vault_entries: List[dict], yt_cookies: str = "") -> dict:
+    return {"version": 1, "created": int(time.time()), "tidal_auth": tidal_auth_text or "", "yt_cookies": yt_cookies or "",
             "vault": [{k: str(e.get(k, "")) for k in ("service", "user", "password", "note")} for e in vault_entries or []]}

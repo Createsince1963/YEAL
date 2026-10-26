@@ -97,5 +97,47 @@ class BackendTests(unittest.TestCase):
                     os.environ["TIDDL_PATH"] = old
 
 
+COOKIES = "# Netscape HTTP Cookie File" + chr(10) + ".youtube.com" + chr(9) + "TRUE" + chr(9) + "/" + chr(9) + "TRUE" + chr(9) + "2000000000" + chr(9) + "SID" + chr(9) + "abc" + chr(10)
+
+
+@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
+class CookiesFileTests(unittest.TestCase):
+    def test_cookie_file_is_checked_copied_used_and_packed(self):
+        from yeal.core.engine import Engine
+        from yeal.core.models import DownloadOptions
+        from yeal.core.presets import build_ydl_opts
+        from yeal.ui.backend import Backend
+        QGuiApplication.instance() or QGuiApplication(sys.argv)
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            tmp = Path(tmp)
+            ctx = make_ctx(str(tmp / "a"))
+            b = Backend(ctx, engine=Engine(ctx, ydl_class=FakeYDL), check_updates=False)
+            bad = tmp / "bad.txt"
+            bad.write_text("hello", encoding="utf-8")
+            self.assertNotEqual(b.setCookiesFile(str(bad)), "")
+            other = tmp / "other.txt"
+            other.write_text(COOKIES.replace("youtube.com", "example.org"), encoding="utf-8")
+            self.assertNotEqual(b.setCookiesFile(str(other)), "")
+            good = tmp / "cookies.txt"
+            good.write_text(COOKIES, encoding="utf-8")
+            self.assertEqual(b.setCookiesFile(str(good)), "")
+            used = b.settings["cookies_file"]
+            self.assertTrue(used.endswith("youtube_cookies.txt") and Path(used).is_file())      # its own copy
+            opts = build_ydl_opts(DownloadOptions(cookies_file=used, cookies_browser="chrome").normalized(), ctx)
+            self.assertEqual(opts.get("cookiefile"), used)
+            self.assertNotIn("cookiesfrombrowser", opts)                                       # the file wins
+            # into the pack and out again on another PC
+            b.vaultUnlock("1234")
+            b.vaultChangePassword("1234", "my private admin pw")
+            self.assertEqual(b.exportLogins(str(tmp / "p.yealpack"), PASSWORD), "")
+            self.assertNotIn(b"abc", (tmp / "p.yealpack").read_bytes())
+            self.assertEqual(b.setCookiesFile(""), "")
+            self.assertEqual(b.settings["cookies_file"], "")
+            self.assertFalse(Path(used).exists())
+            self.assertEqual(b.importLogins(str(tmp / "p.yealpack"), PASSWORD), "")
+            self.assertEqual(Path(b.settings["cookies_file"]).read_text(encoding="utf-8"), COOKIES)
+            b.shutdown()
+
+
 if __name__ == "__main__":
     unittest.main()
