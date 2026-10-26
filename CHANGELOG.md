@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1.34
+- **MediaOrbit logo redrawn as a vector** instead of the small picture: `BrandLogo.qml` draws the play mark (gradient, darker lobe, dark play triangle - `QtQuick.Shapes`, sharp at every size) and the name "MediaOrbit" with the slogan "Download. Play. Keep." as real text in the theme colours (top left of the Player view, no dark plaque any more). The Player button uses a mark rendered in 192 px (`docs/brand/make_mark.py`, same geometry); `logo_mediaorbit.png` is gone. No EXE built.
+
 ## 0.9.1.33
 - **New Yeal logo** (blue play button with the download arrow on a dark rounded tile): `icon.png` (window, task bar, sidebar), `docs/Logo.ico` (exe icon, 16-256 px) and the tile inside the splash, card and mark pictures (the old red tile is wiped and replaced; the text below stays). Sources and the script are in `docs/brand/` (`make_yeal_logo.py`, the old pictures as `old_*.png`). The exe icon appears with the next EXE build. No EXE built.
 

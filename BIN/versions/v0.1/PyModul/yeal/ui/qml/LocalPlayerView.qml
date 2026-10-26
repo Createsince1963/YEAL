@@ -8,7 +8,7 @@ import QtQuick.Layouts
 SunView {
     id: view
     ns: "local"
-    brand: "logo_mediaorbit.png"
+    brandLogo: true
     player: backend.localPlayerObject
     local: true
     planets: [

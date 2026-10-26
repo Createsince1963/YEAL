@@ -26,7 +26,7 @@ Item {
     property bool dropPlay: false                      // titles dropped on the sun play at once (TIDAL)
     property bool canExit: false                       // a second corner button leads back to the normal pages
     property string ns: "local"                        // name of this view in sun_layout
-    property string brand: ""                          // logo with name (a file in assets/) in the top left corner of the view
+    property bool brandLogo: false                     // the MediaOrbit logo with its name in the top left corner of the view
     property var planets: []
     property var cards: ({})
     property var opened: ({})                          // planet key -> true
@@ -177,25 +177,11 @@ Item {
         border.color: Theme.separator
     }
 
-    Rectangle {                   // the logo with the name on its own dark plaque (its text is white), behind the cards
-        visible: view.brand !== "" && brandImage.status === Image.Ready
-        x: 14; y: 12
-        width: brandImage.width + 24; height: brandImage.height + 20
-        radius: 14
-        color: "#0B121B"
-        opacity: 0.95
+    BrandLogo {                   // the logo with the name, drawn as a vector (sharp), behind the cards (they cover it when they open on the left)
+        visible: view.brandLogo
+        x: 18; y: 14
+        markSize: 46
         z: 1.5
-        Image {
-            id: brandImage
-            x: 12; y: 10
-            source: view.brand !== "" ? "assets/" + view.brand : ""
-            width: Math.min(180, view.width * 0.2)
-            height: width * implicitHeight / Math.max(1, implicitWidth)
-            fillMode: Image.PreserveAspectFit
-            sourceSize.width: 400
-            smooth: true
-            Accessible.ignored: true
-        }
     }
 
     // ---- the sky: the glow of the sun (one small picture, scaled and faded with the level) and the orbits

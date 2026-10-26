@@ -74,4 +74,5 @@ SunSpeaker 1.0 SunSpeaker.qml
 TidalSunView 1.0 TidalSunView.qml
 SunSound 1.0 SunSound.qml
 SunFan 1.0 SunFan.qml
+BrandLogo 1.0 BrandLogo.qml
 SunSources 1.0 SunSources.qml
