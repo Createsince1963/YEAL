@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1.22
+- **TIDAL "Low" (AAC 96 kbps) is gone:** the choices are Normal (AAC 320), High (FLAC 16-bit) and Max (FLAC up to 24-bit). A saved "low" becomes "normal"; the Settings > Tidal item has three entries and no 96 / 320 switch. No EXE built.
+
 ## 0.9.1.21
 - **TIDAL options as pulldowns:** a click on a tile (Quality, Videos, Video quality, Dolby Atmos, Artist singles, Extras) opens a pulldown with its choices instead of a row of chips below; the extras can be ticked one after the other. Same look in the workflow panel and in Settings > Tidal (`TidalOptions.qml`).
 - **MP3 only at 320 kbps:** `DownloadOptions.normalized()` forces 320 kbps for MP3 (the other MP3 bitrates are gone; the choice dialog and the converter already used 320).

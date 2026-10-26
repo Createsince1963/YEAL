@@ -152,7 +152,7 @@ class Settings:
     ffmpeg_path: str = ""             # optional user-selected helper; empty = automatic lookup
     node_path: str = ""               # optional user-selected helper; empty = automatic lookup
     tidal_path: str = ""              # optional user-selected tiddl executable (Tidal helper); empty = automatic lookup
-    tidal_quality: str = "high"       # Tidal: low | normal | high | max (needs a Tidal subscription)
+    tidal_quality: str = "high"       # Tidal: normal | high | max (needs a Tidal subscription)
     tidal_threads: int = 2            # Tidal: parallel track downloads (kept low on purpose)
     tidal_video_quality: str = "fhd"  # Tidal videos: sd | hd | fhd
     tidal_videos: str = "allow"       # videos inside albums/playlists/artists: none (skip) | allow (include) | only
@@ -229,6 +229,8 @@ class Settings:
         self.ffmpeg_path = str(self.ffmpeg_path or "")[:1000]
         self.node_path = str(self.node_path or "")[:1000]
         self.tidal_path = str(self.tidal_path or "")[:1000]
+        if self.tidal_quality == "low":                  # AAC 96 kbps is gone (older settings)
+            self.tidal_quality = "normal"
         if self.tidal_quality not in TIDAL_QUALITIES:
             self.tidal_quality = "high"
         if self.tidal_video_quality not in TIDAL_VIDEO_QUALITIES:

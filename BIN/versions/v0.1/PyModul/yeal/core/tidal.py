@@ -20,9 +20,9 @@ from pathlib import Path
 from typing import Callable, List, Optional
 from urllib.parse import urlparse
 
-TIDAL_QUALITIES = ("low", "normal", "high", "max")   # tiddl: m4a 96 / m4a 320 / FLAC 16-bit / FLAC up to 24-bit
+TIDAL_QUALITIES = ("normal", "high", "max")   # tiddl: m4a 320 / FLAC 16-bit / FLAC up to 24-bit ("low", AAC 96, is gone)
 TIDAL_QUALITY_LABELS = {   # shown in the download options (same steps as Tidal's own audio quality setting)
-    "low": "Tidal Low (AAC 96 kbps)", "normal": "Tidal Normal (AAC 320 kbps)",
+    "normal": "Tidal Normal (AAC 320 kbps)",
     "high": "Tidal High (FLAC 16-bit / 44.1 kHz)", "max": "Tidal Max (FLAC up to 24-bit / 192 kHz)"}
 TIDAL_VIDEO_QUALITIES = ("sd", "hd", "fhd")           # tiddl --video-quality
 TIDAL_VIDEOS = ("none", "allow", "only")              # tiddl --videos: skip / include / only videos inside albums, playlists, artists
@@ -129,6 +129,7 @@ def build_command(exe: str, url: str, quality: str = "high", base_dir: str = "",
     tiddl skips videos by default (`--videos none`), even a direct video link: a link to a single video is therefore
     always downloaded with `allow`; for albums/playlists/artists the user's choice applies. `--singles` only matters
     for artist links and is only passed there."""
+    quality = "normal" if quality == "low" else quality     # saved by an older version
     quality = quality if quality in TIDAL_QUALITIES else "high"
     video_quality = video_quality if video_quality in TIDAL_VIDEO_QUALITIES else "fhd"
     videos = videos if videos in TIDAL_VIDEOS else "allow"

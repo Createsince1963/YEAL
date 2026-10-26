@@ -546,7 +546,7 @@ Flickable {
                 icon: "music"
                 summary: page.s.tidal_quality === "max" ? qsTr("Max (up to 24-bit, 192 kHz)")
                          : page.s.tidal_quality === "high" ? qsTr("High (16-bit, 44.1 kHz)")
-                         : page.s.tidal_quality === "normal" ? qsTr("Low (320 kbps)") : qsTr("Low (96 kbps)")
+                         : qsTr("Normal (AAC 320 kbps)")
                 hint: qsTr("The same choices as in the TIDAL app. Adaptive streaming does not apply to downloads: Yeal asks Tidal for exactly the quality chosen here (what your subscription offers is used; Max needs a HiFi Plus / Max plan).")
                 stacked: true
                 ColumnLayout {
@@ -556,15 +556,14 @@ Flickable {
                     readonly property string q: page.s.tidal_quality
                     Repeater {
                         model: [
-                            { id: "low", title: qsTr("Low"), sub: qsTr("Balance between audio quality and data use") },
+                            { id: "normal", title: qsTr("Normal"), sub: qsTr("AAC 320 kbps: balance between audio quality and data use") },
                             { id: "high", title: qsTr("High"), sub: qsTr("16-bit, 44.1 kHz (FLAC)") },
                             { id: "max", title: qsTr("Max"), sub: qsTr("Up to 24-bit, 192 kHz (FLAC)") }
                         ]
                         delegate: RowLayout {
                             id: qRow
                             required property var modelData
-                            readonly property bool on: modelData.id === "low"
-                                ? (qualityBox.q === "low" || qualityBox.q === "normal") : qualityBox.q === modelData.id
+                            readonly property bool on: qualityBox.q === modelData.id
                             Layout.fillWidth: true
                             spacing: Theme.s3
                             Item {
@@ -595,19 +594,11 @@ Flickable {
                                 }
                                 HoverHandler { cursorShape: Qt.PointingHandCursor }
                                 TapHandler {
-                                    onTapped: backend.setSetting("tidal_quality", qRow.modelData.id === "low"
-                                        ? (qualityBox.q === "normal" ? "normal" : "low") : qRow.modelData.id)
+                                    onTapped: backend.setSetting("tidal_quality", qRow.modelData.id)
                                 }
                                 Accessible.role: Accessible.RadioButton
                                 Accessible.name: qRow.modelData.title + ", " + qRow.modelData.sub
                                 Accessible.checked: qRow.on
-                            }
-                            Segmented {
-                                visible: qRow.modelData.id === "low" && qRow.on
-                                current: qualityBox.q === "normal" ? "normal" : "low"
-                                options: [{ text: "96 kbps", value: "low" }, { text: "320 kbps", value: "normal" }]
-                                Layout.preferredWidth: 200
-                                onActivated: (v) => backend.setSetting("tidal_quality", v)
                             }
                         }
                     }

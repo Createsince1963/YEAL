@@ -106,7 +106,7 @@ class DownloadOptions:
                                live, bool(self.playlist_dir), items,
                                self.html_create if self.html_create in ("server", "file", "both") else "both",
                                bool(self.single_playback),
-                               self.tidal_quality if self.tidal_quality in ("low", "normal", "high", "max") else "")
+                               ("normal" if self.tidal_quality == "low" else self.tidal_quality) if self.tidal_quality in ("low", "normal", "high", "max") else "")
 
 
 @dataclass

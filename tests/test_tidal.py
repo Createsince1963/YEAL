@@ -148,6 +148,7 @@ class SettingsTests(unittest.TestCase):
         s = Settings(tidal_quality="ultra", tidal_threads=99, tidal_path=None).validate()
         self.assertEqual((s.tidal_quality, s.tidal_threads, s.tidal_path), ("high", 4, ""))
         self.assertEqual(Settings(tidal_threads="x").validate().tidal_threads, 2)
+        self.assertEqual(Settings(tidal_quality="low").validate().tidal_quality, "normal")      # AAC 96 is gone
         v = Settings(tidal_video_quality="8k", tidal_videos="maybe").validate()
         self.assertEqual((v.tidal_video_quality, v.tidal_videos), ("fhd", "allow"))
         self.assertEqual((Settings().tidal_video_quality, Settings().tidal_videos), ("fhd", "allow"))

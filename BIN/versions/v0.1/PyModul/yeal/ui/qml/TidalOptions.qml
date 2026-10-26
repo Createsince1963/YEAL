@@ -15,7 +15,7 @@ ColumnLayout {
 
     readonly property var groups: [
         { key: "tidal_quality", caption: qsTr("Quality"), show: showQuality,
-          options: [{ text: qsTr("Low"), value: "low" }, { text: qsTr("Normal"), value: "normal" },
+          options: [{ text: qsTr("Normal (AAC 320)"), value: "normal" },
                     { text: qsTr("High (FLAC)"), value: "high" }, { text: qsTr("Max (Hi-Res)"), value: "max" }] },
         { key: "tidal_videos", caption: qsTr("Videos"), show: true,
           options: [{ text: qsTr("None"), value: "none" }, { text: qsTr("With videos"), value: "allow" },
