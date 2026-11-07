@@ -82,6 +82,28 @@ def apply_fallback(exc: BaseException, opts: dict, done: set) -> str:
     return ""
 
 
+_READABLE_BROWSERS: set = set()     # cookie browsers that were read successfully this session
+
+
+def probe_opts(opts: dict) -> dict:
+    """`opts` for a background probe (link check, playlist, tracklist): drops the browser login when that browser's
+    cookies cannot be read (Chrome / Edge lock them). Without this every probe printed the yt-dlp cookie error again."""
+    cb = opts.get("cookiesfrombrowser")
+    if not cb:
+        return opts
+    name = str(cb[0])
+    if name not in _UNREADABLE_BROWSERS and name not in _READABLE_BROWSERS:
+        try:
+            from yt_dlp.cookies import extract_cookies_from_browser
+            extract_cookies_from_browser(name)
+            _READABLE_BROWSERS.add(name)
+        except Exception:  # noqa: BLE001 - any failure: the browser login is not usable
+            _UNREADABLE_BROWSERS.add(name)
+    if name in _UNREADABLE_BROWSERS:
+        opts = {k: v for k, v in opts.items() if k != "cookiesfrombrowser"}
+    return opts
+
+
 COOKIE_NOTE_PREFIX = "The browser login could not be read"
 
 
@@ -565,6 +587,7 @@ class Engine:
             try:
                 from yt_dlp.cookies import extract_cookies_from_browser
                 extract_cookies_from_browser(str(cb[0]))
+                _READABLE_BROWSERS.add(str(cb[0]))
             except Exception:  # noqa: BLE001 - any failure: the browser login is not usable
                 _UNREADABLE_BROWSERS.add(str(cb[0]))
                 job.note = (job.note + "\n" if job.note else "") + (

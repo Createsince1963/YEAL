@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1.39
+- **Background probes no longer repeat the browser-cookie error:** link check, playlist list and tracklist detection (`Backend`) now call `engine.probe_opts()`, which tries to read the chosen browser's cookies once per session (Chrome / Edge lock them) and leaves `cookiesfrombrowser` out of the probe when that fails. The download itself is unchanged and also remembers readable browsers. The code was found uncommitted in the tree (written in a parallel session on 2026-10-28); it was reviewed, tested and committed here. Test: `tests/test_probe_opts.py`. No EXE built.
+
 ## 0.9.1.38
 - `Chip` caps its natural width at 200 px (long labels elide instead of widening a narrow card) - this also fixes `test_gui_clipping`, which failed at 0.9.1.37 in a clean checkout (a Chip of 240 px in the 230 px Settings card). The change was made by a parallel session and is committed here.
 - **`CLAUDE.md`** in the project root: rules of the owner, paths, test commands, technical facts, the current state and open points, and how to switch the Claude account (a new session reads this file instead of the personal memory). `docs/HANDOFF_TIDALGUI.md` has a summary of 0.9.1.19-0.9.1.38. No EXE built.

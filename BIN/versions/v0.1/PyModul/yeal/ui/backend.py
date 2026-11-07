@@ -755,8 +755,9 @@ class Backend(QObject):
 
         def work() -> None:
             try:
-                from ..core.engine import default_ydl_class
-                result = self._probe(url, self._engine._ydl_class or default_ydl_class(), opts)
+                from ..core.engine import default_ydl_class, probe_opts
+                o = opts if self._engine._ydl_class else probe_opts(opts)
+                result = self._probe(url, self._engine._ydl_class or default_ydl_class(), o)
             except Exception:  # noqa: BLE001
                 result = {}
             self._audioProbed.emit(url, result)
@@ -790,8 +791,9 @@ class Backend(QObject):
 
         def work() -> None:
             try:
-                from ..core.engine import default_ydl_class
-                result = audioprobe.probe_playlist(url, self._engine._ydl_class or default_ydl_class(), opts)
+                from ..core.engine import default_ydl_class, probe_opts
+                o = opts if self._engine._ydl_class else probe_opts(opts)
+                result = audioprobe.probe_playlist(url, self._engine._ydl_class or default_ydl_class(), o)
             except Exception:  # noqa: BLE001
                 result = {}
             self._playlistProbed.emit(url, result)
@@ -1200,8 +1202,9 @@ class Backend(QObject):
 
         def work() -> None:
             try:
-                from ..core.engine import default_ydl_class
-                result = self._probe(url, self._engine._ydl_class or default_ydl_class(), opts)
+                from ..core.engine import default_ydl_class, probe_opts
+                o = opts if self._engine._ydl_class else probe_opts(opts)
+                result = self._probe(url, self._engine._ydl_class or default_ydl_class(), o)
             except Exception:  # noqa: BLE001
                 result = {}
             self._tracklistProbed.emit(url, int((result or {}).get("chapters") or 0))
