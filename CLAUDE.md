@@ -1,8 +1,12 @@
 # Yeal / MediaOrbit - project notes for Claude Code (read this first)
 
+> **Mandatory structure policy:** read and follow [`PROJECT_STRUCTURE_POLICY.md`](PROJECT_STRUCTURE_POLICY.md) before cleanup,
+> release work, migrations, Git maintenance, or changes that can materially grow the repository. It contains Yeal's canonical
+> paths, warning thresholds, approval boundaries, cleanup tiers, build activation gate, and the latest measured size baseline.
+
 This file is the hand-over for a new session or a **different Claude account**: the project does not depend on the account; the
-session history and the personal memory do. Everything a new session needs is here and in `docs/HANDOFF_TIDALGUI.md`,
-`CHANGELOG.md`, `docs/VERSIONING.md`.
+session history and the personal memory do. Everything a new session needs is here and in `PROJECT_STRUCTURE_POLICY.md`,
+`docs/HANDOFF_TIDALGUI.md`, `CHANGELOG.md`, `docs/VERSIONING.md`.
 
 ## What it is
 Yeal: a Seal-style video / audio downloader (yt-dlp, TIDAL through tiddl) with its own players, written in Python + PySide6/QML for
@@ -59,13 +63,17 @@ the planets (Library, Queue, Played, Settings, Speaker, Sound, Folders ...) open
 - Cards of the sun view open on the side where their planet stands (`SunView.zoneOf`); cards with `edit: true` zoom for editing.
 
 ## State (update this when you finish something)
-- Version **0.9.1.40** (work in progress after pushed 0.9.1.39; Windows EXE rebuilt locally, no 0.9.1.40 commit/tag/push yet).
+- Version **0.9.1.41** (work in progress after local 0.9.1.40; second Windows EXE startup fix, no 0.9.1.41 commit/tag/push yet).
 - Done since 0.9.1.18: cards at their planets, Folders planet (own music folders, network), edit-mode zoom, drag library / albums /
   folders into the queue, Clear all + Save list, song lists above / below the player, TIDAL options as pulldowns, TIDAL Normal -> MP3 320,
   sound check + calibration, performance fixes, tiddl in the exe, login pack + cookie file, new logos (MediaOrbit mark, Yeal tile),
   password Show / Hide, oval glow without shadowBlur.
-- **Open / to verify by hand:** a long listening test with `YEAL_PERF=1` over Bluetooth; the new exe (tiddl inside, icon, logos) on a PC
-  without Python; hand test of the card zoom, the drag into the queue, the login pack on a second PC; numpy is not in the exe (own audio
+- **Windows EXE v0.9.1.41:** the folder build is the default (`dist\Yeal.exe` + `dist\bin`). Local real-window startup passed with
+  `Yeal UI ready`; Node, ffmpeg and the embedded tiddl helper (`auth --help`, exit 0) were verified. PyInstaller must reject DLLs from
+  `.cache\codex-runtimes` (foreign Poppler ICU caused the QtCore crash). Still verify the portable folder on a PC without Python.
+- **Open / to verify by hand:** a long listening test with `YEAL_PERF=1` over Bluetooth; hand test of the card zoom, the drag into the
+  queue, the login pack on a second PC; the SSDP scan worker may emit to a deleted Qt object during test teardown and needs a guarded
+  shutdown; numpy is not in the exe (own audio
   engine would fall back to Qt's player there); TIDAL Normal fetches a converted song again on a repeat download; rename of a folder in
   the Folders planet; rename of the app to MediaOrbit is NOT done (only logos); the MediaOrbit source picture is low resolution.
 

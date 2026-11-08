@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.1.41
+- **Second Windows EXE startup fix:** 0.9.1.40 fixed the missing `pkg_resources` import by bundling the complete setuptools tree, but the added native dependency graph made `PySide6.QtCore` fail to load on the real desktop (`ImportError: DLL load failed ... procedure not found`). Yeal does not use setuptools at runtime, so `Yeal.spec` now removes the unused setuptools/pkg_resources/distutils modules *and* PyInstaller's matching `pyi_rth_setuptools` / `pyi_rth_pkgres` startup hooks. This avoids both startup failures without pulling the unrelated build environment into the EXE.
+- **Folder build is now the default:** `dist\Yeal.exe` is only the small launcher; Python, Qt and the other runtime DLLs live in `dist\bin` together with ffmpeg and Node. This avoids one-file extraction/DLL collisions. The whole `dist` folder is the portable app and release packaging produces a ZIP, not a standalone EXE.
+- EXE builds set an isolated temporary `TIDDL_PATH` so PyInstaller can import and collect all `tiddl.cli` submodules without trying to create `~/.tiddl/latest.log` in the developer's profile.
+- Optional integrations found only because the shared build Python contains hundreds of packages (Django, Jupyter/ZMQ, database drivers, debugger/test and optional serializer modules) are explicitly excluded from the EXE.
+- The earlier 0.9.1.40 GUI smoke check was invalid: an open PyInstaller error dialog kept the process alive and was mistaken for a running app. The replacement check must verify the actual Yeal window/start log, not only process liveness.
+- Frozen builds now write `Yeal UI ready` only after QtCore, the backend and the real QML root loaded. The EXE smoke test uses this marker instead of mistaking a PyInstaller error dialog for a successful start.
+- Frozen diagnostics are initialized before importing PySide6, so early Qt DLL/import failures are captured in `yeal.log` instead of existing only as an error dialog.
+- **Root cause of the QtCore DLL crash fixed:** PyInstaller inherited Codex' host `PATH` and bundled unrelated ICU, OpenSSL and UCRT DLLs from Codex' Poppler/libheif runtime. In particular, the foreign `icuuc.dll`/`icudt78.dll` caused Windows status `0xc0000139` while importing QtCore. The spec now rejects every binary sourced from `.cache/codex-runtimes` and explicitly adds Python's own trusted OpenSSL DLLs.
+
 ## 0.9.1.40
 - **Windows EXE startup fixed:** `Yeal.spec` no longer removes `pkg_resources` after PyInstaller has added its `pyi_rth_pkgres` runtime hook. The previous combination built an EXE but made it fail before Yeal started with `ModuleNotFoundError: No module named 'pkg_resources'`.
 - **Safer EXE builds:** `Build_Yeal_Exe.bat` now builds into `build-next` / `dist-next` and replaces the normal output only after a successful build. An open old EXE can no longer leave `dist` half-deleted without `bin\ffmpeg.exe` and `bin\node.exe`.

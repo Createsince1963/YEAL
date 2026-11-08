@@ -9,6 +9,8 @@ and its feature set. Yeal is an independent, from-scratch implementation:
 
 Current version: see [`VERSION`](VERSION). Full history: [`CHANGELOG.md`](CHANGELOG.md).
 How versions are kept safe: [`docs/VERSIONING.md`](docs/VERSIONING.md).
+Repository size, artifact placement, cleanup approvals, and build activation rules:
+[`PROJECT_STRUCTURE_POLICY.md`](PROJECT_STRUCTURE_POLICY.md).
 
 User manuals: [Deutsch](help/manual-de.html) · [English](help/manual-en.html) · [Help index](help/README.md)
 
@@ -127,7 +129,7 @@ are discarded, so they cannot replace the newly selected video.
 ```
 Run_Yeal.bat           start the app
 Test_Yeal.bat          run all tests
-Build_Yeal_Exe.bat     PyInstaller build -> dist\Yeal.exe (ffmpeg + node copied to dist\bin)
+Build_Yeal_Exe.bat     PyInstaller build -> dist\Yeal.exe + runtime/ffmpeg/node in dist\bin
 Build_Yeal_Exe.bat slim    same, without Qt's bundled FFmpeg (about 8 MB smaller, see CHANGELOG 0.8.11)
 Build_Yeal_Exe.bat embed   ffmpeg + node packed inside the exe (about 100 MB bigger)
 ```

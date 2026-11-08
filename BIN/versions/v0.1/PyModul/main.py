@@ -102,12 +102,17 @@ def main() -> int:
     if "--calibrate" in sys.argv:           # the sound check of Settings runs as a separate process (the player keeps playing / stays free)
         from yeal.ui import calibration
         return calibration.main(sys.argv[sys.argv.index("--calibrate") + 1:])
+    # Start frozen diagnostics before importing Qt. Import/DLL failures are
+    # otherwise shown only in a PyInstaller dialog and leave no useful log.
+    from yeal import __version__, platforms
+    ctx = platforms.detect()
+    _setup_diagnostics(ctx.data_dir)
+
     from PySide6.QtCore import QCoreApplication, QUrl
     from PySide6.QtGui import QGuiApplication, QIcon
     from PySide6.QtQml import QQmlApplicationEngine
     from PySide6.QtQuickControls2 import QQuickStyle
 
-    from yeal import __version__, platforms
     from yeal.ui.backend import Backend
 
     QCoreApplication.setOrganizationName("Yeal")
@@ -115,8 +120,6 @@ def main() -> int:
     QCoreApplication.setApplicationVersion(__version__)
     QQuickStyle.setStyle("Basic")
 
-    ctx = platforms.detect()
-    _setup_diagnostics(ctx.data_dir)
     if ctx.name == "windows":   # embedded YouTube browser: system WebView2, profile kept in the data folder
         import os
         marker = ctx.data_dir / "wipe_browser_profile"
@@ -171,6 +174,10 @@ def main() -> int:
     if not engine.rootObjects():
         print("QML load failed: no root object (see [qt] lines above)", flush=True)
         return 1
+    # Frozen builds redirect stdout/stderr into yeal.log.  This marker proves
+    # that QtCore, the backend and the real QML root loaded successfully; a
+    # merely running process can also be PyInstaller's error dialog.
+    print("Yeal UI ready", flush=True)
 
     if ctx.name == "windows":
         try:

@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec for Yeal: ONE small portable file. Only what the app really uses is packed:
+# PyInstaller spec for Yeal: a small launcher plus its runtime in dist\bin. Only what the app really uses is packed:
 # unused Qt modules / QML modules / Qt plugins / translations and unrelated Python packages
 # (the central WinPython has hundreds) are removed.
 #   YEAL_EMBED_TOOLS=1  -> also pack ffmpeg.exe + node.exe inside (big: ~100 MB more)
@@ -8,6 +8,7 @@
 #   otherwise           -> they are looked up in "bin\" next to the exe (copied there by the .bat)
 import os
 import re
+import sys
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
@@ -25,6 +26,10 @@ EXCLUDES = [
     "tkinter", "_tkinter", "unittest", "doctest", "pydoc", "pdb", "lib2to3", "pip", "wheel", "test", "tests", "idlelib", "turtle", "curses",
     "numpy", "scipy", "pandas", "matplotlib", "PIL", "cv2", "IPython", "jupyter", "notebook", "pytest",
     "cryptography", "Cryptodome", "chardet", "sphinx", "docutils", "jedi", "black", "cython", "Cython", "numba", "sympy", "sqlalchemy",
+    # optional integrations discovered through the very large central Python environment; Yeal/tiddl do not use them
+    "django", "zmq", "psycopg", "psycopg2", "mypy", "pydevd", "debugpy", "jupyter_client", "jupyter_core",
+    "traitlets", "cloudpickle", "hypothesis", "bson", "cbor2", "msgpack", "msgspec", "orjson", "ujson", "yaml",
+    "pythoncom", "pywintypes", "win32com", "win32ctypes",
     "PyQt5", "PyQt6", "PySide2", "shiboken2", "shiboken6.Shiboken_Qt6",
     # tools of the central WinPython that the app never imports (found in the exe's module list)
     "werkzeug", "flask", "watchdog", "pyreadline3", "_pyrepl", "pydoc_data",
@@ -129,22 +134,50 @@ a = Analysis(
     excludes=EXCLUDES,
     noarchive=False,
 )
-# Keep setuptools/pkg_resources when PyInstaller detects them. Its pyi_rth_pkgres runtime hook imports
-# pkg_resources before Yeal starts; removing the module here produced an exe that built successfully but
-# failed immediately with "No module named 'pkg_resources'".
-a.binaries = [b for b in a.binaries if keep(b)]
+# Yeal does not use setuptools/pkg_resources/distutils. PyInstaller adds those modules and two matching
+# runtime hooks indirectly while analysing the build environment. Keeping the whole tree also pulls unrelated
+# native packages into the one-file executable and can make QtCore load an incompatible DLL. Remove both the
+# unused modules and the hooks that would otherwise import them before Yeal starts.
+_UNNEEDED = ("setuptools", "pkg_resources", "_distutils_hack", "distutils")
+a.pure = [m for m in a.pure if m[0].split(".")[0] not in _UNNEEDED]
+a.datas = [d for d in a.datas if str(d[0]).replace("\\", "/").split("/")[0] not in _UNNEEDED]
+a.scripts = [s for s in a.scripts if s[0] not in ("pyi_rth_setuptools", "pyi_rth_pkgres")]
+# Never package DLLs found through Codex' own document/PDF runtime. Its Poppler
+# ICU/OpenSSL and libheif UCRT copies are unrelated to Yeal and can shadow the
+# versions expected by Qt/Python (QtCore then fails with status 0xc0000139).
+def is_foreign_runtime(entry) -> bool:
+    source = str(entry[1]).replace("\\", "/").lower()
+    return "/.cache/codex-runtimes/" in source
+
+
+a.binaries = [b for b in a.binaries if keep(b) and not is_foreign_runtime(b)]
+# Python's own trusted OpenSSL DLLs are required by _ssl and Qt's TLS backend.
+# Add them explicitly because the polluted parent PATH made PyInstaller choose
+# Poppler's incompatible copies before the Python installation.
+python_dlls = Path(sys.executable).resolve().parent / "DLLs"
+for dll_name in ("libcrypto-3-x64.dll", "libssl-3-x64.dll"):
+    dll = python_dlls / dll_name
+    if dll.is_file():
+        a.binaries.append((dll_name, str(dll), "BINARY"))
 if not any(str(b[0]).replace("\\", "/").lower().endswith("plugins/webview/qtwebview_webview2.dll") for b in a.binaries):
     raise SystemExit("Build stopped: the WebView2 plugin was filtered out of the bundle (check DROP / keep() in Yeal.spec).")
 a.datas = [d for d in a.datas if keep(d)]
 
 pyz = PYZ(a.pure)
 exe = EXE(
-    pyz, a.scripts, a.binaries, a.datas, [],
+    pyz, a.scripts, [],
     name="Yeal",
     icon=str(ROOT / "docs" / "Logo.ico"),
+    exclude_binaries=True,
+    contents_directory="bin",
     debug=False,
     strip=False,
     upx=False,          # UPX triggers antivirus false positives and slows start-up
     console=False,
-    runtime_tmpdir=None,
+)
+coll = COLLECT(
+    exe, a.binaries, a.datas,
+    name="Yeal",
+    strip=False,
+    upx=False,
 )

@@ -2,6 +2,11 @@ __pycache__/
 *.pyc
 build/
 dist/
+build-next/
+dist-next/
+dist-old/
+.test-tmp/
+BIN/versions/latest-cloud-build/
 *.spec
 .venv*/
 data/
