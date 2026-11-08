@@ -1,0 +1,84 @@
+# Yeal APK build via pyside6-android-deploy on a Linux runner.
+# Lives in ci/ because Claude's remote tools cannot write to .github/. Copy it to
+# .github/workflows/build-apk.yml in the git repo (do NOT use the central Setup-CloudBuild.ps1
+# template copy for this project: it targets Vacation-Finder paths/names).
+# Adapted from Tools_Central\pyside6-android-deploy\workflow-template\build-apk.yml
+# (keep the SDK-license / sdkmanager workarounds in sync with that canonical file).
+#
+# STATUS: first Yeal run still pending. Expect to iterate - append every finding to
+# Tools_Central\pyside6-android-deploy\TROUBLESHOOTING.md.
+# Per Tools_Central APK_BUILD_STANDARD: only trigger this on an explicit request.
+
+name: Build Yeal APK
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"      # must match the cp311 Android wheels below
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Pre-accept Android SDK licenses for buildozer's own SDK copy
+        run: |
+          mkdir -p "$HOME/.buildozer/android/platform/android-sdk/licenses"
+          cp -r "$ANDROID_HOME/licenses/." "$HOME/.buildozer/android/platform/android-sdk/licenses/"
+
+      - name: Create legacy tools/bin/sdkmanager symlink for buildozer
+        run: |
+          mkdir -p "$ANDROID_HOME/tools/bin"
+          SDKMGR=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -type f -name sdkmanager | sort -V | tail -1)
+          [ -n "$SDKMGR" ] || { echo "::error::No sdkmanager found"; exit 1; }
+          ln -sf "$SDKMGR" "$ANDROID_HOME/tools/bin/sdkmanager"
+
+      - name: Install Linux build dependencies for python-for-android
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool libltdl-dev pkg-config \
+            zlib1g-dev libncurses5-dev libffi-dev build-essential ccache unzip
+
+      - name: Install PySide6 + pyside6-android-deploy (inside a venv)
+        run: |
+          python -m venv "$GITHUB_WORKSPACE/.venv-android-build"
+          source "$GITHUB_WORKSPACE/.venv-android-build/bin/activate"
+          python -m pip install --upgrade pip
+          python -m pip install PySide6==6.11.0
+          python -m pip install -r "$(python -c "import PySide6, os; print(os.path.join(os.path.dirname(PySide6.__file__), 'scripts', 'requirements-android.txt'))")"
+
+      - name: Download PySide6 Android wheels
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/android-wheels"
+          curl -fL -o "$GITHUB_WORKSPACE/android-wheels/pyside6-android_aarch64.whl" \
+            "https://download.qt.io/official_releases/QtForPython/pyside6/pyside6-6.11.0-6.11.0-cp311-cp311-android_aarch64.whl"
+          curl -fL -o "$GITHUB_WORKSPACE/android-wheels/shiboken6-android_aarch64.whl" \
+            "https://download.qt.io/official_releases/QtForPython/shiboken6/shiboken6-6.11.0-6.11.0-cp311-cp311-android_aarch64.whl"
+
+      - name: Build APK
+        working-directory: BIN/versions/v0.1/PyModul
+        run: |
+          source "$GITHUB_WORKSPACE/.venv-android-build/bin/activate"
+          pip install yt-dlp          # pure Python; lets the deploy tool detect and bundle it
+          pyside6-android-deploy --name "Yeal" \
+            --wheel-pyside="$GITHUB_WORKSPACE/android-wheels/pyside6-android_aarch64.whl" \
+            --wheel-shiboken="$GITHUB_WORKSPACE/android-wheels/shiboken6-android_aarch64.whl" \
+            --sdk-path="$ANDROID_HOME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yeal-apk
+          path: BIN/versions/v0.1/PyModul/**/*.apk
+          if-no-files-found: error
