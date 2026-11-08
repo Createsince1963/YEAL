@@ -28,7 +28,14 @@ Debug-signed test builds only; a release needs its own keystore (`New-ReleaseKey
 | Download folder chooser | Hidden on Android (the system dialog returns `content://` URIs, not paths). | SAF/MediaStore support. |
 | QML files on device | Loaded from the file system next to `main.py`. | Confirm the deploy tool packages `*.qml` (listed in `pyproject.toml`). |
 
-## First on-device checklist
+## First on-device result (2026-11-08)
+
+- Cloud run `42453196047` completed and produced an arm64 debug APK.
+- Manifest inspection: `minSdk=21`, `compileSdk=31`, `targetSdk=31`, including `INTERNET`; Play Protect blocked it as an app for an older Android version.
+- After installation the app closed immediately. The exact exception is pending an authorized USB-debugging/`adb logcat` capture (KI-022).
+- The workflow now forces and verifies API 36 for the next build; that removes the old-target warning but is not assumed to fix the separate runtime crash.
+
+## On-device checklist
 
 1. App starts, UI is usable at phone width.
 2. Direct mp4 link downloads and lands in the reported folder.

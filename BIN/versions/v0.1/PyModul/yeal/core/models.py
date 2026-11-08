@@ -51,7 +51,7 @@ class DownloadOptions:
     playlist: bool = False
     save_description: bool = False  # description.html next to the file
     save_transcript: bool = False   # transcript.txt from subtitles
-    online_player: bool = False     # the html page also embeds the online player (YouTube/Vimeo)
+    online_player: bool = False     # the html page also embeds the online YouTube player
     split_chapters: bool = False    # also save every track in an album folder + playlist
     html_theme: str = "auto"        # "light" | "dark" = app theme when the job was created; "auto" = follow the browser
     rate_limit_kbps: int = 0       # 0 = unlimited

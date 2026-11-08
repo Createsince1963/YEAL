@@ -5,7 +5,8 @@
 # Adapted from Tools_Central\pyside6-android-deploy\workflow-template\build-apk.yml
 # (keep the SDK-license / sdkmanager workarounds in sync with that canonical file).
 #
-# STATUS: first Yeal run still pending. Expect to iterate - append every finding to
+# STATUS: first Yeal run 42453196047 built an APK, but its generated manifest targeted API 31 and the app
+# closed immediately on the first test device. Expect to iterate - append every finding to
 # Tools_Central\pyside6-android-deploy\TROUBLESHOOTING.md.
 # Per Tools_Central APK_BUILD_STANDARD: only trigger this on an explicit request.
 
@@ -24,14 +25,14 @@ jobs:
         with:
           python-version: "3.11"      # must match the cp311 Android wheels below
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - uses: android-actions/setup-android@v3
         with:
-          packages: platform-tools
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
 
       - name: Pre-accept Android SDK licenses for buildozer's own SDK copy
         run: |
@@ -59,6 +60,13 @@ jobs:
           python -m pip install PySide6==6.11.0
           python -m pip install -r "$(python -c "import PySide6, os; print(os.path.join(os.path.dirname(PySide6.__file__), 'scripts', 'requirements-android.txt'))")"
 
+      - name: Target current Android API
+        run: |
+          source "$GITHUB_WORKSPACE/.venv-android-build/bin/activate"
+          BUILDOZER_ANDROID=$(python -c "import buildozer.targets.android as m; print(m.__file__)")
+          sed -i "s/^ANDROID_API = .*/ANDROID_API = '36'/" "$BUILDOZER_ANDROID"
+          grep -q "^ANDROID_API = '36'$" "$BUILDOZER_ANDROID" || { echo "::error::Could not set Buildozer target API 36"; exit 1; }
+
       - name: Download PySide6 Android wheels
         run: |
           mkdir -p "$GITHUB_WORKSPACE/android-wheels"
@@ -76,6 +84,11 @@ jobs:
             --wheel-pyside="$GITHUB_WORKSPACE/android-wheels/pyside6-android_aarch64.whl" \
             --wheel-shiboken="$GITHUB_WORKSPACE/android-wheels/shiboken6-android_aarch64.whl" \
             --sdk-path="$ANDROID_HOME"
+
+          APK=$(find . -type f -name '*.apk' | head -1)
+          [ -n "$APK" ] || { echo "::error::pyside6-android-deploy produced no APK"; exit 1; }
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | tee apk-badging.txt
+          grep -q "targetSdkVersion:'36'" apk-badging.txt || { echo "::error::APK does not target API 36"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:

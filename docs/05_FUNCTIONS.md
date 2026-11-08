@@ -34,7 +34,7 @@ Tests refer to files in `tests\` ([14_TEST_STRATEGY.md](14_TEST_STRATEGY.md)). S
   "edit MP3 tags?" prompt default No (`ask_mp3_tags`). Tests: `test_lyrics.py`, `test_mp3tags.py`.
 
 ## F-07 HTML player page
-- Local file player plus optional online player (`embed_url`: YouTube and Vimeo in code; Vimeo to be removed, D-020); `html_open_mode` file (default per README) or server (`core/localserve.py`, 127.0.0.1,
+- Local file player plus optional online YouTube player (`embed_url`; Vimeo removed in 0.9.1.40, D-020); `html_open_mode` file or server (`core/localserve.py`, 127.0.0.1,
   only that folder, no listing). `html_create` server|file|both (settings default "both"). Test: `test_album_page.py`.
 - **Note:** README says "Open page" defaults to the independent file, `Settings.html_open_mode` default is "server" -> contradiction C-04 in [12_PROJECT_STATE.md](12_PROJECT_STATE.md).
 

@@ -159,7 +159,7 @@ Popup {
                               hint: qsTr("If the video has one. Links are clickable.")
                               AppSwitch { id: descSwitch } }
                 SettingsRow { stacked: false; label: qsTr("Online player in the HTML page")
-                              hint: qsTr("YouTube/Vimeo player like on the site (needs internet). The HTML page follows the app theme.")
+                              hint: qsTr("YouTube player like on the site (needs internet). The HTML page follows the app theme.")
                               AppSwitch { id: playerSwitch } }
                 SettingsRow { stacked: true; label: qsTr("Album (tracklist in the description)")
                               hint: qsTr("Whole = one file with track markers. Tracks = one file per song in its own folder, named and tagged from the tracklist, plus a playlist. Both = keep the full file too.")

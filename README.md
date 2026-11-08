@@ -74,7 +74,7 @@ User manuals: [Deutsch](help/manual-de.html) Â· [English](help/manual-en.html) Â
 - **Lyrics**: looked up online (LRCLIB, no key) or taken from captions; saved as TXT and timed LRC, written into MP3/M4A tags
   (SRT for video) and shown highlighted and clickable in the HTML page.
 - **Description (HTML, clickable links) and transcript (TXT)**, named like the video.
-- **HTML page with player**: local file player plus optional online player (YouTube / Vimeo); timestamps of tracklists jump in the player.
+- **HTML page with player**: local file player plus optional online YouTube player; timestamps of tracklists jump in the player.
   "Open page" serves the page on 127.0.0.1 by default so the embedded online player works; the independent local file (no server) is the alternative.
 - Cover image and metadata embedded (needs ffmpeg).
 

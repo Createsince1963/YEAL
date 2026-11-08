@@ -34,15 +34,13 @@ def _linkify(escaped: str) -> str:
 
 
 def embed_url(info: dict) -> str:
-    """Official embeddable player URL for sites that offer one (YouTube, Vimeo), else ''."""
+    """Return the official YouTube embed URL, or an empty string for every other site."""
     vid = str(info.get("id") or "")
     site = str(info.get("extractor_key") or info.get("extractor") or "").lower()
     if info.get("playable_in_embed") is False:      # the owner (often label / VEVO videos) forbids embedding
         return ""
     if site.startswith("youtube") and re.fullmatch(r"[\w-]{11}", vid):
         return f"https://www.youtube-nocookie.com/embed/{vid}"
-    if site == "vimeo" and vid.isdigit():
-        return f"https://player.vimeo.com/video/{vid}"
     return ""
 
 

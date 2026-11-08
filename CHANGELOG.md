@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1.40
+- **Windows EXE startup fixed:** `Yeal.spec` no longer removes `pkg_resources` after PyInstaller has added its `pyi_rth_pkgres` runtime hook. The previous combination built an EXE but made it fail before Yeal started with `ModuleNotFoundError: No module named 'pkg_resources'`.
+- **Safer EXE builds:** `Build_Yeal_Exe.bat` now builds into `build-next` / `dist-next` and replaces the normal output only after a successful build. An open old EXE can no longer leave `dist` half-deleted without `bin\ffmpeg.exe` and `bin\node.exe`.
+- **Vimeo embedding removed:** HTML description pages now embed YouTube only; the Vimeo branch, model comment, profile hint and README reference are gone. A regression test verifies that Vimeo metadata produces no iframe.
+- Removed the temporary `--selftest`/`testSuspend` timers from `WebPane.qml`; dialog suspension now depends only on the real `suspended` property.
+- Cloud APK build `42453196047` for 0.9.1.39 completed successfully; device testing is in progress. The APK predates these 0.9.1.40 changes.
+- **Android target updated:** inspection of that APK showed `compileSdkVersion=31` / `targetSdkVersion=31`, which triggered Play Protect's old-Android warning. The cloud workflow now installs API/build-tools 36, forces Buildozer's target fallback to 36 and verifies the finished APK with `aapt`; `setup-java` is updated to v5. The first APK also closes immediately after installation; its separate runtime exception still needs an authorized `adb logcat` capture (KI-022).
+
 ## 0.9.1.39
 - **Background probes no longer repeat the browser-cookie error:** link check, playlist list and tracklist detection (`Backend`) now call `engine.probe_opts()`, which tries to read the chosen browser's cookies once per session (Chrome / Edge lock them) and leaves `cookiesfrombrowser` out of the probe when that fails. The download itself is unchanged and also remembers readable browsers. The code was found uncommitted in the tree (written in a parallel session on 2026-10-28); it was reviewed, tested and committed here. Test: `tests/test_probe_opts.py`. No EXE built.
 

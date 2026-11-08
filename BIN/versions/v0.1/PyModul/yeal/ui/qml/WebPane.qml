@@ -18,7 +18,7 @@ Item {
     // repeatedly the view is re-created (rebuild) and lastUrl brings the user back to the page.
     readonly property var wv: webHost.item
     property string lastUrl: ""
-    readonly property bool hidden: suspended || testSuspend
+    readonly property bool hidden: suspended
     property bool rebuilding: false
     property int pad: 1
     property int fixTries: 0
@@ -48,10 +48,6 @@ Item {
     }
     onHiddenChanged: if (!hidden) relayout()
 
-    // TEST HOOK (remove after testing): with --selftest a dialog is simulated 8-11 s after start.
-    property bool testSuspend: false
-    Timer { interval: 8000; running: Qt.application.arguments.indexOf("--selftest") >= 0; onTriggered: pane.testSuspend = true }
-    Timer { interval: 11000; running: Qt.application.arguments.indexOf("--selftest") >= 0; onTriggered: pane.testSuspend = false }
     function run(js, cb) {
         if (!wv) return
         if (cb) wv.runJavaScript(js, cb)

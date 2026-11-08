@@ -129,11 +129,9 @@ a = Analysis(
     excludes=EXCLUDES,
     noarchive=False,
 )
-# setuptools / pkg_resources / distutils cannot be excluded by name (a PyInstaller hook aliases them and
-# fails on the central WinPython) - they are removed after the analysis instead.
-_UNNEEDED = ("setuptools", "pkg_resources", "_distutils_hack", "distutils")
-a.pure = [m for m in a.pure if not m[0].split(".")[0] in _UNNEEDED]
-a.datas = [d for d in a.datas if not str(d[0]).replace("\\", "/").split("/")[0] in _UNNEEDED]
+# Keep setuptools/pkg_resources when PyInstaller detects them. Its pyi_rth_pkgres runtime hook imports
+# pkg_resources before Yeal starts; removing the module here produced an exe that built successfully but
+# failed immediately with "No module named 'pkg_resources'".
 a.binaries = [b for b in a.binaries if keep(b)]
 if not any(str(b[0]).replace("\\", "/").lower().endswith("plugins/webview/qtwebview_webview2.dll") for b in a.binaries):
     raise SystemExit("Build stopped: the WebView2 plugin was filtered out of the bundle (check DROP / keep() in Yeal.spec).")

@@ -12,7 +12,7 @@ Status: collected 2026-11-07 from CLAUDE.md, HANDOFF_TIDALGUI.md, REVIEW_AND_TOD
 | KI-004 | TIDAL Normal repeat download fetches an already converted song again (tiddl only knows the `.m4a` name) | CHANGELOG 0.9.1.24/26 | open |
 | KI-005 | numpy is not in the exe -> own audio engine falls back to Qt's player | CLAUDE.md | open, decision needed |
 | KI-006 | Album `.m3u8` unreadable in VLC (cause not confirmed; suspects: path > 260 chars, parser quirks) | REVIEW_AND_TODO 3 | open |
-| KI-007 | `--selftest` test hook (`testSuspend` timers) still in `WebPane.qml` ("remove after testing") | REVIEW_AND_TODO 4; file checked 2026-11-07 | open |
+| KI-007 | `--selftest` test hook (`testSuspend` timers) remained in `WebPane.qml` | REVIEW_AND_TODO 4 | closed in 0.9.1.40 |
 | KI-008 | Logo placeholder before the first page load (0.8.6) missing; conflicts with the Loader approach | REVIEW_AND_TODO 5 | open |
 | KI-009 | Rename of the app to MediaOrbit not done (only logos); MediaOrbit source picture is low resolution | CLAUDE.md | open |
 | KI-010 | Folders planet: no rename of a folder (field exists only when adding); saved lists have no own edit list; TIDAL library not draggable as "folder" | HANDOFF 0.9.1.19 | open |
@@ -27,6 +27,7 @@ Status: collected 2026-11-07 from CLAUDE.md, HANDOFF_TIDALGUI.md, REVIEW_AND_TOD
 | KI-019 | Source of versions 0.1.0-0.8.8 not recoverable | REVIEW_AND_TODO | closed (accepted loss) |
 | KI-020 | RESOLVED 2026-11-07: the uncommitted `probe_opts` edit was reviewed, tested (`test_probe_opts`) and committed as 0.9.1.39 (local tag, not pushed) | git history | closed |
 | KI-021 | Untracked files: `docs/m2-res_480p/`, `docs/optional/m2-res_480p.mp4`, a YouTube logo PNG in `docs/optional/` (concept video of another community; per PLAN_PLAYER_TRACK "not ours to redistribute", must stay untracked) | `git status`, PLAN_PLAYER_TRACK | open: keep out of git |
+| KI-022 | First cloud APK builds and installs after bypassing Play Protect's old-target warning, but closes immediately on the test device. Exact Android exception still needs `adb logcat`; device not yet authorized for USB debugging. | device test 2026-11-08 | open |
 
 ## Technical debt
 - `ui/backend.py` (2133 lines, 102 slots) and `ui/tidal_backend.py` (1248 lines) are large; the protocol forbids refactoring as a side effect - only on a separate owner task.

@@ -59,7 +59,7 @@ the planets (Library, Queue, Played, Settings, Speaker, Sound, Folders ...) open
 - Cards of the sun view open on the side where their planet stands (`SunView.zoneOf`); cards with `edit: true` zoom for editing.
 
 ## State (update this when you finish something)
-- Version **0.9.1.38** (local commits + tags `v0.9.1.19` ... `v0.9.1.38`, nothing pushed, no EXE since 0.9.1.06).
+- Version **0.9.1.40** (work in progress after pushed 0.9.1.39; Windows EXE rebuilt locally, no 0.9.1.40 commit/tag/push yet).
 - Done since 0.9.1.18: cards at their planets, Folders planet (own music folders, network), edit-mode zoom, drag library / albums /
   folders into the queue, Clear all + Save list, song lists above / below the player, TIDAL options as pulldowns, TIDAL Normal -> MP3 320,
   sound check + calibration, performance fixes, tiddl in the exe, login pack + cookie file, new logos (MediaOrbit mark, Yeal tile),

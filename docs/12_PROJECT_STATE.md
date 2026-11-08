@@ -30,7 +30,7 @@ None recorded. Next step requires owner priority (see Q-12).
 ## Contradictions found (C) - not resolved, no rule was invented
 | ID | Contradiction | Where |
 |---|---|---|
-| C-01 | **RESOLVED 2026-11-07 by owner (Q-01): Vimeo is removed.** Code removal still pending as its own task (not part of the initialisation). Was: memory says embedded players are YouTube and TIDAL only, no Vimeo; code supports a Vimeo embed (`extras.embed_url`) and README/ProfileEditor say "YouTube/Vimeo" for the online player of HTML pages | memory vs `core/extras.py`, README, `ProfileEditor.qml` |
+| C-01 | **RESOLVED:** Vimeo removal was approved 2026-11-07 and implemented in 0.9.1.40 (`extras.embed_url`, README and ProfileEditor now describe YouTube only). | D-020, OR-011 |
 | C-02 | Versioning: `docs/VERSIONING.md` and REVIEW_AND_TODO say "commit, tag, push branch and tags for every release"; OR-002 says interim versions are never pushed (only owner-named versions) | VERSIONING.md vs CLAUDE.md |
 | C-03 | `Test_Yeal.bat` is "run all tests" (discover) but a full run crashes; the rule is one file at a time | bat vs CLAUDE.md |
 | C-04 | RESOLVED (Q-06): both modes stay, default server, README corrected. Was: HTML "Open page" default: README says the independent local file is the default; `Settings.html_open_mode` default is `"server"`; memory says "default server page + link to the file version" | README vs `core/settings.py` |
@@ -44,7 +44,7 @@ None recorded. Next step requires owner priority (see Q-12).
 ## Open owner decisions / questions (Q)
 | ID | Question | Default if the owner does not answer |
 |---|---|---|
-| Q-01 | ~~Vimeo as online player in HTML pages~~ ANSWERED 2026-11-07: **remove** (D-020, OR-011). Code change pending approval of a work order | - |
+| Q-01 | ~~Vimeo as online player in HTML pages~~ ANSWERED 2026-11-07: **remove** (D-020, OR-011); implemented in 0.9.1.40 | - |
 | Q-02 | ~~Update `docs/VERSIONING.md`~~ ANSWERED 2026-11-07: done, file now states OR-002 (C-02 resolved) | - |
 | Q-03 | ~~Offscreen QML tests = "GUI tests"? `Test_Yeal.bat` loop?~~ ANSWERED 2026-11-07 (closed with the default): the three standard offscreen suites (`test_gui_clipping`, `test_qml_smoke`, `test_tidal_gui_qml`) run after card/button changes as CLAUDE.md says, no extra release needed; `Test_Yeal.bat` stays unchanged (C-03 remains a documented known issue KI-001, C-09 resolved) | - |
 | Q-04 | ANSWERED 2026-11-07: keep and finish properly -> done as 0.9.1.39 (snapshot, test, changelog, local commit d37438f + tag, no push) | - |

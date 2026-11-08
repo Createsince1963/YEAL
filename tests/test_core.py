@@ -110,6 +110,12 @@ class HtmlExtrasTests(unittest.TestCase):
         self.assertIn('src="a.mp3"', page)
         self.assertNotIn("youtube-nocookie", extras.description_html(self.INFO, "a.mp3", "audio"))
 
+    def test_online_player_rejects_vimeo(self):
+        from yeal.core import extras
+        info = {"id": "123456789", "extractor_key": "Vimeo", "webpage_url": "https://vimeo.com/123456789"}
+        self.assertEqual(extras.embed_url(info), "")
+        self.assertNotIn("<iframe", extras.description_html(info, "a.mp4", online_player=True))
+
     def test_other_sites_get_no_embed(self):
         from yeal.core import extras
         info = dict(self.INFO, extractor_key="Generic")
